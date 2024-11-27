@@ -13,6 +13,51 @@ logger = setup_logger()
 # 内存跟踪
 tracemalloc.start()
 
+import asyncio
+from telethon.tl.types import Channel, Chat, User
+
+
+async def serialize_chat(chat):
+    if not chat:
+        return None
+    chat_type = None
+    if isinstance(chat, Channel):
+        chat_type = "channel"
+    elif isinstance(chat, Chat):
+        chat_type = "group"
+    elif isinstance(chat, User):
+        chat_type = "private"
+    return {
+        'id': chat.id,
+        'type': chat_type,
+        'title': chat.title if hasattr(chat, 'title') else None,
+        'username': chat.username if hasattr(chat, 'username') else None
+    }
+
+
+async def serialize_sender(sender):
+    if not sender:
+        return None
+    return {
+        'id': sender.id,
+        'username': sender.username if hasattr(sender, 'username') else None
+    }
+
+
+async def serialize_message(message):
+    chat_future = message.get_chat()
+    sender_future = message.get_sender()
+    chat, sender = await asyncio.gather(chat_future, sender_future)
+    return {
+        'id': f"{chat.id}-{message.id}" if chat else None,
+        'chat': await serialize_chat(chat),
+        'date': message.date.isoformat() if message.date else None,
+        'text': message.text if hasattr(message, 'message') else message.caption if hasattr(message,
+                                                                                            'caption') else None,
+        'from_user': await serialize_sender(sender),
+        # 'raw': str(message)
+    }
+
 
 class TelegramUserBot:
     def __init__(self, MeiliClient):
@@ -69,42 +114,19 @@ class TelegramUserBot:
             except Exception as e:
                 logger.error(f"Error processing message: {str(e)}")
 
-    @staticmethod
-    async def serialize_message(message):
-        # 假设 serialize_message 是你的异步序列化函数
-        chat = await message.get_chat()
-        sender = await message.get_sender()
-        return {
-            'id': f"{chat.id}-{message.id}",
-            'chat': {
-                'id': getattr(chat, 'id', None),
-                'type': None,
-                'title': getattr(chat, 'title', None),
-                'username': getattr(chat, 'username', None)
-            } if chat else None,
-            'date': message.date.isoformat() if message.date else None,
-            'text': getattr(message, 'message', None) or getattr(message, 'caption', None),
-            'from_user': {
-                'id': getattr(sender, 'id', None),
-                'username': getattr(sender, 'username', None)
-            } if sender else None,
-            "raw": str(message)
-        }
-
     async def _process_message(self, message: Message):
         """处理新消息"""
         try:
             # 消息处理逻辑
             if message.text:
                 logger.info(f"Received message: {message.text[:100] if message.text else message.caption}")
-                logger.info(message)
                 # 缓存消息
                 await self._cache_message(message)
         except Exception as e:
             logger.error(f"Error in message processing: {str(e)}")
 
     async def _cache_message(self, message: Message):
-        result = self.meili.add_documents([await self.serialize_message(message)])
+        result = self.meili.add_documents([await serialize_message(message)])
         # logger.info(f"Successfully added 1 documents to index 'telegram")
         logger.info(result)
 
@@ -126,7 +148,7 @@ class TelegramUserBot:
                     reverse=True,
                     wait_time=1.4  # 防止请求过快
             ):
-                messages.append(await self.serialize_message(message))
+                messages.append(await serialize_message(message))
 
                 total_messages += 1
 
