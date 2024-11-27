@@ -49,43 +49,15 @@ async def start_handler(event):
     await event.reply("""
 🔍 Telegram 消息搜索机器人
 这个机器人可以让你搜索保存的 Telegram 消息历史记录。
-
 基本命令：
 • 直接输入任何文本以搜索消息
 • 结果将显示发送者、发送位置、时间及消息预览
-
-管理员命令：
+/search <关键词1> <关键词2>
 /ping - 检查搜索服务是否运行
-/delete - 从数据库中删除消息
-• /delete - 删除所有消息（需要确认）
-• /delete chat <chat_id> - 从特定聊天删除所有消息
-• /delete user <user_id> - 从特定用户删除所有消息
-
-同步管理：
-/add_sync <chat_id> - 将聊天添加到同步列表并进行白名单处理
-/remove_sync <chat_id> - 从同步列表中移除聊天
-/list_sync - 显示所有在同步列表中的聊天
-/list - 显示完整的同步配置
-
-客户端管理：
-/start_client - 启动消息同步客户端
-/stop_client - 停止消息同步客户端
-/restart_client - 重启消息同步客户端
-/live - 检查客户端状态
-/view_client_log - 查看客户端日志的最后50行
-
-搜索过滤器：
-/filter 或 /f - 设置搜索过滤器
-示例： /f ["chat.type": "ChatType.PRIVATE"]
-
+/about - 关于本项目
 导航：
 • 使用⬅️ 上一页和下一页 ➡️ 按钮浏览搜索结果
 • 每页最多显示10条结果
-
-注意事项：
-• 消息会自动从白名单聊天中同步
-• 搜索结果包括消息文本、发送者信息、聊天信息及直接链接
-• 对于较长的搜索结果，机器人会将其作为文本文件发送
 """)
 
 @bot_client.on(events.NewMessage(pattern=r'^/search (.+)'))
