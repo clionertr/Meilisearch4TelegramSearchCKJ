@@ -1,26 +1,12 @@
-import json
-import os
-import logging
 import asyncio
-from datetime import datetime
 from telethon import TelegramClient, events
 from telethon.tl.types import Message
 from telethon.errors import FloodWaitError
 import gc
 import tracemalloc
 from Meilisearch4TelegramSearchCKJ.src.config.env import APP_ID, APP_HASH
-from Meilisearch4TelegramSearchCKJ.src.utils.bridge import add_documents2meilisearch
 from Meilisearch4TelegramSearchCKJ.src.models.logger import setup_logger
-import json
-from telethon.tl.types import (
-    Message,
-    Channel,
-    Chat,
-    User,
-    MessageMediaPhoto,
-    MessageMediaDocument,
-    MessageService,
-)
+from Meilisearch4TelegramSearchCKJ.src.utils.is_in_white_or_black_list import is_allowed, check_is_allowed
 
 logger = setup_logger()
 
@@ -28,12 +14,18 @@ logger = setup_logger()
 tracemalloc.start()
 
 
-class TelegramUserBot():
-    def __init__(self):
+class TelegramUserBot:
+    def __init__(self, MeiliClient):
+        """
+        初始化 Telegram 客户端
+        :param MeiliClient: MeiliSearch 客户端
+        """
         # Telegram API 认证信息
         self.api_id = APP_ID
         self.api_hash = APP_HASH
-        self.session_name = 'user_bot_session'
+        self.session_name = 'session/user_bot_session'
+
+        self.meili = MeiliClient
 
         # 初始化客户端
         self.client = TelegramClient(
@@ -51,7 +43,6 @@ class TelegramUserBot():
         )
 
         # 消息缓存，用于优化性能
-        self.message_cache = {}
         self.cache_size_limit = 1000
 
     async def start(self):
@@ -69,14 +60,14 @@ class TelegramUserBot():
 
         @self.client.on(events.NewMessage)
         async def handle_new_message(event):
+            peer_id = event.chat_id
             try:
-                await self._process_message(event.message)
+                if is_allowed(peer_id):
+                    await self._process_message(event.message)
+                else:
+                    logger.info(f"Chat id {peer_id} is not allowed")
             except Exception as e:
                 logger.error(f"Error processing message: {str(e)}")
-
-
-
-
 
     @staticmethod
     async def serialize_message(message):
@@ -84,19 +75,20 @@ class TelegramUserBot():
         chat = await message.get_chat()
         sender = await message.get_sender()
         return {
-            'id': message.id,
+            'id': f"{chat.id}-{message.id}",
             'chat': {
                 'id': getattr(chat, 'id', None),
-                'type': getattr(chat, 'megagroup', None) and 'supergroup' or 'private',
+                'type': None,
                 'title': getattr(chat, 'title', None),
                 'username': getattr(chat, 'username', None)
             } if chat else None,
             'date': message.date.isoformat() if message.date else None,
-            'text': getattr(message, 'message', None),
+            'text': getattr(message, 'message', None) or getattr(message, 'caption', None),
             'from_user': {
                 'id': getattr(sender, 'id', None),
                 'username': getattr(sender, 'username', None)
-            } if sender else None
+            } if sender else None,
+            "raw": str(message)
         }
 
     async def _process_message(self, message: Message):
@@ -105,17 +97,18 @@ class TelegramUserBot():
             # 消息处理逻辑
             if message.text:
                 logger.info(f"Received message: {message.text[:100] if message.text else message.caption}")
+                logger.info(message)
                 # 缓存消息
                 await self._cache_message(message)
         except Exception as e:
             logger.error(f"Error in message processing: {str(e)}")
 
     async def _cache_message(self, message: Message):
-        index = meili.client.index('telegram')
-        result = index.add_documents([await self.serialize_message(message)])
-        logger.info(f"Successfully added 1 documents to index 'telegram")
+        result = self.meili.add_documents([await self.serialize_message(message)])
+        # logger.info(f"Successfully added 1 documents to index 'telegram")
         logger.info(result)
 
+    # @check_is_allowed()
     async def download_history(self, chat_id, limit=None, batch_size=100):
         """
         下载历史消息
@@ -139,7 +132,7 @@ class TelegramUserBot():
 
                 # 批量处理
                 if len(messages) >= batch_size:
-                    await self._process_message_batch(meili, messages)
+                    await self._process_message_batch(messages)
                     messages = []
 
                     # 垃圾回收
@@ -150,11 +143,10 @@ class TelegramUserBot():
 
             # 处理剩余消息
             if messages:
-                await self._process_message_batch(meili, messages)
+                await self._process_message_batch(messages)
                 messages = []
                 gc.collect()
-                logger.info("Download completed for s%ds" % chat_id)
-
+                logger.info(f"Download completed for {chat_id}")
 
         except FloodWaitError as e:
             logger.warning(f"Need to wait {e.seconds} seconds")
@@ -163,10 +155,10 @@ class TelegramUserBot():
             logger.error(f"Error downloading history: {str(e)}")
             raise
 
-    async def _process_message_batch(self, MeiliSearchClient, messages):
+    async def _process_message_batch(self, messages):
         """批量处理消息"""
         try:
-            add_documents2meilisearch(MeiliSearchClient, messages)
+            self.meili.add_documents(messages)
             logger.info(f"Processing batch of {len(messages)} messages")
         except Exception as e:
             logger.error(f"Error processing message batch: {str(e)}")
@@ -174,8 +166,6 @@ class TelegramUserBot():
     async def cleanup(self):
         """清理资源"""
         try:
-            # 清空缓存
-            self.message_cache.clear()
 
             # 断开连接
             await self.client.disconnect()
@@ -187,41 +177,10 @@ class TelegramUserBot():
         except Exception as e:
             logger.error(f"Error during cleanup: {str(e)}")
 
-    def get_memory_usage(self):
+    @staticmethod
+    def get_memory_usage():
         """获取内存使用情况"""
         current, peak = tracemalloc.get_traced_memory()
         logger.info(f"Current memory usage: {current / 10 ** 6}MB")
         logger.info(f"Peak memory usage: {peak / 10 ** 6}MB")
         return current, peak
-
-
-async def main():
-    bot = TelegramUserBot()
-    try:
-        await bot.start()
-
-        # 示例：下载特定聊天的历史消息
-        #await bot.download_history('Qikan2023', limit=None)
-
-        # 监控内存使用
-        bot.get_memory_usage()
-
-        # 保持运行
-        await bot.client.run_until_disconnected()
-    finally:
-        await bot.cleanup()
-
-
-from Meilisearch4TelegramSearchCKJ.src.config.env import MEILI_HOST, MEILI_PASS
-from Meilisearch4TelegramSearchCKJ.src.models.meilisearch_handler import MeiliSearchClient
-
-meili = MeiliSearchClient(MEILI_HOST, MEILI_PASS)
-
-if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
-    try:
-        loop.run_until_complete(main())
-    except KeyboardInterrupt:
-        logger.info("Bot stopped by user")
-    finally:
-        loop.close()

@@ -34,4 +34,3 @@ def setup_logger():
     logger.removeHandler(logging.StreamHandler())
 
     return logger
-

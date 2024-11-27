@@ -1,7 +1,8 @@
-import logging
-from typing import Dict, Any, Optional, List
+from typing import Optional, List, Dict
 from meilisearch import Client
-from datetime import datetime
+from meilisearch.models.index import IndexStats
+from meilisearch.models.task import TaskInfo
+
 from Meilisearch4TelegramSearchCKJ.src.models.logger import setup_logger
 
 logger = setup_logger()
@@ -25,8 +26,9 @@ class MeiliSearchClient:
         except Exception as e:
             logger.error(f"Failed to connect to MeiliSearch: {str(e)}")
             raise
+        logger.info(self.create_index())
 
-    def create_index(self, index_name: str = 'telegram', primary_key: Optional[str] = None) -> Dict:
+    def create_index(self, index_name: str = 'telegram_messages', primary_key: Optional[str] = "id") -> TaskInfo:
         """
         创建索引
 
@@ -39,13 +41,13 @@ class MeiliSearchClient:
         """
         try:
             result = self.client.create_index(index_name, {'primaryKey': primary_key})
-            logger.info(f"Successfully created index '{index_name}'")
+            logger.info(f"Successfully send created index TaskInfo '{index_name}'")
             return result
         except Exception as e:
             logger.error(f"Failed to create index '{index_name}': {str(e)}")
             raise
 
-    def add_documents(self, index_name: str, documents: List[Dict]) -> Dict:
+    def add_documents(self, documents: List[Dict], index_name: str = 'telegram_messages') -> TaskInfo:
         """
         添加文档
 
@@ -86,7 +88,7 @@ class MeiliSearchClient:
             logger.error(f"Search failed in index '{index_name}': {str(e)}")
             raise
 
-    def delete_index(self, index_name: str) -> Dict:
+    def delete_index(self, index_name: str) -> TaskInfo:
         """
         删除索引
 
@@ -104,7 +106,7 @@ class MeiliSearchClient:
             logger.error(f"Failed to delete index '{index_name}': {str(e)}")
             raise
 
-    def get_index_stats(self, index_name: str) -> Dict:
+    def get_index_stats(self, index_name: str) -> IndexStats:
         """
         获取索引统计信息
 
