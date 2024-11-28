@@ -16,3 +16,12 @@ def write_config(config, filename="config.ini"):
     """写入配置文件"""
     with open(filename, 'w') as configfile:
         config.write(configfile)
+
+
+def get_latest_msg_id(config, chat_id: str | int):
+    """获取最新消息ID"""
+    if isinstance(chat_id, int):
+        chat_id = str(chat_id)
+        return int(config.get("latest_msg_id", chat_id, fallback=0))
+    else:
+        return int(config.get("latest_msg_id", chat_id, fallback=0))

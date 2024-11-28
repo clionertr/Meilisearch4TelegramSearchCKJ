@@ -73,7 +73,7 @@ async def serialize_reactions(message: Message):
                 else:
                     reactions_dict[f"Unknown Reaction Type: {type(reaction)}"] = count
 
-    return reactions_dict
+    return reactions_dict if reactions_dict else None
 
 
 async def serialize_message(message, not_edited=True):
@@ -223,13 +223,13 @@ class TelegramUserBot:
 
             # 处理剩余消息
             if messages:
-                latest_msg_config["latest_msg_id"][str(chat_id)] = str(messages[-1]["id"])
+                latest_msg_config["latest_msg_id"][str(chat_id)] = str(messages[-1]["id"].split('-')[1])
                 latest_msg_config["latest_msg_date"][str(chat_id)] = str(messages[-1]["date"])
                 write_config(latest_msg_config)
                 await self._process_message_batch(messages)
                 messages = []
                 gc.collect()
-                logger.info(f"Download completed for {chat_id}")
+                logger.log(25, f"Download completed for {chat_id}")
 
         except FloodWaitError as e:
             logger.warning(f"Need to wait {e.seconds} seconds")

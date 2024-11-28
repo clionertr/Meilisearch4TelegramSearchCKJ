@@ -3,6 +3,7 @@ from Meilisearch4TelegramSearchCKJ.src.config.env import MEILI_HOST, MEILI_PASS,
 from Meilisearch4TelegramSearchCKJ.src.models.logger import setup_logger
 from Meilisearch4TelegramSearchCKJ.src.models.meilisearch_handler import MeiliSearchClient
 from Meilisearch4TelegramSearchCKJ.src.models.telegram_client_handler import TelegramUserBot
+from Meilisearch4TelegramSearchCKJ.src.utils.record_lastest_msg_id import get_latest_msg_id, read_config
 
 meili = MeiliSearchClient(MEILI_HOST, MEILI_PASS)
 logger = setup_logger()
@@ -12,9 +13,11 @@ async def main():
     bot = TelegramUserBot(meili)
     try:
         await bot.start()
-
-        # await bot.download_history(-1001701676174, limit=None)
-        # await bot.download_history('Qikan2023', limit=None)
+        logger.info("Bot started")
+        config = read_config()
+        logger.info("Reading latest message id from config")
+        for chat_id in WHITE_LIST:
+            await bot.download_history(chat_id, limit=None, offset_id=get_latest_msg_id(config, chat_id))
 
         # 监控内存使用
         bot.get_memory_usage()
