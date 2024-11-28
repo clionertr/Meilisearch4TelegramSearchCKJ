@@ -28,7 +28,7 @@ def setup_logger():
 
     # 获取logger 并添加文件handler
     logger = logging.getLogger()
-    logger.addHandler(file_handler)
+    #logger.addHandler(file_handler)
 
     # 移除默认StreamHandler
     logger.removeHandler(logging.StreamHandler())

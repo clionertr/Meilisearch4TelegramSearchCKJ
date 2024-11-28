@@ -13,7 +13,8 @@ async def main():
     try:
         await bot.start()
 
-        await bot.download_history(-1001701676174, limit=None,offset_id=7592)
+        # await bot.download_history(-1001701676174, limit=None)
+        # await bot.download_history('Qikan2023', limit=None)
 
         # 监控内存使用
         bot.get_memory_usage()

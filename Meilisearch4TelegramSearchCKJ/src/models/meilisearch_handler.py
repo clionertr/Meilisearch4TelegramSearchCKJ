@@ -33,7 +33,7 @@ class MeiliSearchClient:
             raise
         logger.info(self.create_index())
 
-    def create_index(self, index_name: str = 'telegram_messages', primary_key: Optional[str] = "id") -> TaskInfo:
+    def create_index(self, index_name: str = 'telegram', primary_key: Optional[str] = "id") -> TaskInfo:
         """
         创建索引
 
@@ -55,7 +55,8 @@ class MeiliSearchClient:
             "filterableAttributes": [
                 "chat.type",
                 "date",
-                "from_user"
+                "from_user",
+                "reactions"
             ],
             "sortableAttributes": [
                 "date"
@@ -107,7 +108,7 @@ class MeiliSearchClient:
             logger.error(f"Failed to create index '{index_name}': {str(e)}")
             raise
 
-    def add_documents(self, documents: List[Dict], index_name: str = 'telegram_messages') -> TaskInfo:
+    def add_documents(self, documents: List[Dict], index_name: str = 'telegram') -> TaskInfo:
         """
         添加文档
 

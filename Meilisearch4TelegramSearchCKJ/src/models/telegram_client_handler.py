@@ -1,10 +1,10 @@
 import asyncio
 from telethon import TelegramClient, events
-from telethon.tl.types import Message
+from telethon.tl.types import Message, ReactionCount, ReactionEmoji, ReactionCustomEmoji
 from telethon.errors import FloodWaitError
 import gc
 import tracemalloc
-from Meilisearch4TelegramSearchCKJ.src.config.env import APP_ID, APP_HASH
+from Meilisearch4TelegramSearchCKJ.src.config.env import APP_ID, APP_HASH, BATCH_MSG_UNM, NOT_RECORD_MSG
 from Meilisearch4TelegramSearchCKJ.src.models.logger import setup_logger
 from Meilisearch4TelegramSearchCKJ.src.utils.is_in_white_or_black_list import is_allowed
 from Meilisearch4TelegramSearchCKJ.src.utils.record_lastest_msg_id import read_config, write_config
@@ -44,19 +44,56 @@ async def serialize_sender(sender):
     }
 
 
+async def serialize_reactions(message: Message):
+    """
+    获取消息对象的 reaction 表情和数量，并返回字典。
+
+    Args:
+        message: Telethon Message 对象。
+
+    Returns:
+        一个字典，键为 reaction 表情（Unicode 字符或 Document ID），值为 reaction 数量。
+        如果消息没有 reaction，则返回空字典。
+    """
+
+    reactions_dict = {}
+
+    if message.reactions:
+        for reaction_count in message.reactions.results:
+            if isinstance(reaction_count, ReactionCount):
+                reaction = reaction_count.reaction
+                count = reaction_count.count
+
+                if isinstance(reaction, ReactionEmoji):
+                    emoticon = reaction.emoticon
+                    reactions_dict[emoticon] = count
+                elif isinstance(reaction, ReactionCustomEmoji):
+                    document_id = reaction.document_id
+                    reactions_dict[document_id] = count
+                else:
+                    reactions_dict[f"Unknown Reaction Type: {type(reaction)}"] = count
+
+    return reactions_dict
+
+
 async def serialize_message(message, not_edited=True):
-    chat_future = message.get_chat()
-    sender_future = message.get_sender()
-    chat, sender = await asyncio.gather(chat_future, sender_future)
-    return {
-        'id': f"{chat.id}-{message.id}" if not_edited else f"{chat.id}-{message.id}-{int(message.edit_date.timestamp())}",
-        'chat': await serialize_chat(chat),
-        'date': message.date.isoformat() if message.date else None,
-        'text': message.text if hasattr(message, 'message') else message.caption if hasattr(message,
-                                                                                            'caption') else None,
-        'from_user': await serialize_sender(sender),
-        'raw': message.message
-    }
+    try:
+        chat_future = message.get_chat()
+        sender_future = message.get_sender()
+        chat, sender = await asyncio.gather(chat_future, sender_future)
+        return {
+            'id': f"{chat.id}-{message.id}" if not_edited else f"{chat.id}-{message.id}-{int(message.edit_date.timestamp())}",
+            'chat': await serialize_chat(chat),
+            'date': message.date.isoformat(),
+            'text': message.text if hasattr(message, 'message') else message.caption if hasattr(message,
+                                                                                                'caption') else None,
+            'from_user': await serialize_sender(sender),
+            'reactions': await serialize_reactions(message),
+            # 'raw': message.message
+        }
+    except Exception as e:
+        logger.error(f"Error serializing message: {str(e)}")
+        return None
 
 
 class TelegramUserBot:
@@ -119,7 +156,7 @@ class TelegramUserBot:
             peer_id = event.chat_id
             try:
                 if is_allowed(peer_id):
-                    await self._process_message(event.message, False)
+                    await self._process_message(event.message, NOT_RECORD_MSG)
                 else:
                     logger.info(f"Chat id {peer_id} is not allowed")
             except Exception as e:
@@ -132,17 +169,20 @@ class TelegramUserBot:
             if message.text:
                 logger.info(f"Received message: {message.text[:100] if message.text else message.caption}")
                 # 缓存消息
-                await self._cache_message(message, False)
+                await self._cache_message(message, not_edited)
         except Exception as e:
-            logger.error(f"Error in message processing: {str(e)}")
+            logger.error(f"Error in message processing for {message.id}: {str(e)}")
 
     async def _cache_message(self, message: Message, not_edited=True):
-        result = self.meili.add_documents([await serialize_message(message, False)])
-        # logger.info(f"Successfully added 1 documents to index 'telegram")
-        logger.info(result)
+        try:
+            result = self.meili.add_documents([await serialize_message(message, not_edited)])
+            # logger.info(f"Successfully added 1 documents to index 'telegram")
+            logger.info(result)
+        except Exception as e:
+            logger.error(f"Error caching message: {str(e)}")
 
     # @check_is_allowed()
-    async def download_history(self, chat_id, limit=None, batch_size=100, offset_id=0, offset_date=None):
+    async def download_history(self, chat_id, limit=None, batch_size=BATCH_MSG_UNM, offset_id=0, offset_date=None):
         """
         下载历史消息
         :param chat_id: 聊天ID
