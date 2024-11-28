@@ -4,8 +4,7 @@ from Meilisearch4TelegramSearchCKJ.src.config.env import WHITE_LIST, BLACK_LIST
 
 def is_allowed(chat_id: int, sync_white_list=None, sync_black_list=None) -> bool:
     """
-    Check if the chat id is in the white list or not in the black list
-    White list has the highest priority
+    检查是否允许访问
     """
     sync_white_list = sync_white_list or WHITE_LIST
     sync_black_list = sync_black_list or BLACK_LIST
