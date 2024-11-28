@@ -54,7 +54,8 @@ async def serialize_message(message, not_edited=True):
         'date': message.date.isoformat() if message.date else None,
         'text': message.text if hasattr(message, 'message') else message.caption if hasattr(message,
                                                                                             'caption') else None,
-        'from_user': await serialize_sender(sender)
+        'from_user': await serialize_sender(sender),
+        'raw': message.message
     }
 
 
@@ -141,12 +142,14 @@ class TelegramUserBot:
         logger.info(result)
 
     # @check_is_allowed()
-    async def download_history(self, chat_id, limit=None, batch_size=100):
+    async def download_history(self, chat_id, limit=None, batch_size=100, offset_id=0, offset_date=None):
         """
         下载历史消息
         :param chat_id: 聊天ID
         :param limit: 限制下载消息数量
         :param batch_size: 批量下载大小
+        :param offset_date:
+        :param offset_id:
         """
         try:
             messages = []
@@ -154,6 +157,8 @@ class TelegramUserBot:
 
             async for message in self.client.iter_messages(
                     chat_id,
+                    offset_id=offset_id,
+                    offset_date=offset_date,
                     limit=limit,
                     reverse=True,
                     wait_time=1.4  # 防止请求过快
@@ -178,8 +183,8 @@ class TelegramUserBot:
 
             # 处理剩余消息
             if messages:
-                latest_msg_config["latest_msg_id"][str(chat_id)] = str(messages[-1].id)
-                latest_msg_config["latest_msg_date"][str(chat_id)] = str(messages[-1].date.isoformat())
+                latest_msg_config["latest_msg_id"][str(chat_id)] = str(messages[-1]["id"])
+                latest_msg_config["latest_msg_date"][str(chat_id)] = str(messages[-1]["date"])
                 write_config(latest_msg_config)
                 await self._process_message_batch(messages)
                 messages = []

@@ -50,7 +50,7 @@ class MeiliSearchClient:
             ],
             "searchableAttributes": [
                 "text",
-                "ID"
+                "id"
             ],
             "filterableAttributes": [
                 "chat.type",

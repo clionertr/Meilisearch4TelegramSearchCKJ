@@ -1,5 +1,5 @@
 import asyncio
-from Meilisearch4TelegramSearchCKJ.src.config.env import MEILI_HOST, MEILI_PASS
+from Meilisearch4TelegramSearchCKJ.src.config.env import MEILI_HOST, MEILI_PASS, WHITE_LIST
 from Meilisearch4TelegramSearchCKJ.src.models.logger import setup_logger
 from Meilisearch4TelegramSearchCKJ.src.models.meilisearch_handler import MeiliSearchClient
 from Meilisearch4TelegramSearchCKJ.src.models.telegram_client_handler import TelegramUserBot
@@ -13,7 +13,7 @@ async def main():
     try:
         await bot.start()
 
-        await bot.download_history('Qikan2023', limit=None)
+        await bot.download_history(-1001701676174, limit=None,offset_id=7592)
 
         # 监控内存使用
         bot.get_memory_usage()
