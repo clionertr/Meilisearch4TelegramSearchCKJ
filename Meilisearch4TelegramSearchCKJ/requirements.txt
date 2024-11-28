@@ -1,0 +1,4 @@
+cryptg
+meilisearch
+telethon
+configparser

@@ -13,7 +13,8 @@ async def main():
     try:
         await bot.start()
 
-        await bot.download_history('Qikan2023', limit=None)
+        # 示例：下载特定聊天的历史消息
+        #await bot.download_history('Qikan2023', limit=None)
 
         # 监控内存使用
         bot.get_memory_usage()

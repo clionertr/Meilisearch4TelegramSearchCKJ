@@ -1,4 +1,6 @@
 from typing import Optional, List, Dict
+
+import meilisearch.errors
 from meilisearch import Client
 from meilisearch.models.index import IndexStats
 from meilisearch.models.task import TaskInfo
@@ -23,6 +25,9 @@ class MeiliSearchClient:
         try:
             self.client = Client(host, api_key)
             logger.info(f"Successfully connected to MeiliSearch at {host}")
+        except meilisearch.errors.MeilisearchApiError as e:
+            logger.error(f"Failed to connect to MeiliSearch: {str(e)}")
+            raise
         except Exception as e:
             logger.error(f"Failed to connect to MeiliSearch: {str(e)}")
             raise
@@ -39,8 +44,63 @@ class MeiliSearchClient:
         Returns:
             Dict: 创建结果
         """
+        index_config = {
+            "displayedAttributes": [
+                "*"
+            ],
+            "searchableAttributes": [
+                "text",
+                "ID"
+            ],
+            "filterableAttributes": [
+                "chat.type",
+                "date",
+                "from_user"
+            ],
+            "sortableAttributes": [
+                "date"
+            ],
+            "rankingRules": [
+                "words",
+                "date:desc",
+                "typo",
+                "proximity",
+                "attribute",
+                "sort",
+                "exactness"
+            ],
+            "stopWords": [],
+            "nonSeparatorTokens": [],
+            "separatorTokens": [],
+            "dictionary": [],
+            "synonyms": {},
+            "distinctAttribute": None,
+            "proximityPrecision": "byWord",
+            "typoTolerance": {
+                "enabled": True,
+                "minWordSizeForTypos": {
+                    "oneTypo": 5,
+                    "twoTypos": 9
+                },
+                "disableOnWords": [],
+                "disableOnAttributes": []
+            },
+            "faceting": {
+                "maxValuesPerFacet": 100,
+                "sortFacetValuesBy": {
+                    "*": "alpha"
+                }
+            },
+            "pagination": {
+                "maxTotalHits": 1000
+            },
+            "searchCutoffMs": None,
+            "localizedAttributes": None
+        }
+
         try:
             result = self.client.create_index(index_name, {'primaryKey': primary_key})
+            self.client.index(index_name).update_settings(index_config)
             logger.info(f"Successfully send created index TaskInfo '{index_name}'")
             return result
         except Exception as e:

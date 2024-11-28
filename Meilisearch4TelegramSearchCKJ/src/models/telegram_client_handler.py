@@ -6,15 +6,15 @@ import gc
 import tracemalloc
 from Meilisearch4TelegramSearchCKJ.src.config.env import APP_ID, APP_HASH
 from Meilisearch4TelegramSearchCKJ.src.models.logger import setup_logger
-from Meilisearch4TelegramSearchCKJ.src.utils.is_in_white_or_black_list import is_allowed, check_is_allowed
+from Meilisearch4TelegramSearchCKJ.src.utils.is_in_white_or_black_list import is_allowed
+from Meilisearch4TelegramSearchCKJ.src.utils.record_lastest_msg_id import read_config, write_config
+from telethon.tl.types import Channel, Chat, User
 
 logger = setup_logger()
+latest_msg_config = read_config()
 
 # 内存跟踪
 tracemalloc.start()
-
-import asyncio
-from telethon.tl.types import Channel, Chat, User
 
 
 async def serialize_chat(chat):
@@ -44,18 +44,17 @@ async def serialize_sender(sender):
     }
 
 
-async def serialize_message(message):
+async def serialize_message(message, not_edited=True):
     chat_future = message.get_chat()
     sender_future = message.get_sender()
     chat, sender = await asyncio.gather(chat_future, sender_future)
     return {
-        'id': f"{chat.id}-{message.id}" if chat else None,
+        'id': f"{chat.id}-{message.id}" if not_edited else f"{chat.id}-{message.id}-{int(message.edit_date.timestamp())}",
         'chat': await serialize_chat(chat),
         'date': message.date.isoformat() if message.date else None,
         'text': message.text if hasattr(message, 'message') else message.caption if hasattr(message,
                                                                                             'caption') else None,
-        'from_user': await serialize_sender(sender),
-        # 'raw': str(message)
+        'from_user': await serialize_sender(sender)
     }
 
 
@@ -114,19 +113,30 @@ class TelegramUserBot:
             except Exception as e:
                 logger.error(f"Error processing message: {str(e)}")
 
-    async def _process_message(self, message: Message):
+        @self.client.on(events.MessageEdited)
+        async def handle_edit_message(event):
+            peer_id = event.chat_id
+            try:
+                if is_allowed(peer_id):
+                    await self._process_message(event.message, False)
+                else:
+                    logger.info(f"Chat id {peer_id} is not allowed")
+            except Exception as e:
+                logger.error(f"Error processing message: {str(e)}")
+
+    async def _process_message(self, message: Message, not_edited=True):
         """处理新消息"""
         try:
             # 消息处理逻辑
             if message.text:
                 logger.info(f"Received message: {message.text[:100] if message.text else message.caption}")
                 # 缓存消息
-                await self._cache_message(message)
+                await self._cache_message(message, False)
         except Exception as e:
             logger.error(f"Error in message processing: {str(e)}")
 
-    async def _cache_message(self, message: Message):
-        result = self.meili.add_documents([await serialize_message(message)])
+    async def _cache_message(self, message: Message, not_edited=True):
+        result = self.meili.add_documents([await serialize_message(message, False)])
         # logger.info(f"Successfully added 1 documents to index 'telegram")
         logger.info(result)
 
@@ -154,6 +164,9 @@ class TelegramUserBot:
 
                 # 批量处理
                 if len(messages) >= batch_size:
+                    latest_msg_config["latest_msg_id"][str(chat_id)] = str(message.id)
+                    latest_msg_config["latest_msg_date"][str(chat_id)] = str(message.date.timestamp())
+                    write_config(latest_msg_config)
                     await self._process_message_batch(messages)
                     messages = []
 
@@ -165,6 +178,9 @@ class TelegramUserBot:
 
             # 处理剩余消息
             if messages:
+                latest_msg_config["latest_msg_id"][str(chat_id)] = str(messages[-1].id)
+                latest_msg_config["latest_msg_date"][str(chat_id)] = str(messages[-1].date.isoformat())
+                write_config(latest_msg_config)
                 await self._process_message_batch(messages)
                 messages = []
                 gc.collect()
