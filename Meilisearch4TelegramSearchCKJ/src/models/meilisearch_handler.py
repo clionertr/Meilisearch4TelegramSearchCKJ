@@ -1,3 +1,4 @@
+import time
 from typing import Optional, List, Dict
 
 import meilisearch.errors
@@ -108,13 +109,14 @@ class MeiliSearchClient:
             logger.error(f"Failed to create index '{index_name}': {str(e)}")
             raise
 
-    def add_documents(self, documents: List[Dict], index_name: str = 'telegram') -> TaskInfo:
+    def add_documents(self, documents: List[Dict], index_name: str = 'telegram',max_retry=5) -> TaskInfo:
         """
         添加文档
 
         Args:
             index_name: 索引名称
             documents: 要添加的文档列表
+            max_retry: 最大重试次数
 
         Returns:
             Dict: 添加结果
@@ -126,6 +128,8 @@ class MeiliSearchClient:
             return result
         except Exception as e:
             logger.error(f"Failed to add documents to index '{index_name}': {str(e)}")
+            self.add_documents(documents, index_name, max_retry - 1) if max_retry > 0 else None
+            time.sleep(1)
             raise
 
     def search(self, index_name: str, query: str, **kwargs) -> Dict:
