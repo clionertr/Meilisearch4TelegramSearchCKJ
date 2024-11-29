@@ -2,3 +2,4 @@ cryptg
 meilisearch
 telethon
 configparser
+coloredlogs
