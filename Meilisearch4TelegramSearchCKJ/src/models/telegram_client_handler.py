@@ -218,7 +218,7 @@ class TelegramUserBot:
                     # 垃圾回收
                     gc.collect()
 
-                logger.info(f"Downloaded {total_messages} messages")
+                    logger.info(f"Downloaded {total_messages} messages")
                 self.get_memory_usage()
 
             # 处理剩余消息
