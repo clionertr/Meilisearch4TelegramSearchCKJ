@@ -46,59 +46,61 @@ class MeiliSearchClient:
             Dict: 创建结果
         """
         index_config = {
-            "displayedAttributes": [
+              "displayedAttributes": [
                 "*"
-            ],
-            "searchableAttributes": [
+              ],
+              "searchableAttributes": [
                 "text",
                 "id"
-            ],
-            "filterableAttributes": [
+              ],
+              "filterableAttributes": [
                 "chat.type",
                 "date",
                 "from_user",
                 "reactions"
-            ],
-            "sortableAttributes": [
-                "date"
-            ],
-            "rankingRules": [
+              ],
+              "sortableAttributes": [
+                "date",
+                "id"
+              ],
+              "rankingRules": [
                 "words",
-                "date:desc",
                 "typo",
                 "proximity",
                 "attribute",
                 "sort",
                 "exactness"
-            ],
-            "stopWords": [],
-            "nonSeparatorTokens": [],
-            "separatorTokens": [],
-            "dictionary": [],
-            "synonyms": {},
-            "distinctAttribute": None,
-            "proximityPrecision": "byWord",
-            "typoTolerance": {
+              ],
+              "stopWords": [
+                "亚太实体赌场"
+              ],
+              "nonSeparatorTokens": [],
+              "separatorTokens": [],
+              "dictionary": [],
+              "synonyms": {},
+              "distinctAttribute": None,
+              "proximityPrecision": "byWord",
+              "typoTolerance": {
                 "enabled": True,
                 "minWordSizeForTypos": {
-                    "oneTypo": 5,
-                    "twoTypos": 9
+                  "oneTypo": 5,
+                  "twoTypos": 9
                 },
                 "disableOnWords": [],
                 "disableOnAttributes": []
-            },
-            "faceting": {
+              },
+              "faceting": {
                 "maxValuesPerFacet": 100,
                 "sortFacetValuesBy": {
-                    "*": "alpha"
+                  "*": "alpha"
                 }
-            },
-            "pagination": {
-                "maxTotalHits": 1000
-            },
-            "searchCutoffMs": None,
-            "localizedAttributes": None
-        }
+              },
+              "pagination": {
+                "maxTotalHits": 500
+              },
+              "searchCutoffMs": None,
+              "localizedAttributes": None
+}
 
         try:
             result = self.client.create_index(index_name, {'primaryKey': primary_key})
