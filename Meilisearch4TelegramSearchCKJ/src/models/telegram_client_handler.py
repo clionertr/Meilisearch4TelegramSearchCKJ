@@ -201,7 +201,7 @@ class TelegramUserBot:
                     offset_date=offset_date,
                     limit=limit,
                     reverse=True,
-                    wait_time=1.4  # 防止请求过快
+                    #wait_time=1.4  # 防止请求过快
             ):
                 messages.append(await serialize_message(message))
 
