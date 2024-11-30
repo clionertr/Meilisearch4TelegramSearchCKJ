@@ -24,6 +24,12 @@ async def main():
 
         # 保持运行
         await bot.client.run_until_disconnected()
+    except Exception as e:
+        logger.error(f"Error running bot: {str(e)}")
+        if not isinstance(e, KeyboardInterrupt):
+            if isinstance(e, ValueError):
+                logger.error("Please check your environment variables “WHITE_LIST“ ")
+
     finally:
         await bot.cleanup()
 
