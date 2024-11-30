@@ -1,4 +1,6 @@
 import asyncio
+
+import pytz
 from telethon import TelegramClient, events
 from telethon.tl.types import Message, ReactionCount, ReactionEmoji, ReactionCustomEmoji
 from telethon.errors import FloodWaitError
@@ -10,6 +12,7 @@ from Meilisearch4TelegramSearchCKJ.src.utils.is_in_white_or_black_list import is
 from Meilisearch4TelegramSearchCKJ.src.utils.record_lastest_msg_id import read_config, write_config
 from telethon.tl.types import Channel, Chat, User
 
+tz = pytz.timezone('Asia/Shanghai')
 logger = setup_logger()
 latest_msg_config = read_config()
 
@@ -84,7 +87,7 @@ async def serialize_message(message, not_edited=True):
         return {
             'id': f"{chat.id}-{message.id}" if not_edited else f"{chat.id}-{message.id}-{int(message.edit_date.timestamp())}",
             'chat': await serialize_chat(chat),
-            'date': message.date.isoformat(),
+            'date': message.date.astimezone(tz).isoformat(),
             'text': message.text if hasattr(message, 'message') else message.caption if hasattr(message,
                                                                                                 'caption') else None,
             'from_user': await serialize_sender(sender),
