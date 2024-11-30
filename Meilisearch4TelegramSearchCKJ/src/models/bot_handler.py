@@ -43,7 +43,7 @@ async def get_search_results(query):
         return None
 
 # 定义指令处理器
-@bot_client.on(events.NewMessage(pattern=r'^/start$'))
+@bot_client.on(events.NewMessage(pattern=r'^/(start|help)$'))
 async def start_handler(event):
     await event.reply("""
 🔍 Telegram 消息搜索机器人
@@ -95,7 +95,7 @@ async def search_command_handler(event):
 
 @bot_client.on(events.NewMessage(pattern=r'^/about$'))
 async def about_handler(event):
-    await event.reply("这是一个基于 MeiliSearch 的 Telegram 消息搜索 Bot\n版本：preview-0.9\n测试链接：[b](https://t.me/Qikan2023)")
+    await event.reply("本项目基于 MeiliSearch 和 Telethon 构建，用于搜索保存的 Telegram 消息历史记录。解决了 Telegram 中文搜索功能的不足，提供了更强大的搜索功能。\n   \n    本项目的github地址为：[Meilisearch4TelegramSearchCKJ](https://github.com/clionertr/Meilisearch4TelegramSearchCKJ)，如果觉得好用可以点个star\n\n    得益于telethon的优秀代码，相比使用pyrogram，本项目更加稳定，同时减少大量负载\n\n    项目由[SearchGram](https://github.com/tgbot-collection/SearchGram)重构而来，感谢原作者的贡献❤️\n\n    同时感谢Claude3.5s和GeminiExp的帮助\n\n    从这次的编程中，我学到了很多，也希望大家能够喜欢这个项目😘")
 
 
 @bot_client.on(events.NewMessage(pattern=r'^/ping$'))
