@@ -1,3 +1,11 @@
 /Meilisearch4TelegramSearchCKJ/src/session/*
 /Meilisearch4TelegramSearchCKJ/src/config/env.py
+/Meilisearch4TelegramSearchCKJ/src/models/bot.session
+/Meilisearch4TelegramSearchCKJ/src/models/bot.session-journal
+/Meilisearch4TelegramSearchCKJ/src/models/log_file.log
 /Meilisearch4TelegramSearchCKJ/src/log_file.log
+/Meilisearch4TelegramSearchCKJ.egg-info
+/Meilisearch4TelegramSearchCKJ/__pycache__
+.gitignore
+.idea
+/Meilisearch4TelegramSearchCKJ/src/config.ini
