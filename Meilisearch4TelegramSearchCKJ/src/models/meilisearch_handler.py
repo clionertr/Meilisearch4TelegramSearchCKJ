@@ -6,6 +6,7 @@ from meilisearch import Client
 from meilisearch.models.index import IndexStats
 from meilisearch.models.task import TaskInfo
 
+from Meilisearch4TelegramSearchCKJ.src.config.env import INDEX_CONFIG
 from Meilisearch4TelegramSearchCKJ.src.models.logger import setup_logger
 
 logger = setup_logger()
@@ -45,64 +46,11 @@ class MeiliSearchClient:
         Returns:
             Dict: 创建结果
         """
-        index_config = {
-              "displayedAttributes": [
-                "*"
-              ],
-              "searchableAttributes": [
-                "text",
-                "id"
-              ],
-              "filterableAttributes": [
-                "chat.type",
-                "date",
-                "from_user",
-                "reactions"
-              ],
-              "sortableAttributes": [
-                "date",
-                "id"
-              ],
-              "rankingRules": [
-                "typo",
-                "words",
-                "date:desc"
-              ],
-            # 这个配置可以设置广告词过滤
-              "stopWords": [
-                "亚太实体赌场"
-              ],
-              "nonSeparatorTokens": [],
-              "separatorTokens": [],
-              "dictionary": [],
-              "synonyms": {},
-              "distinctAttribute": None,
-              "proximityPrecision": "byWord",
-              "typoTolerance": {
-                "enabled": True,
-                "minWordSizeForTypos": {
-                  "oneTypo": 5,
-                  "twoTypos": 9
-                },
-                "disableOnWords": [],
-                "disableOnAttributes": []
-              },
-              "faceting": {
-                "maxValuesPerFacet": 100,
-                "sortFacetValuesBy": {
-                  "*": "alpha"
-                }
-              },
-              "pagination": {
-                "maxTotalHits": 500
-              },
-              "searchCutoffMs": None,
-              "localizedAttributes": None
-}
+
 
         try:
             result = self.client.create_index(index_name, {'primaryKey': primary_key})
-            self.client.index(index_name).update_settings(index_config)
+            self.client.index(index_name).update_settings(INDEX_CONFIG)
             logger.info(f"Successfully send created index TaskInfo '{index_name}'")
             return result
         except Exception as e:
