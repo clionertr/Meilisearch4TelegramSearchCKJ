@@ -6,13 +6,13 @@ from telethon.tl.types import Message, ReactionCount, ReactionEmoji, ReactionCus
 from telethon.errors import FloodWaitError
 import gc
 import tracemalloc
-from Meilisearch4TelegramSearchCKJ.src.config.env import APP_ID, APP_HASH, BATCH_MSG_UNM, NOT_RECORD_MSG
+from Meilisearch4TelegramSearchCKJ.src.config.env import APP_ID, APP_HASH, BATCH_MSG_UNM, NOT_RECORD_MSG, TIME_ZONE
 from Meilisearch4TelegramSearchCKJ.src.models.logger import setup_logger
 from Meilisearch4TelegramSearchCKJ.src.utils.is_in_white_or_black_list import is_allowed
 from Meilisearch4TelegramSearchCKJ.src.utils.record_lastest_msg_id import read_config, write_config
 from telethon.tl.types import Channel, Chat, User
 
-tz = pytz.timezone('Asia/Shanghai')
+tz = pytz.timezone(TIME_ZONE)
 logger = setup_logger()
 latest_msg_config = read_config()
 
