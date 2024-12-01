@@ -1,3 +1,5 @@
+import gc
+
 from telethon import TelegramClient, events, Button
 from Meilisearch4TelegramSearchCKJ.src.config.env import TOKEN, MEILI_HOST, MEILI_PASS, APP_ID, APP_HASH, RESULTS_PER_PAGE
 from Meilisearch4TelegramSearchCKJ.src.models.meilisearch_handler import MeiliSearchClient
@@ -91,6 +93,17 @@ async def search_command_handler(event):
     logger.info(f"Received search command: {event.pattern_match.group(1)}")
     query = event.pattern_match.group(1)
     await search_handler(event, query)
+
+
+@bot_client.on(events.NewMessage(pattern=r'^/cc$'))
+async def clean(event):
+    global search_results_cache
+    await event.reply("正在清理缓存...")
+    search_results_cache.clear()
+    await event.reply("缓存已清理。")
+    gc.collect()
+
+
 
 @bot_client.on(events.NewMessage(pattern=r'^/about$'))
 async def about_handler(event):
