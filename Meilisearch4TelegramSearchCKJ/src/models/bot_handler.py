@@ -1,5 +1,5 @@
 from telethon import TelegramClient, events, Button
-from Meilisearch4TelegramSearchCKJ.src.config.env import TOKEN, MEILI_HOST, MEILI_PASS, APP_ID, APP_HASH
+from Meilisearch4TelegramSearchCKJ.src.config.env import TOKEN, MEILI_HOST, MEILI_PASS, APP_ID, APP_HASH, RESULTS_PER_PAGE
 from Meilisearch4TelegramSearchCKJ.src.models.meilisearch_handler import MeiliSearchClient
 from Meilisearch4TelegramSearchCKJ.src.utils.fmt_size import sizeof_fmt
 from Meilisearch4TelegramSearchCKJ.src.models.logger import setup_logger
@@ -12,8 +12,7 @@ bot_client = TelegramClient('bot', APP_ID, APP_HASH).start(bot_token=TOKEN)
 # 初始化 MeiliSearch 客户端
 meili = MeiliSearchClient(MEILI_HOST, MEILI_PASS)
 
-# 每页显示的结果数量
-RESULTS_PER_PAGE = 5
+
 
 # 全局缓存，存储每个搜索词的结果
 search_results_cache = {}
