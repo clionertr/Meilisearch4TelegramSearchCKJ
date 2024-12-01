@@ -151,6 +151,26 @@ async def send_results_page(event, hits, page_number, query):
     # 异步发送消息，避免阻塞
     await bot_client.send_message(event.chat_id, f"搜索结果 (第 {page_number + 1} 页):\n{response}", buttons=buttons)
 
+async def edit_results_page(event, hits, page_number, query):
+    """编辑指定页码的搜索结果"""
+    start_index = page_number * RESULTS_PER_PAGE
+    end_index = min((page_number + 1) * RESULTS_PER_PAGE, len(hits))
+    page_results = hits[start_index:end_index]
+
+    if not page_results:
+        await event.reply("没有更多结果了。")
+        return
+
+    response = "".join([format_search_result(hit) for hit in page_results])
+    buttons = []
+    if page_number > 0:
+        buttons.append(Button.inline("上一页", data=f"page_{query}_{page_number - 1}"))
+    if end_index < len(hits):
+        buttons.append(Button.inline("下一页", data=f"page_{query}_{page_number + 1}"))
+
+    # 异步发送消息，避免阻塞
+    await event.edit(f"搜索结果 (第 {page_number + 1} 页):\n{response}", buttons=buttons)
+
 
 # noinspection PyTypeChecker
 @bot_client.on(events.CallbackQuery)
@@ -173,7 +193,8 @@ async def callback_query_handler(event):
                     await event.answer("没有找到相关结果。", alert=True)
                     return
             await event.edit(f"正在加载第 {page_number + 1} 页...")
-            await send_results_page(event, results, page_number, query)
+            #await send_results_page(event, results, page_number, query)
+            await edit_results_page(event, results, page_number, query)
         except Exception as e:
             await event.answer(f"搜索出错：{e}", alert=True)
             print(f"搜索出错：{e}")
