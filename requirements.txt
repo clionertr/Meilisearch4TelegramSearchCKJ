@@ -1,6 +1,7 @@
-setuptools~=68.2.2
+setuptools~=70.0.0
 configparser~=7.1.0
 meilisearch4telegramsearchckj~=0.1
 coloredlogs~=15.0.1
 telethon~=1.38.1
 meilisearch~=0.32.0
+pytz~=2021.1
