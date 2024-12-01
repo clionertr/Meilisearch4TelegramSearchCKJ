@@ -64,14 +64,11 @@ class MeiliSearchClient:
                 "id"
               ],
               "rankingRules": [
-                "words",
                 "typo",
-                "proximity",
-                "attribute",
-                "sort",
-                "exactness",
+                "words",
                 "date:desc"
               ],
+            # 这个配置可以设置广告词过滤
               "stopWords": [
                 "亚太实体赌场"
               ],
