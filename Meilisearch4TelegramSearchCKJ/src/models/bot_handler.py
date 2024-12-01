@@ -1,8 +1,6 @@
-from setuptools.command.build_ext import if_dl
 from telethon import TelegramClient, events, Button
-from meilisearch import Client
 from Meilisearch4TelegramSearchCKJ.src.config.env import TOKEN, MEILI_HOST, MEILI_PASS, APP_ID, APP_HASH
-from Meilisearch4TelegramSearchCKJ.src.main import meili
+from Meilisearch4TelegramSearchCKJ.src.models.meilisearch_handler import MeiliSearchClient
 from Meilisearch4TelegramSearchCKJ.src.utils.fmt_size import sizeof_fmt
 from Meilisearch4TelegramSearchCKJ.src.models.logger import setup_logger
 
@@ -12,7 +10,7 @@ logger = setup_logger()
 bot_client = TelegramClient('bot', APP_ID, APP_HASH).start(bot_token=TOKEN)
 
 # 初始化 MeiliSearch 客户端
-meiliclent1 = Client(MEILI_HOST, MEILI_PASS)
+meili = MeiliSearchClient(MEILI_HOST, MEILI_PASS)
 
 # 每页显示的结果数量
 RESULTS_PER_PAGE = 5
@@ -27,16 +25,18 @@ async def search_handler(event, query):
         if results:
             search_results_cache[query] = results  # 缓存结果
             await send_results_page(event, results, 0, query)
+            search_results_cache[query].extend(await get_search_results(query, limit=40, offset=10))
         else:
             await event.reply("没有找到相关结果。")
     except Exception as e:
         await event.reply(f"搜索出错：{e}")
         print(f"搜索出错：{e}")
 
-async def get_search_results(query):
+
+async def get_search_results(query, limit=10, offset=0,index_name='telegram'):
     """从 MeiliSearch 获取搜索结果"""
     try:
-        results = meiliclent1.index('telegram').search(query, {'limit': 20})  # 限制单次查询数量，避免一次性返回过多结果
+        results = meili.search(query,index_name,limit=limit,offset=offset)  # 限制单次查询数量，避免一次性返回过多结果
         return results['hits'] if results['hits'] else None
     except Exception as e:
         print(f"MeiliSearch 查询出错：{e}")
@@ -152,6 +152,8 @@ async def send_results_page(event, hits, page_number, query):
     # 异步发送消息，避免阻塞
     await bot_client.send_message(event.chat_id, f"搜索结果 (第 {page_number + 1} 页):\n{response}", buttons=buttons)
 
+
+# noinspection PyTypeChecker
 @bot_client.on(events.CallbackQuery)
 async def callback_query_handler(event):
     """处理内联按钮回调"""
