@@ -6,7 +6,8 @@ from telethon.tl.types import Message, ReactionCount, ReactionEmoji, ReactionCus
 from telethon.errors import FloodWaitError
 import gc
 import tracemalloc
-from Meilisearch4TelegramSearchCKJ.src.config.env import APP_ID, APP_HASH, BATCH_MSG_UNM, NOT_RECORD_MSG, TIME_ZONE
+from Meilisearch4TelegramSearchCKJ.src.config.env import APP_ID, APP_HASH, BATCH_MSG_UNM, NOT_RECORD_MSG, TIME_ZONE, \
+    TELEGRAM_REACTIONS
 from Meilisearch4TelegramSearchCKJ.src.models.logger import setup_logger
 from Meilisearch4TelegramSearchCKJ.src.utils.is_in_white_or_black_list import is_allowed
 from Meilisearch4TelegramSearchCKJ.src.utils.record_lastest_msg_id import read_config, write_config
@@ -18,6 +19,13 @@ latest_msg_config = read_config()
 
 # 内存跟踪
 tracemalloc.start()
+
+async def calculate_reaction_score(reactions: dict) -> float:
+    total_score = 0.0
+    for reaction, count in reactions.items():
+        weight = TELEGRAM_REACTIONS.get(reaction, 0.0)
+        total_score += count * weight
+    return total_score
 
 
 async def serialize_chat(chat):
@@ -84,6 +92,7 @@ async def serialize_message(message, not_edited=True):
         chat_future = message.get_chat()
         sender_future = message.get_sender()
         chat, sender = await asyncio.gather(chat_future, sender_future)
+        reactions = await serialize_reactions(message)
         return {
             'id': f"{chat.id}-{message.id}" if not_edited else f"{chat.id}-{message.id}-{int(message.edit_date.timestamp())}",
             'chat': await serialize_chat(chat),
@@ -92,6 +101,7 @@ async def serialize_message(message, not_edited=True):
                                                                                                 'caption') else None,
             'from_user': await serialize_sender(sender),
             'reactions': await serialize_reactions(message),
+            'reactions_scores': await calculate_reaction_score(reactions)
             # 'raw': message.message
         }
     except Exception as e:
