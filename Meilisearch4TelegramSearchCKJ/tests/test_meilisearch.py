@@ -5,3 +5,5 @@ from Meilisearch4TelegramSearchCKJ.src.models.meilisearch_handler import MeiliSe
 
 meili = MeiliSearchClient(MEILI_HOST, MEILI_PASS)
 meili.create_index()
+result = meili.search("telegram", "hello",limit=1)
+print(result)
