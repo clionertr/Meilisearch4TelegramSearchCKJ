@@ -20,12 +20,15 @@ latest_msg_config = read_config()
 # 内存跟踪
 tracemalloc.start()
 
-async def calculate_reaction_score(reactions: dict) -> float:
+async def calculate_reaction_score(reactions: dict) -> float|None:
     total_score = 0.0
-    for reaction, count in reactions.items():
-        weight = TELEGRAM_REACTIONS.get(reaction, 0.0)
-        total_score += count * weight
-    return total_score
+    if reactions:
+        for reaction, count in reactions.items():
+            weight = TELEGRAM_REACTIONS.get(reaction, 0.0)
+            total_score += count * weight
+        return total_score
+    else:
+        return None
 
 
 async def serialize_chat(chat):
@@ -87,7 +90,7 @@ async def serialize_reactions(message: Message):
     return reactions_dict if reactions_dict else None
 
 
-async def serialize_message(message, not_edited=True):
+async def serialize_message(message:Message, not_edited=True):
     try:
         chat_future = message.get_chat()
         sender_future = message.get_sender()
