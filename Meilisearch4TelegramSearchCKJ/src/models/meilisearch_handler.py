@@ -69,7 +69,8 @@ class MeiliSearchClient:
                 "proximity",
                 "attribute",
                 "sort",
-                "exactness"
+                "exactness",
+                "date:desc"
               ],
               "stopWords": [
                 "亚太实体赌场"
@@ -148,7 +149,7 @@ class MeiliSearchClient:
         """
         try:
             index = self.client.index(index_name)
-            result = index.search(query, **kwargs)
+            result = index.search(query, kwargs)
             logger.info(f"Search performed in index '{index_name}' with query '{query}'")
             return result
         except Exception as e:
