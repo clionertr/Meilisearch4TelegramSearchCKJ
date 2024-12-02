@@ -1,5 +1,6 @@
 import gc
 
+from setuptools.command.build_ext import if_dl
 from telethon import TelegramClient, events, Button
 from Meilisearch4TelegramSearchCKJ.src.config.env import TOKEN, MEILI_HOST, MEILI_PASS, APP_ID, APP_HASH, \
     RESULTS_PER_PAGE, SEARCH_CACHE, PROXY, IPv6
@@ -27,7 +28,10 @@ async def search_handler(event, query):
         if results:
             search_results_cache[query] = results  # 缓存结果
             await send_results_page(event, results, 0, query)
-            search_results_cache[query].extend(await get_search_results(query, limit=40, offset=10)) if SEARCH_CACHE else None
+            if SEARCH_CACHE:
+                addtion_cache = await get_search_results(query, limit=40, offset=10)
+                search_results_cache[query].extend(addtion_cache) if addtion_cache else None
+            #search_results_cache[query].extend() if SEARCH_CACHE else None
         else:
             await event.reply("没有找到相关结果。")
     except Exception as e:
@@ -141,7 +145,7 @@ async def send_results_page(event, hits, page_number, query):
         buttons.append(Button.inline("下一页", data=f"page_{query}_{page_number + 1}"))
 
     # 异步发送消息，避免阻塞
-    await bot_client.send_message(event.chat_id, f"搜索结果 (第 {page_number + 1} 页):\n{response}", buttons=buttons)
+    await bot_client.send_message(event.chat_id, f"搜索结果 (第 {page_number + 1} 页):\n{response}", buttons=buttons if buttons else None)
 
 async def edit_results_page(event, hits, page_number, query):
     """编辑指定页码的搜索结果"""
@@ -161,7 +165,7 @@ async def edit_results_page(event, hits, page_number, query):
         buttons.append(Button.inline("下一页", data=f"page_{query}_{page_number + 1}"))
 
     # 异步发送消息，避免阻塞
-    await event.edit(f"搜索结果 (第 {page_number + 1} 页):\n{response}", buttons=buttons)
+    await event.edit(f"搜索结果 (第 {page_number + 1} 页):\n{response}", buttons=buttons if buttons else None)
 
 
 # noinspection PyTypeChecker
