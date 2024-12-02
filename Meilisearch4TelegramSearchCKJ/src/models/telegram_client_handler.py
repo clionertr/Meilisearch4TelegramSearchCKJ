@@ -201,10 +201,10 @@ class TelegramUserBot:
             logger.error(f"Error caching message: {str(e)}")
 
     # @check_is_allowed()
-    async def download_history(self, chat_id, limit=None, batch_size=BATCH_MSG_UNM, offset_id=0, offset_date=None):
+    async def download_history(self, peer, limit=None, batch_size=BATCH_MSG_UNM, offset_id=0, offset_date=None):
         """
         下载历史消息
-        :param chat_id: 聊天ID
+        :param peer: 聊天实例
         :param limit: 限制下载消息数量
         :param batch_size: 批量下载大小
         :param offset_date:
@@ -215,7 +215,7 @@ class TelegramUserBot:
             total_messages = 0
 
             async for message in self.client.iter_messages(
-                    chat_id,
+                    peer,
                     offset_id=offset_id,
                     offset_date=offset_date,
                     limit=limit,
@@ -228,8 +228,8 @@ class TelegramUserBot:
 
                 # 批量处理
                 if len(messages) >= batch_size:
-                    latest_msg_config["latest_msg_id"][str(chat_id)] = str(message.id)
-                    latest_msg_config["latest_msg_date"][str(chat_id)] = str(message.date.timestamp())
+                    latest_msg_config["latest_msg_id"][str(peer.id)] = str(message.id)
+                    latest_msg_config["latest_msg_date"][str(peer.id)] = str(message.date.timestamp())
                     write_config(latest_msg_config)
                     await self._process_message_batch(messages)
                     messages = []
@@ -242,13 +242,13 @@ class TelegramUserBot:
 
             # 处理剩余消息
             if messages:
-                latest_msg_config["latest_msg_id"][str(chat_id)] = str(messages[-1]["id"].split('-')[1])
-                latest_msg_config["latest_msg_date"][str(chat_id)] = str(messages[-1]["date"])
+                latest_msg_config["latest_msg_id"][str(peer.id)] = str(messages[-1]["id"].split('-')[1])
+                latest_msg_config["latest_msg_date"][str(peer.id)] = str(messages[-1]["date"])
                 write_config(latest_msg_config)
                 await self._process_message_batch(messages)
                 messages = []
                 gc.collect()
-                logger.log(25, f"Download completed for {chat_id}")
+                logger.log(25, f"Download completed for {peer.id}")
 
         except FloodWaitError as e:
             logger.warning(f"Need to wait {e.seconds} seconds")
