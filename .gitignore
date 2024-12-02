@@ -1,4 +1,6 @@
-/Meilisearch4TelegramSearchCKJ/src/session/*
+/Meilisearch4TelegramSearchCKJ/src/session/user_bot_session.session
+/Meilisearch4TelegramSearchCKJ/src/session/user_bot_session.session-journal
+/Meilisearch4TelegramSearchCKJ/src/session/bot.session
 /Meilisearch4TelegramSearchCKJ/src/config/env.py
 /Meilisearch4TelegramSearchCKJ/src/models/bot.session
 /Meilisearch4TelegramSearchCKJ/src/models/bot.session-journal
