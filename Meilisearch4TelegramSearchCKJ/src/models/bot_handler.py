@@ -1,7 +1,8 @@
 import gc
 
 from telethon import TelegramClient, events, Button
-from Meilisearch4TelegramSearchCKJ.src.config.env import TOKEN, MEILI_HOST, MEILI_PASS, APP_ID, APP_HASH, RESULTS_PER_PAGE
+from Meilisearch4TelegramSearchCKJ.src.config.env import TOKEN, MEILI_HOST, MEILI_PASS, APP_ID, APP_HASH, \
+    RESULTS_PER_PAGE, SEARCH_CACHE, PROXY, IPv6
 from Meilisearch4TelegramSearchCKJ.src.models.meilisearch_handler import MeiliSearchClient
 from Meilisearch4TelegramSearchCKJ.src.utils.fmt_size import sizeof_fmt
 from Meilisearch4TelegramSearchCKJ.src.models.logger import setup_logger
@@ -9,7 +10,7 @@ from Meilisearch4TelegramSearchCKJ.src.models.logger import setup_logger
 logger = setup_logger()
 
 # 初始化 Telegram 客户端
-bot_client = TelegramClient('bot', APP_ID, APP_HASH).start(bot_token=TOKEN)
+bot_client = TelegramClient('bot', APP_ID, APP_HASH,use_ipv6=IPv6,proxy=PROXY,auto_reconnect=True,connection_retries=5).start(bot_token=TOKEN)
 
 # 初始化 MeiliSearch 客户端
 meili = MeiliSearchClient(MEILI_HOST, MEILI_PASS)
@@ -22,11 +23,11 @@ search_results_cache = {}
 # 搜索命令处理器
 async def search_handler(event, query):
     try:
-        results = await get_search_results(query)
+        results = await get_search_results(query) if SEARCH_CACHE else await get_search_results(query,limit=50)
         if results:
             search_results_cache[query] = results  # 缓存结果
             await send_results_page(event, results, 0, query)
-            search_results_cache[query].extend(await get_search_results(query, limit=40, offset=10))
+            search_results_cache[query].extend(await get_search_results(query, limit=40, offset=10)) if SEARCH_CACHE else None
         else:
             await event.reply("没有找到相关结果。")
     except Exception as e:
