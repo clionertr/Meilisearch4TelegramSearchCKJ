@@ -132,10 +132,13 @@ def format_search_result(hit):
     chat_type = hit['chat']['type']
     if chat_type == 'private':
         chat_title = f"Private：{hit['chat']['username']}"
+        url = f"tg://openmessage?user_id={hit['id'].split('-')[0]}&message_id={hit['id'].split('-')[1]}"
     elif chat_type == 'channel':
         chat_title = f"Channel：{hit['chat']['title']}"
+        url = f"https://t.me/c/{hit['id'].split('-')[0]}/{hit['id'].split('-')[1]}"
     else:
         chat_title = f"Group：{hit['chat']['title']}"
+
 
 
 
