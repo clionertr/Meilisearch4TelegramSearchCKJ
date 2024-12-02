@@ -7,7 +7,7 @@ from telethon.errors import FloodWaitError
 import gc
 import tracemalloc
 from Meilisearch4TelegramSearchCKJ.src.config.env import APP_ID, APP_HASH, BATCH_MSG_UNM, NOT_RECORD_MSG, TIME_ZONE, \
-    TELEGRAM_REACTIONS
+    TELEGRAM_REACTIONS, IPv6, PROXY
 from Meilisearch4TelegramSearchCKJ.src.models.logger import setup_logger
 from Meilisearch4TelegramSearchCKJ.src.utils.is_in_white_or_black_list import is_allowed
 from Meilisearch4TelegramSearchCKJ.src.utils.record_lastest_msg_id import read_config, write_config
@@ -137,7 +137,10 @@ class TelegramUserBot:
             # 性能优化参数
             connection_retries=5,
             auto_reconnect=True,
-            retry_delay=1
+            retry_delay=1,
+            use_ipv6=IPv6,
+            proxy=PROXY
+
         )
 
         # 消息缓存，用于优化性能
