@@ -144,7 +144,6 @@ def format_search_result(hit):
 
     chat_username = hit['chat'].get('username', 'N/A')
     date = hit['date'].split('T')[0]  # 只显示日期部分
-    url = f"https://t.me/{chat_username}/{hit['id'].split('-')[1]}" if chat_username != 'N/A' else 'N/A'
     return f"- **{chat_title}**  ({date})\n{text}\n  [🔗Jump]({url})\n" + "—" * 18 + "\n"
 
 async def send_results_page(event, hits, page_number, query):
