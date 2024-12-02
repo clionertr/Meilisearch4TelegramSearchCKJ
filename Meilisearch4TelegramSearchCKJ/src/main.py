@@ -16,8 +16,11 @@ async def main():
         logger.info("Bot started")
         config = read_config()
         logger.info("Reading latest message id from config")
-        for chat_id in WHITE_LIST:
-            await bot.download_history(chat_id, limit=None, offset_id=get_latest_msg_id(config, chat_id))
+        async for d in bot.client.iter_dialogs():
+            if d.id in WHITE_LIST:
+                logger.info(f"Downloading history for {d.title or d.id}")
+                peer = await bot.client.get_entity(d.id)
+                await bot.download_history(peer, limit=None, offset_id=get_latest_msg_id(config, d.id))
 
         # 监控内存使用
         bot.get_memory_usage()
