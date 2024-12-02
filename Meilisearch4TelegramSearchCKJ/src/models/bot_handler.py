@@ -32,7 +32,7 @@ async def search_handler(event, query):
             await event.reply("没有找到相关结果。")
     except Exception as e:
         await event.reply(f"搜索出错：{e}")
-        print(f"搜索出错：{e}")
+        logger.error(f"搜索出错：{e}")
 
 
 async def get_search_results(query, limit=10, offset=0,index_name='telegram'):
@@ -41,7 +41,7 @@ async def get_search_results(query, limit=10, offset=0,index_name='telegram'):
         results = meili.search(query,index_name,limit=limit,offset=offset)  # 限制单次查询数量，避免一次性返回过多结果
         return results['hits'] if results['hits'] else None
     except Exception as e:
-        print(f"MeiliSearch 查询出错：{e}")
+        logger.error(f"MeiliSearch 查询出错：{e}")
         return None
 
 # 定义指令处理器
@@ -189,7 +189,7 @@ async def callback_query_handler(event):
             await edit_results_page(event, results, page_number, query)
         except Exception as e:
             await event.answer(f"搜索出错：{e}", alert=True)
-            print(f"搜索出错：{e}")
+            logger.error(f"搜索出错：{e}")
 
 # 启动客户端
 logger.log(25, "Bot started")
