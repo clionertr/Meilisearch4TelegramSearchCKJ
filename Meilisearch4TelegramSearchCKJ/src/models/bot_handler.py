@@ -127,7 +127,10 @@ async def message_handler(event):
 
 def format_search_result(hit):
     """格式化搜索结果"""
-    text = hit['text']
+    if len(hit['text']) > 360:
+        text = hit['text'][:360] + "..."
+    else:
+        text = hit['text']
 
     chat_type = hit['chat']['type']
     if chat_type == 'private':
@@ -138,6 +141,7 @@ def format_search_result(hit):
         url = f"https://t.me/c/{hit['id'].split('-')[0]}/{hit['id'].split('-')[1]}"
     else:
         chat_title = f"Group：{hit['chat']['title']}"
+        url = f"https://t.me/c/{hit['id'].split('-')[0]}/{hit['id'].split('-')[1]}"
 
 
 
