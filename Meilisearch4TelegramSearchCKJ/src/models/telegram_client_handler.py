@@ -137,7 +137,7 @@ class TelegramUserBot:
             # 性能优化参数
             connection_retries=5,
             auto_reconnect=True,
-            retry_delay=1,
+            retry_delay=2,
             use_ipv6=IPv6,
             proxy=PROXY
 
