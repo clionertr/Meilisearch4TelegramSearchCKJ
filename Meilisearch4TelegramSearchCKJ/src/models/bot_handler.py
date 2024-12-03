@@ -60,6 +60,7 @@ async def start_handler(event):
 /search <关键词1> <关键词2>
 /ping - 检查搜索服务是否运行
 /about - 关于本项目
+/cc - 清理缓存
 导航：
 • 使用⬅️ 上一页和下一页 ➡️ 按钮浏览搜索结果
 • 每页最多显示10条结果
