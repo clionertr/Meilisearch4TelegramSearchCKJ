@@ -1,5 +1,5 @@
 import asyncio
-from Meilisearch4TelegramSearchCKJ.src.config.env import MEILI_HOST, MEILI_PASS, WHITE_LIST
+from Meilisearch4TelegramSearchCKJ.src.config.env import MEILI_HOST, MEILI_PASS, WHITE_LIST, BLACK_LIST
 from Meilisearch4TelegramSearchCKJ.src.models.logger import setup_logger
 from Meilisearch4TelegramSearchCKJ.src.models.meilisearch_handler import MeiliSearchClient
 from Meilisearch4TelegramSearchCKJ.src.models.telegram_client_handler import TelegramUserBot
@@ -17,11 +17,18 @@ async def main():
         config = read_config()
         logger.info("Reading latest message id from config")
         async for d in bot.client.iter_dialogs():
-            if d.id in WHITE_LIST:
-                logger.info(f"Downloading history for {d.title or d.id}")
-                peer = await bot.client.get_entity(d.id)
-                await bot.download_history(peer, limit=None, offset_id=get_latest_msg_id(config, d.id))
-
+            # 便于获取对话的 id 和标题
+            logger.log(25, f"Dialogs: {d.id}, {d.title if d.title else d }")
+            if WHITE_LIST:
+                if d.id in WHITE_LIST:
+                    logger.info(f"Downloading history for {d.title or d.id}")
+                    peer = await bot.client.get_entity(d.id)
+                    await bot.download_history(peer, limit=None, offset_id=get_latest_msg_id(config, d.id))
+            else:
+                if d.id not in BLACK_LIST:
+                    logger.info(f"Downloading history for {d.title or d.id}")
+                    peer = await bot.client.get_entity(d.id)
+                    await bot.download_history(peer, limit=None, offset_id=get_latest_msg_id(config, d.id))
         # 监控内存使用
         bot.get_memory_usage()
 
