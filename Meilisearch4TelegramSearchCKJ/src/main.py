@@ -45,16 +45,16 @@ async def main():
         await bot.cleanup()
 
 
-# if __name__ == "__main__":
-#     loop = asyncio.get_event_loop()
-#     try:
-#         loop.run_until_complete(main())
-#     except KeyboardInterrupt:
-#         logger.info("Bot stopped by user")
-#     finally:
-#         loop.close()
+async def run():
+    loop = asyncio.get_event_loop()
+    try:
+        loop.run_until_complete(await main())
+    except KeyboardInterrupt:
+        logger.info("Bot stopped by user")
+    finally:
+        loop.close()
 
 
 if __name__ == "__main__":
-    bot_handler = BotHandler()
+    bot_handler = BotHandler(run)
     bot_handler.run()

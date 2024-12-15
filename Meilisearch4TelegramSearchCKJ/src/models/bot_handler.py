@@ -7,13 +7,15 @@ from Meilisearch4TelegramSearchCKJ.src.utils.fmt_size import sizeof_fmt
 from Meilisearch4TelegramSearchCKJ.src.models.logger import setup_logger
 
 class BotHandler:
-    def __init__(self):
+    def __init__(self, main):
         self.logger = setup_logger()
         self.bot_client = TelegramClient('bot', APP_ID, APP_HASH, use_ipv6=IPv6, proxy=PROXY, auto_reconnect=True, connection_retries=5).start(bot_token=TOKEN)
         self.meili = MeiliSearchClient(MEILI_HOST, MEILI_PASS)
         self.search_results_cache = {}
+        self.main = main
 
         self.bot_client.on(events.NewMessage(pattern=r'^/(start|help)$'))(self.start_handler)
+        self.bot_client.on(events.NewMessage(pattern=r'^/(start_client)$'))(lambda event: self.start_download_and_listening())
         self.bot_client.on(events.NewMessage(pattern=r'^/search (.+)'))(self.search_command_handler)
         self.bot_client.on(events.NewMessage(pattern=r'^/cc$'))(self.clean)
         self.bot_client.on(events.NewMessage(pattern=r'^/about$'))(self.about_handler)
@@ -35,6 +37,9 @@ class BotHandler:
         except Exception as e:
             await event.reply(f"搜索出错：{e}")
             self.logger.error(f"搜索出错：{e}")
+
+    async def start_download_and_listening(self):
+        await self.main()
 
     async def get_search_results(self, query, limit=10, offset=0, index_name='telegram'):
         try:
@@ -168,4 +173,6 @@ class BotHandler:
     def run(self):
         self.logger.log(25, "Bot started")
         self.bot_client.run_until_disconnected()
+
+
 
