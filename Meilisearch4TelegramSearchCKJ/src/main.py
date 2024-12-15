@@ -1,5 +1,6 @@
 import asyncio
 from Meilisearch4TelegramSearchCKJ.src.config.env import MEILI_HOST, MEILI_PASS, WHITE_LIST, BLACK_LIST
+from Meilisearch4TelegramSearchCKJ.src.models.bot_handler import BotHandler
 from Meilisearch4TelegramSearchCKJ.src.models.logger import setup_logger
 from Meilisearch4TelegramSearchCKJ.src.models.meilisearch_handler import MeiliSearchClient
 from Meilisearch4TelegramSearchCKJ.src.models.telegram_client_handler import TelegramUserBot
@@ -44,11 +45,16 @@ async def main():
         await bot.cleanup()
 
 
+# if __name__ == "__main__":
+#     loop = asyncio.get_event_loop()
+#     try:
+#         loop.run_until_complete(main())
+#     except KeyboardInterrupt:
+#         logger.info("Bot stopped by user")
+#     finally:
+#         loop.close()
+
+
 if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
-    try:
-        loop.run_until_complete(main())
-    except KeyboardInterrupt:
-        logger.info("Bot stopped by user")
-    finally:
-        loop.close()
+    bot_handler = BotHandler()
+    bot_handler.run()
