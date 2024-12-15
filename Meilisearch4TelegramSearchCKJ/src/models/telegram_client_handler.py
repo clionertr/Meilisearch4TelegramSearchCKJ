@@ -2,12 +2,13 @@ import asyncio
 
 import pytz
 from telethon import TelegramClient, events
+from telethon.sessions import StringSession
 from telethon.tl.types import Message, ReactionCount, ReactionEmoji, ReactionCustomEmoji
 from telethon.errors import FloodWaitError
 import gc
 import tracemalloc
 from Meilisearch4TelegramSearchCKJ.src.config.env import APP_ID, APP_HASH, BATCH_MSG_UNM, NOT_RECORD_MSG, TIME_ZONE, \
-    TELEGRAM_REACTIONS, IPv6, PROXY
+    TELEGRAM_REACTIONS, IPv6, PROXY, SESSION_STRING
 from Meilisearch4TelegramSearchCKJ.src.models.logger import setup_logger
 from Meilisearch4TelegramSearchCKJ.src.utils.is_in_white_or_black_list import is_allowed
 from Meilisearch4TelegramSearchCKJ.src.utils.record_lastest_msg_id import read_config, write_config
@@ -121,13 +122,16 @@ class TelegramUserBot:
         # Telegram API 认证信息
         self.api_id = APP_ID
         self.api_hash = APP_HASH
-        self.session_name = 'session/user_bot_session'
+        if SESSION_STRING:
+            self.session = 'session/user_bot_session'
+        else:
+            self.session = StringSession(SESSION_STRING)
 
         self.meili = MeiliClient
 
         # 初始化客户端
         self.client = TelegramClient(
-            self.session_name,
+            self.session,
             self.api_id,
             self.api_hash,
             device_model="UserBot",
