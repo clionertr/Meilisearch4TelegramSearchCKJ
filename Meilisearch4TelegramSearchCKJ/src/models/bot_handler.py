@@ -169,6 +169,3 @@ class BotHandler:
         self.logger.log(25, "Bot started")
         self.bot_client.run_until_disconnected()
 
-if __name__ == "__main__":
-    bot_handler = BotHandler()
-    bot_handler.run()
