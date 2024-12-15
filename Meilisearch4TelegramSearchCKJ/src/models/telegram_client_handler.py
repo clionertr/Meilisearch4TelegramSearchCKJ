@@ -123,9 +123,9 @@ class TelegramUserBot:
         self.api_id = APP_ID
         self.api_hash = APP_HASH
         if SESSION_STRING:
-            self.session = 'session/user_bot_session'
-        else:
             self.session = StringSession(SESSION_STRING)
+        else:
+            self.session = 'session/user_bot_session'
 
         self.meili = MeiliClient
 
