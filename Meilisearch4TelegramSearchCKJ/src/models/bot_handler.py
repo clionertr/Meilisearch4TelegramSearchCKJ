@@ -2,6 +2,7 @@ import gc
 from telethon import TelegramClient, events, Button
 from Meilisearch4TelegramSearchCKJ.src.config.env import TOKEN, MEILI_HOST, MEILI_PASS, APP_ID, APP_HASH, \
     RESULTS_PER_PAGE, SEARCH_CACHE, PROXY, IPv6
+from Meilisearch4TelegramSearchCKJ.src.main import logger
 from Meilisearch4TelegramSearchCKJ.src.models.meilisearch_handler import MeiliSearchClient
 from Meilisearch4TelegramSearchCKJ.src.utils.fmt_size import sizeof_fmt
 from Meilisearch4TelegramSearchCKJ.src.models.logger import setup_logger
@@ -15,7 +16,7 @@ class BotHandler:
         self.main = main
 
         self.bot_client.on(events.NewMessage(pattern=r'^/(start|help)$'))(self.start_handler)
-        self.bot_client.on(events.NewMessage(pattern=r'^/(start_client)$'))(lambda event: self.start_download_and_listening())
+        self.bot_client.on(events.NewMessage(pattern=r'^/(start_client)$'))(lambda event: self.start_download_and_listening(event))
         self.bot_client.on(events.NewMessage(pattern=r'^/search (.+)'))(self.search_command_handler)
         self.bot_client.on(events.NewMessage(pattern=r'^/cc$'))(self.clean)
         self.bot_client.on(events.NewMessage(pattern=r'^/about$'))(self.about_handler)
@@ -38,8 +39,11 @@ class BotHandler:
             await event.reply(f"搜索出错：{e}")
             self.logger.error(f"搜索出错：{e}")
 
-    async def start_download_and_listening(self):
+    async def start_download_and_listening(self,event):
+        await event.reply("开始下载历史消息,监听历史消息...")
+        logger.info("开始下载历史消息,监听历史消息")
         await self.main()
+
 
     async def get_search_results(self, query, limit=10, offset=0, index_name='telegram'):
         try:
