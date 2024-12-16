@@ -15,7 +15,7 @@ class BotHandler:
         self.main = main
 
         self.bot_client.on(events.NewMessage(pattern=r'^/(start|help)$'))(self.start_handler)
-        self.bot_client.on(events.NewMessage(pattern=r'^/(start_client)$'))(lambda event: self.start_download_and_listening())
+        self.bot_client.on(events.NewMessage(pattern=r'^/(start_client)$'))(lambda event: self.start_download_and_listening(event))
         self.bot_client.on(events.NewMessage(pattern=r'^/search (.+)'))(self.search_command_handler)
         self.bot_client.on(events.NewMessage(pattern=r'^/cc$'))(self.clean)
         self.bot_client.on(events.NewMessage(pattern=r'^/about$'))(self.about_handler)
@@ -38,8 +38,11 @@ class BotHandler:
             await event.reply(f"搜索出错：{e}")
             self.logger.error(f"搜索出错：{e}")
 
-    async def start_download_and_listening(self):
+    async def start_download_and_listening(self,event):
+        await event.reply("开始下载历史消息,监听历史消息...")
+        self.logger.info("开始下载历史消息,监听历史消息")
         await self.main()
+
 
     async def get_search_results(self, query, limit=10, offset=0, index_name='telegram'):
         try:
