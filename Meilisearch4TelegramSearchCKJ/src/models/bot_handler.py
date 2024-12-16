@@ -39,9 +39,9 @@ class BotHandler:
             self.logger.error(f"搜索出错：{e}")
 
     async def start_download_and_listening(self,event):
-        await event.reply("开始下载历史消息,监听历史消息...")
-        self.logger.info("开始下载历史消息,监听历史消息")
-        await self.main()
+        neo_msg = await event.reply("开始下载历史消息,监听历史消息...")
+        self.logger.info("Downloading and listening messages for dialogs")
+        await self.main(neo_msg)
 
 
     async def get_search_results(self, query, limit=10, offset=0, index_name='telegram'):
