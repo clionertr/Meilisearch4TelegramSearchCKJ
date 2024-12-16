@@ -41,7 +41,7 @@ class BotHandler:
 
     async def start_download_and_listening(self,event):
         await event.reply("开始下载历史消息,监听历史消息...")
-        logger.info("开始下载历史消息,监听历史消息")
+        self.logger.info("开始下载历史消息,监听历史消息")
         await self.main()
 
 
