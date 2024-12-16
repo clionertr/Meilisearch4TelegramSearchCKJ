@@ -2,7 +2,6 @@ import gc
 from telethon import TelegramClient, events, Button
 from Meilisearch4TelegramSearchCKJ.src.config.env import TOKEN, MEILI_HOST, MEILI_PASS, APP_ID, APP_HASH, \
     RESULTS_PER_PAGE, SEARCH_CACHE, PROXY, IPv6
-from Meilisearch4TelegramSearchCKJ.src.main import logger
 from Meilisearch4TelegramSearchCKJ.src.models.meilisearch_handler import MeiliSearchClient
 from Meilisearch4TelegramSearchCKJ.src.utils.fmt_size import sizeof_fmt
 from Meilisearch4TelegramSearchCKJ.src.models.logger import setup_logger
