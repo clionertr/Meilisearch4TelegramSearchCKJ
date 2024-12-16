@@ -15,7 +15,7 @@ RUN pip install -e .
 RUN pip install -r requirements.txt
 
 # 切换到工作目录
-WORKDIR /app/Meilisearch4TelegramSearchCKJ
+WORKDIR /app/Meilisearch4TelegramSearchCKJ/src
 
 
 # 运行你的 main.py 脚本
