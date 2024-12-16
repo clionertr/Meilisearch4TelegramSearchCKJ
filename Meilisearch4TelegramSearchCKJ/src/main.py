@@ -11,30 +11,30 @@ logger = setup_logger()
 
 
 async def main():
-    bot = TelegramUserBot(meili)
+    user_bot_client = TelegramUserBot(meili)
     try:
-        await bot.start()
+        await user_bot_client.start()
         logger.info("Bot started")
         config = read_config()
         logger.info("Reading latest message id from config")
-        async for d in bot.client.iter_dialogs():
+        async for d in user_bot_client.client.iter_dialogs():
             # 便于获取对话的 id 和标题
             logger.log(25, f"Dialogs: {d.id}, {d.title if d.title else d }")
             if WHITE_LIST:
                 if d.id in WHITE_LIST:
                     logger.info(f"Downloading history for {d.title or d.id}")
-                    peer = await bot.client.get_entity(d.id)
-                    await bot.download_history(peer, limit=None, offset_id=get_latest_msg_id(config, d.id))
+                    peer = await user_bot_client.client.get_entity(d.id)
+                    await user_bot_client.download_history(peer, limit=None, offset_id=get_latest_msg_id(config, d.id))
             else:
                 if d.id not in BLACK_LIST:
                     logger.info(f"Downloading history for {d.title or d.id}")
-                    peer = await bot.client.get_entity(d.id)
-                    await bot.download_history(peer, limit=None, offset_id=get_latest_msg_id(config, d.id))
+                    peer = await user_bot_client.client.get_entity(d.id)
+                    await user_bot_client.download_history(peer, limit=None, offset_id=get_latest_msg_id(config, d.id))
         # 监控内存使用
-        bot.get_memory_usage()
+        user_bot_client.get_memory_usage()
 
         # 保持运行
-        await bot.client.run_until_disconnected()
+        await user_bot_client.client.run_until_disconnected()
     except Exception as e:
         logger.error(f"Error running bot: {str(e)}")
         if not isinstance(e, KeyboardInterrupt):
@@ -42,7 +42,7 @@ async def main():
                 logger.error("Please check your environment variables “WHITE_LIST“ ")
 
     finally:
-        await bot.cleanup()
+        await user_bot_client.cleanup()
 
 
 async def run():
