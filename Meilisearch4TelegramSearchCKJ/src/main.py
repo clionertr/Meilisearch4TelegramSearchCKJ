@@ -9,29 +9,35 @@ from Meilisearch4TelegramSearchCKJ.src.utils.record_lastest_msg_id import get_la
 meili = MeiliSearchClient(MEILI_HOST, MEILI_PASS)
 logger = setup_logger()
 
+async def download_history_task(user_bot_client):
+    config = read_config()
+    logger.info("Reading latest message id from config")
+    async for d in user_bot_client.client.iter_dialogs():
+        logger.log(25, f"Dialogs: {d.id}, {d.title if d.title else d }")
+        if WHITE_LIST:
+            if d.id in WHITE_LIST:
+                logger.info(f"Downloading history for {d.title or d.id}")
+                peer = await user_bot_client.client.get_entity(d.id)
+                await user_bot_client.download_history(peer, limit=None, offset_id=get_latest_msg_id(config, d.id))
+        else:
+            if d.id not in BLACK_LIST:
+                logger.info(f"Downloading history for {d.title or d.id}")
+                peer = await user_bot_client.client.get_entity(d.id)
+                await user_bot_client.download_history(peer, limit=None, offset_id=get_latest_msg_id(config, d.id))
+    # 监控内存使用
+    user_bot_client.get_memory_usage()
 
 async def main(neo_msg):
     user_bot_client = TelegramUserBot(meili)
     try:
         await user_bot_client.start()
         logger.info("Bot started")
-        config = read_config()
-        logger.info("Reading latest message id from config")
-        async for d in user_bot_client.client.iter_dialogs():
-            # 便于获取对话的 id 和标题
-            logger.log(25, f"Dialogs: {d.id}, {d.title if d.title else d }")
-            if WHITE_LIST:
-                if d.id in WHITE_LIST:
-                    logger.info(f"Downloading history for {d.title or d.id}")
-                    peer = await user_bot_client.client.get_entity(d.id)
-                    await user_bot_client.download_history(peer, limit=None, offset_id=get_latest_msg_id(config, d.id))
-            else:
-                if d.id not in BLACK_LIST:
-                    logger.info(f"Downloading history for {d.title or d.id}")
-                    peer = await user_bot_client.client.get_entity(d.id)
-                    await user_bot_client.download_history(peer, limit=None, offset_id=get_latest_msg_id(config, d.id))
-        # 监控内存使用
-        user_bot_client.get_memory_usage()
+
+        # 创建下载历史消息的任务
+        download_task = asyncio.create_task(download_history_task(user_bot_client))
+
+        # 等待下载任务完成 (可选，根据你的需求决定)
+        await download_task
 
         # 保持运行
         await user_bot_client.client.run_until_disconnected()
@@ -44,7 +50,6 @@ async def main(neo_msg):
     finally:
         await user_bot_client.cleanup()
 
-
 async def run(neo_msg):
     try:
         await main(neo_msg)
@@ -52,5 +57,5 @@ async def run(neo_msg):
         logger.info("Bot stopped by user")
 
 if __name__ == "__main__":
-    bot_handler = BotHandler(run)
+    bot_handler = BotHandler(main)
     asyncio.run(bot_handler.run())

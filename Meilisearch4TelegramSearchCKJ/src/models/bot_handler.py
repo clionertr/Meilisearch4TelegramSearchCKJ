@@ -1,3 +1,4 @@
+import asyncio
 import gc
 from telethon import TelegramClient, events, Button
 from Meilisearch4TelegramSearchCKJ.src.config.env import TOKEN, MEILI_HOST, MEILI_PASS, APP_ID, APP_HASH, \
@@ -41,8 +42,7 @@ class BotHandler:
     async def start_download_and_listening(self,event):
         neo_msg = await event.reply("开始下载历史消息,监听历史消息...")
         self.logger.info("Downloading and listening messages for dialogs")
-        await self.main(neo_msg)
-
+        asyncio.create_task(self.main(neo_msg))
 
     async def get_search_results(self, query, limit=10, offset=0, index_name='telegram'):
         try:
@@ -175,7 +175,17 @@ class BotHandler:
 
     def run(self):
         self.logger.log(25, "Bot started")
-        self.bot_client.run_until_disconnected()
+        # 移除阻塞的 run_until_disconnected()
+        # self.bot_client.run_until_disconnected()
+
+        # 可选：使用 loop 保持主线程活跃，避免程序直接退出
+        loop = asyncio.get_event_loop()
+        try:
+            loop.run_forever()
+        except KeyboardInterrupt:
+            pass
+        finally:
+            loop.close()
 
 
 
