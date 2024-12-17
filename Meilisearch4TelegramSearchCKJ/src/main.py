@@ -9,53 +9,59 @@ from Meilisearch4TelegramSearchCKJ.src.utils.record_lastest_msg_id import get_la
 meili = MeiliSearchClient(MEILI_HOST, MEILI_PASS)
 logger = setup_logger()
 
-async def download_history_task(user_bot_client):
-    config = read_config()
-    logger.info("Reading latest message id from config")
-    async for d in user_bot_client.client.iter_dialogs():
-        logger.log(25, f"Dialogs: {d.id}, {d.title if d.title else d }")
-        if WHITE_LIST:
-            if d.id in WHITE_LIST:
-                logger.info(f"Downloading history for {d.title or d.id}")
-                peer = await user_bot_client.client.get_entity(d.id)
-                await user_bot_client.download_history(peer, limit=None, offset_id=get_latest_msg_id(config, d.id))
-        else:
-            if d.id not in BLACK_LIST:
-                logger.info(f"Downloading history for {d.title or d.id}")
-                peer = await user_bot_client.client.get_entity(d.id)
-                await user_bot_client.download_history(peer, limit=None, offset_id=get_latest_msg_id(config, d.id))
-    # 监控内存使用
-    user_bot_client.get_memory_usage()
+async def download_and_listen(user_bot_client):
+    try:
+        config = read_config()
+        logger.info("Reading latest message id from config")
+        async for d in user_bot_client.client.iter_dialogs():
+            logger.log(25, f"Dialogs: {d.id}, {d.title if d.title else d }")
+            if WHITE_LIST:
+                if d.id in WHITE_LIST:
+                    logger.info(f"Downloading history for {d.title or d.id}")
+                    peer = await user_bot_client.client.get_entity(d.id)
+                    await user_bot_client.download_history(peer, limit=None, offset_id=get_latest_msg_id(config, d.id))
+            else:
+                if d.id not in BLACK_LIST:
+                    logger.info(f"Downloading history for {d.title or d.id}")
+                    peer = await user_bot_client.client.get_entity(d.id)
+                    await user_bot_client.download_history(peer, limit=None, offset_id=get_latest_msg_id(config, d.id))
+        # 监控内存使用
+        user_bot_client.get_memory_usage()
+        logger.info("Finished downloading history, now listening for new messages...")
+        await user_bot_client.client.run_until_disconnected()
+    except asyncio.CancelledError:
+        logger.info("下载任务被取消")
+    except Exception as e:
+        logger.error(f"下载任务出错: {e}")
 
-async def main(neo_msg):
+async def main():
     user_bot_client = TelegramUserBot(meili)
     try:
         await user_bot_client.start()
-        logger.info("Bot started")
+        logger.info("User Bot started")
 
-        # 创建下载历史消息的任务
-        download_task = asyncio.create_task(download_history_task(user_bot_client))
+        # 创建并运行下载和监听任务
+        download_task = asyncio.create_task(download_and_listen(user_bot_client))
 
-        # 等待下载任务完成 (可选，根据你的需求决定)
+        # 这里可以添加其他需要并行运行的任务
+
+        # 等待下载和监听任务结束 (通常不会结束，除非客户端断开连接)
         await download_task
 
-        # 保持运行
-        await user_bot_client.client.run_until_disconnected()
     except Exception as e:
         logger.error(f"Error running bot: {str(e)}")
         if not isinstance(e, KeyboardInterrupt):
             if isinstance(e, ValueError):
                 logger.error("Please check your environment variables “WHITE_LIST“ ")
-
     finally:
         await user_bot_client.cleanup()
 
-async def run(neo_msg):
+async def run():
     try:
-        await main(neo_msg)
+        await main()
     except KeyboardInterrupt:
         logger.info("Bot stopped by user")
 
 if __name__ == "__main__":
-    bot_handler = BotHandler(main)
+    bot_handler = BotHandler(run)
     asyncio.run(bot_handler.run())

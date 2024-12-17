@@ -14,6 +14,7 @@ class BotHandler:
         self.meili = MeiliSearchClient(MEILI_HOST, MEILI_PASS)
         self.search_results_cache = {}
         self.main = main
+        self.download_task = None  # 用于存储下载任务
 
         self.bot_client.on(events.NewMessage(pattern=r'^/(start|help)$'))(self.start_handler)
         self.bot_client.on(events.NewMessage(pattern=r'^/(start_client)$'))(lambda event: self.start_download_and_listening(event))
@@ -23,6 +24,27 @@ class BotHandler:
         self.bot_client.on(events.NewMessage(pattern=r'^/ping$'))(self.ping_handler)
         self.bot_client.on(events.NewMessage(func=lambda e: e.is_private and not e.text.startswith('/')))(self.message_handler)
         self.bot_client.on(events.CallbackQuery)(self.callback_query_handler)
+        self.bot_client.on(events.NewMessage(pattern=r'^/(stop_client)$'))(self.stop_download_and_listening)
+
+    async def stop_download_and_listening(self, event):
+        if self.download_task and not self.download_task.done():
+            self.download_task.cancel()
+            await event.reply("下载任务已停止")
+        else:
+            await event.reply("没有正在运行的下载任务")
+
+    async def start_download_and_listening(self, event):
+        neo_msg = await event.reply("开始下载历史消息,监听历史消息...")
+        self.logger.info("Downloading and listening messages for dialogs")
+        if self.download_task is None or self.download_task.done():
+            self.download_task = asyncio.create_task(self.main())
+        else:
+            await event.reply("下载任务已经在运行中...")
+
+    def run(self):
+        self.logger.log(25, "Bot started")
+        self.bot_client.run_until_disconnected()
+
 
     async def search_handler(self, event, query):
         try:
@@ -39,10 +61,6 @@ class BotHandler:
             await event.reply(f"搜索出错：{e}")
             self.logger.error(f"搜索出错：{e}")
 
-    async def start_download_and_listening(self,event):
-        neo_msg = await event.reply("开始下载历史消息,监听历史消息...")
-        self.logger.info("Downloading and listening messages for dialogs")
-        asyncio.create_task(self.main(neo_msg))
 
     async def get_search_results(self, query, limit=10, offset=0, index_name='telegram'):
         try:
@@ -173,19 +191,7 @@ class BotHandler:
                 await event.answer(f"搜索出错：{e}", alert=True)
                 self.logger.error(f"搜索出错：{e}")
 
-    def run(self):
-        self.logger.log(25, "Bot started")
-        # 移除阻塞的 run_until_disconnected()
-        # self.bot_client.run_until_disconnected()
 
-        # 可选：使用 loop 保持主线程活跃，避免程序直接退出
-        loop = asyncio.get_event_loop()
-        try:
-            loop.run_forever()
-        except KeyboardInterrupt:
-            pass
-        finally:
-            loop.close()
 
 
 
