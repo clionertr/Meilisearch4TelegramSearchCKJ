@@ -1,3 +1,4 @@
+import asyncio
 import gc
 from telethon import TelegramClient, events, Button
 from Meilisearch4TelegramSearchCKJ.src.config.env import TOKEN, MEILI_HOST, MEILI_PASS, APP_ID, APP_HASH, \
@@ -9,11 +10,14 @@ from Meilisearch4TelegramSearchCKJ.src.models.logger import setup_logger
 class BotHandler:
     def __init__(self, main):
         self.logger = setup_logger()
-        self.bot_client = TelegramClient('bot', APP_ID, APP_HASH, use_ipv6=IPv6, proxy=PROXY, auto_reconnect=True, connection_retries=5).start(bot_token=TOKEN)
+        self.bot_client = TelegramClient('bot', APP_ID, APP_HASH, use_ipv6=IPv6, proxy=PROXY, auto_reconnect=True, connection_retries=5)
         self.meili = MeiliSearchClient(MEILI_HOST, MEILI_PASS)
         self.search_results_cache = {}
         self.main = main
+        self.download_task = None  # 用于存储下载任务
 
+    async def initialize(self):
+        await self.bot_client.start(bot_token=TOKEN)
         self.bot_client.on(events.NewMessage(pattern=r'^/(start|help)$'))(self.start_handler)
         self.bot_client.on(events.NewMessage(pattern=r'^/(start_client)$'))(lambda event: self.start_download_and_listening(event))
         self.bot_client.on(events.NewMessage(pattern=r'^/search (.+)'))(self.search_command_handler)
@@ -22,6 +26,28 @@ class BotHandler:
         self.bot_client.on(events.NewMessage(pattern=r'^/ping$'))(self.ping_handler)
         self.bot_client.on(events.NewMessage(func=lambda e: e.is_private and not e.text.startswith('/')))(self.message_handler)
         self.bot_client.on(events.CallbackQuery)(self.callback_query_handler)
+        self.bot_client.on(events.NewMessage(pattern=r'^/(stop_client)$'))(self.stop_download_and_listening)
+
+    async def run(self):
+        await self.initialize()
+        self.logger.log(25, "Bot started")
+        await self.bot_client.run_until_disconnected()
+    async def stop_download_and_listening(self, event):
+        if self.download_task and not self.download_task.done():
+            self.download_task.cancel()
+            await event.reply("下载任务已停止")
+        else:
+            await event.reply("没有正在运行的下载任务")
+
+    async def start_download_and_listening(self, event):
+        neo_msg = await event.reply("开始下载历史消息,监听历史消息...")
+        self.logger.info("Downloading and listening messages for dialogs")
+        if self.download_task is None or self.download_task.done():
+            self.download_task = asyncio.create_task(self.main())
+        else:
+            await event.reply("下载任务已经在运行中...")
+
+
 
     async def search_handler(self, event, query):
         try:
@@ -37,11 +63,6 @@ class BotHandler:
         except Exception as e:
             await event.reply(f"搜索出错：{e}")
             self.logger.error(f"搜索出错：{e}")
-
-    async def start_download_and_listening(self,event):
-        neo_msg = await event.reply("开始下载历史消息,监听历史消息...")
-        self.logger.info("Downloading and listening messages for dialogs")
-        await self.main(neo_msg)
 
 
     async def get_search_results(self, query, limit=10, offset=0, index_name='telegram'):
@@ -173,9 +194,7 @@ class BotHandler:
                 await event.answer(f"搜索出错：{e}", alert=True)
                 self.logger.error(f"搜索出错：{e}")
 
-    def run(self):
-        self.logger.log(25, "Bot started")
-        self.bot_client.run_until_disconnected()
+
 
 
 

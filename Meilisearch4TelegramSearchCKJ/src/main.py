@@ -9,16 +9,11 @@ from Meilisearch4TelegramSearchCKJ.src.utils.record_lastest_msg_id import get_la
 meili = MeiliSearchClient(MEILI_HOST, MEILI_PASS)
 logger = setup_logger()
 
-
-async def main(neo_msg):
-    user_bot_client = TelegramUserBot(meili)
+async def download_and_listen(user_bot_client):
     try:
-        await user_bot_client.start()
-        logger.info("Bot started")
         config = read_config()
         logger.info("Reading latest message id from config")
         async for d in user_bot_client.client.iter_dialogs():
-            # 便于获取对话的 id 和标题
             logger.log(25, f"Dialogs: {d.id}, {d.title if d.title else d }")
             if WHITE_LIST:
                 if d.id in WHITE_LIST:
@@ -32,22 +27,38 @@ async def main(neo_msg):
                     await user_bot_client.download_history(peer, limit=None, offset_id=get_latest_msg_id(config, d.id))
         # 监控内存使用
         user_bot_client.get_memory_usage()
-
-        # 保持运行
+        logger.info("Finished downloading history, now listening for new messages...")
         await user_bot_client.client.run_until_disconnected()
+    except asyncio.CancelledError:
+        logger.info("下载任务被取消")
+    except Exception as e:
+        logger.error(f"下载任务出错: {e}")
+
+async def main():
+    user_bot_client = TelegramUserBot(meili)
+    try:
+        await user_bot_client.start()
+        logger.info("User Bot started")
+
+        # 创建并运行下载和监听任务
+        download_task = asyncio.create_task(download_and_listen(user_bot_client))
+
+        # 这里可以添加其他需要并行运行的任务
+
+        # 等待下载和监听任务结束 (通常不会结束，除非客户端断开连接)
+        await download_task
+
     except Exception as e:
         logger.error(f"Error running bot: {str(e)}")
         if not isinstance(e, KeyboardInterrupt):
             if isinstance(e, ValueError):
                 logger.error("Please check your environment variables “WHITE_LIST“ ")
-
     finally:
         await user_bot_client.cleanup()
 
-
-async def run(neo_msg):
+async def run():
     try:
-        await main(neo_msg)
+        await main()
     except KeyboardInterrupt:
         logger.info("Bot stopped by user")
 
