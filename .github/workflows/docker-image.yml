@@ -2,7 +2,7 @@ name: Docker Image Build and Push
 
 on:
   push:
-    branches: [ "preview_two2one" ]  
+    branches: [ "preview_two2one" ]
   pull_request:
     branches: [ "preview_two2one" ]
 
@@ -32,4 +32,5 @@ jobs:
         with:
           context: .
           push: true
-          tags: ghcr.io/${{ github.repository }}:${{ github.run_number }}
+          tags: ghcr.io/${{ github.repository_owner }}/${{ github.repository_name }}:${{ github.run_number }}
+          
