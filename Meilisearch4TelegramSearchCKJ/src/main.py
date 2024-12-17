@@ -20,12 +20,6 @@ async def main(neo_msg):
         async for d in user_bot_client.client.iter_dialogs():
             # 便于获取对话的 id 和标题
             logger.log(25, f"Dialogs: {d.id}, {d.title if d.title else d }")
-            # addtion_text = f"\n对话ID: {d.id}, 对话标题：{d.title if d.title else d }"
-            # new_text = neo_msg.text + addtion_text
-            # if len(new_text) > 3000:
-            #     neo_msg = await neo_msg.reply("消息过长，已截断")
-            #     new_text = addtion_text
-            # neo_msg = await neo_msg.edit(new_text)
             if WHITE_LIST:
                 if d.id in WHITE_LIST:
                     logger.info(f"Downloading history for {d.title or d.id}")
@@ -52,15 +46,11 @@ async def main(neo_msg):
 
 
 async def run(neo_msg):
-    loop = asyncio.get_event_loop()
     try:
-        loop.run_until_complete(await main(neo_msg))
+        await main(neo_msg)
     except KeyboardInterrupt:
         logger.info("Bot stopped by user")
-    finally:
-        loop.close()
-
 
 if __name__ == "__main__":
     bot_handler = BotHandler(run)
-    bot_handler.run()
+    asyncio.run(bot_handler.run())
