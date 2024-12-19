@@ -2,10 +2,21 @@ import asyncio
 import gc
 from telethon import TelegramClient, events, Button
 from Meilisearch4TelegramSearchCKJ.src.config.env import TOKEN, MEILI_HOST, MEILI_PASS, APP_ID, APP_HASH, \
-    RESULTS_PER_PAGE, SEARCH_CACHE, PROXY, IPv6
+    RESULTS_PER_PAGE, SEARCH_CACHE, PROXY, IPv6, OWNER_IDS
 from Meilisearch4TelegramSearchCKJ.src.models.meilisearch_handler import MeiliSearchClient
 from Meilisearch4TelegramSearchCKJ.src.utils.fmt_size import sizeof_fmt
 from Meilisearch4TelegramSearchCKJ.src.models.logger import setup_logger
+
+def set_permission(func):
+    """装饰器：检查用户是否在白名单中"""
+    async def wrapper(self,event):
+        user_id = event.sender_id
+        if user_id in OWNER_IDS:
+            await func(event)
+        else:
+            await event.respond('你没有权限使用此指令。')
+    return wrapper
+
 
 class BotHandler:
     def __init__(self, main):
@@ -32,6 +43,8 @@ class BotHandler:
         await self.initialize()
         self.logger.log(25, "Bot started")
         await self.bot_client.run_until_disconnected()
+
+    @set_permission
     async def stop_download_and_listening(self, event):
         if self.download_task and not self.download_task.done():
             self.download_task.cancel()
@@ -39,6 +52,7 @@ class BotHandler:
         else:
             await event.reply("没有正在运行的下载任务")
 
+    @set_permission
     async def start_download_and_listening(self, event):
         neo_msg = await event.reply("开始下载历史消息,监听历史消息...")
         self.logger.info("Downloading and listening messages for dialogs")
