@@ -5,7 +5,7 @@ services:
     image: tg_msg_search_from_meili  # 你镜像的名称
     container_name: tg_msg_search_from_meili  # 你容器的名称
     ports:
-      - "8012:8000"  # 端口映射
+      - "8012:7860"  # 端口映射
 #    volumes:
 #      - ./env.py:/app/Meilisearch4TelegramSearchCKJ/config/env.py  # 挂载本地 env.py 文件
 #    environment:
