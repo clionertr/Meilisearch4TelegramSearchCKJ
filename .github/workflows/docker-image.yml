@@ -2,9 +2,9 @@ name: Docker Image Build and Push
 
 on:
   push:
-    branches: [ "preview_two2one" ]
+    branches: [ "main" ]
   pull_request:
-    branches: [ "preview_two2one" ]
+    branches: [ "main" ]
 
 jobs:
   build:
