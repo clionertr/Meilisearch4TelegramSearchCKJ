@@ -25,8 +25,8 @@ IPv6 = ast.literal_eval(os.getenv("IPv6", "False"))
 PROXY = os.getenv("PROXY", None)
 # 性能控制
 QUEUE_2_MEILI_SLEEP = int(os.getenv("QUEUE_2_MEILI_SLEEP", 5))
-BATCH_MSG_UNM = int(os.getenv("BATCH_MSG_UNM", 100))
-
+BATCH_MSG_UNM = int(os.getenv("BATCH_MSG_UNM", 200))
+CACHE_EXPIRE_SECONDS = int(os.getenv("CACHE_EXPIRE_SECONDS", 60*60*12))
 # 不记录编辑消息的历史，True 为不记录，False 为记录
 NOT_RECORD_MSG = ast.literal_eval(os.getenv("NOT_RECORD_MSG", "True"))
 
@@ -36,7 +36,6 @@ NOT_RECORD_MSG = ast.literal_eval(os.getenv("NOT_RECORD_MSG", "True"))
 # 是否开启消息缓存
 SEARCH_CACHE = ast.literal_eval(os.getenv("SEARCH_CACHE", "True"))
 RESULTS_PER_PAGE = int(os.getenv("RESULTS_PER_PAGE", 5))
-CACHE_EXPIRE_SECONDS = int(os.getenv("CACHE_EXPIRE", 60*60*12))
 
 TIME_ZONE=os.getenv("TIME_ZONE", "Asia/Shanghai")
 

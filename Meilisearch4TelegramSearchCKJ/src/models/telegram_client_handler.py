@@ -11,12 +11,14 @@ from Meilisearch4TelegramSearchCKJ.src.config.env import APP_ID, APP_HASH, BATCH
     TELEGRAM_REACTIONS, IPv6, PROXY, SESSION_STRING
 from Meilisearch4TelegramSearchCKJ.src.models.logger import setup_logger
 from Meilisearch4TelegramSearchCKJ.src.utils.is_in_white_or_black_list import is_allowed
-from Meilisearch4TelegramSearchCKJ.src.utils.record_lastest_msg_id import read_config, write_config
+from Meilisearch4TelegramSearchCKJ.src.utils.record_lastest_msg_id import update_latest_msg_config4_meili
 from telethon.tl.types import Channel, Chat, User
 
 tz = pytz.timezone(TIME_ZONE)
 logger = setup_logger()
-latest_msg_config = read_config()
+
+# latest_msg_config = read_config()
+#从config.ini获取最新消息ID
 
 # 内存跟踪
 tracemalloc.start()
@@ -114,10 +116,10 @@ async def serialize_message(message:Message, not_edited=True):
 
 
 class TelegramUserBot:
-    def __init__(self, MeiliClient):
+    def __init__(self, meili_client):
         """
         初始化 Telegram 客户端
-        :param MeiliClient: MeiliSearch 客户端
+        :param meili_client: MeiliSearch 客户端
         """
         # Telegram API 认证信息
         self.api_id = APP_ID
@@ -127,7 +129,7 @@ class TelegramUserBot:
         else:
             self.session = 'session/user_bot_session'
 
-        self.meili = MeiliClient
+        self.meili = meili_client
 
         # 初始化客户端
         self.client = TelegramClient(
@@ -205,9 +207,11 @@ class TelegramUserBot:
             logger.error(f"Error caching message: {str(e)}")
 
     # @check_is_allowed()
-    async def download_history(self, peer, limit=None, batch_size=BATCH_MSG_UNM, offset_id=0, offset_date=None):
+    async def download_history(self, peer, limit=None, batch_size=BATCH_MSG_UNM, offset_id=0, offset_date=None,latest_msg_config=None,meili=None,dialog_id=None):
         """
         下载历史消息
+        :param meili:
+        :param latest_msg_config: 最新消息配置
         :param peer: 聊天实例
         :param limit: 限制下载消息数量
         :param batch_size: 批量下载大小
@@ -232,9 +236,7 @@ class TelegramUserBot:
 
                 # 批量处理
                 if len(messages) >= batch_size:
-                    latest_msg_config["latest_msg_id"][str(peer.id)] = str(message.id)
-                    latest_msg_config["latest_msg_date"][str(peer.id)] = str(message.date.timestamp())
-                    write_config(latest_msg_config)
+                    update_latest_msg_config4_meili(dialog_id, messages[-1], latest_msg_config,meili)
                     await self._process_message_batch(messages)
                     messages = []
 
@@ -246,9 +248,7 @@ class TelegramUserBot:
 
             # 处理剩余消息
             if messages:
-                latest_msg_config["latest_msg_id"][str(peer.id)] = str(messages[-1]["id"].split('-')[1])
-                latest_msg_config["latest_msg_date"][str(peer.id)] = str(messages[-1]["date"])
-                write_config(latest_msg_config)
+                update_latest_msg_config4_meili(dialog_id, messages[-1], latest_msg_config,meili)
                 await self._process_message_batch(messages)
                 messages = []
                 gc.collect()

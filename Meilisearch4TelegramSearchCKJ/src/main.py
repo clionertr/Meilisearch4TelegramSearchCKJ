@@ -4,27 +4,25 @@ from Meilisearch4TelegramSearchCKJ.src.models.bot_handler import BotHandler
 from Meilisearch4TelegramSearchCKJ.src.models.logger import setup_logger
 from Meilisearch4TelegramSearchCKJ.src.models.meilisearch_handler import MeiliSearchClient
 from Meilisearch4TelegramSearchCKJ.src.models.telegram_client_handler import TelegramUserBot
-from Meilisearch4TelegramSearchCKJ.src.utils.record_lastest_msg_id import get_latest_msg_id, read_config
+from Meilisearch4TelegramSearchCKJ.src.utils.record_lastest_msg_id import get_latest_msg_id, read_config, \
+    get_latest_msg_id4_meili, read_config_from_meili
 
 meili = MeiliSearchClient(MEILI_HOST, MEILI_PASS)
 logger = setup_logger()
 
-async def download_and_listen(user_bot_client):
+async def download_and_listen(user_bot_client:TelegramUserBot):
     try:
-        config = read_config()
+        config = read_config_from_meili(meili)
         logger.info("Reading latest message id from config")
+        tasks = []
         async for d in user_bot_client.client.iter_dialogs():
             logger.log(25, f"Dialogs: {d.id}, {d.title if d.title else d }")
-            if WHITE_LIST:
-                if d.id in WHITE_LIST:
-                    logger.info(f"Downloading history for {d.title or d.id}")
-                    peer = await user_bot_client.client.get_entity(d.id)
-                    await user_bot_client.download_history(peer, limit=None, offset_id=get_latest_msg_id(config, d.id))
-            else:
-                if d.id not in BLACK_LIST:
-                    logger.info(f"Downloading history for {d.title or d.id}")
-                    peer = await user_bot_client.client.get_entity(d.id)
-                    await user_bot_client.download_history(peer, limit=None, offset_id=get_latest_msg_id(config, d.id))
+            if (WHITE_LIST and d.id in WHITE_LIST) or (not WHITE_LIST and d.id not in BLACK_LIST):
+                logger.info(f"Downloading history for {d.title or d.id}")
+                peer = await user_bot_client.client.get_entity(d.id)
+                tasks.append(user_bot_client.download_history(peer, limit=None, offset_id=get_latest_msg_id4_meili(config, d.id), latest_msg_config=config, meili=meili,dialog_id=d.id))
+        # 并行处理所有下载任务
+        await asyncio.gather(*tasks)
         # 监控内存使用
         user_bot_client.get_memory_usage()
         logger.info("Finished downloading history, now listening for new messages...")

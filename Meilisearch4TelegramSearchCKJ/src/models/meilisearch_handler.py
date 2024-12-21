@@ -80,7 +80,7 @@ class MeiliSearchClient:
             time.sleep(1)
             raise
 
-    def search(self, query: str,index_name: str ='telegram', **kwargs) -> Dict:
+    def search(self, query: str|None,index_name: str ='telegram', **kwargs) -> Dict:
         """
         搜索文档
 
