@@ -10,8 +10,8 @@ SESSION_STRING = os.getenv("SESSION_STRING", None)
 # 同步ID设置
 # 同步历史消息的群组/对话/用户 ID，如果为只有一个ID，请在末尾加上逗号。如果为空，设置为()
 # 开启白名单后，黑名单失效
-WHITE_LIST = ast.literal_eval(os.getenv("WHITE_LIST","(1,)"))
-BLACK_LIST = ast.literal_eval(os.getenv("BLACK_LIST", "()"))
+WHITE_LIST = ast.literal_eval(os.getenv("WHITE_LIST","[1]"))
+BLACK_LIST = ast.literal_eval(os.getenv("BLACK_LIST", "[]"))
 
 # MeiliSearch 设置
 MEILI_HOST = os.getenv("MEILI_HOST", "https://username-spacename.hf.space")
