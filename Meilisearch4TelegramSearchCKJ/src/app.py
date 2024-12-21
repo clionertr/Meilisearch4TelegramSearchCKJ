@@ -1,9 +1,9 @@
-from Meilisearch4TelegramSearchCKJ.src.main import *
-import asyncio
-import threading
-from flask import Flask
-import nest_asyncio
 from concurrent.futures import ThreadPoolExecutor
+
+import nest_asyncio
+from flask import Flask
+
+from Meilisearch4TelegramSearchCKJ.src.main import *
 
 app = Flask(__name__)
 
