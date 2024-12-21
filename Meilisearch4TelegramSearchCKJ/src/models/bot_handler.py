@@ -2,7 +2,7 @@ import asyncio
 import gc
 from telethon import TelegramClient, events, Button
 from Meilisearch4TelegramSearchCKJ.src.config.env import TOKEN, MEILI_HOST, MEILI_PASS, APP_ID, APP_HASH, \
-    RESULTS_PER_PAGE, SEARCH_CACHE, PROXY, IPv6, OWNER_IDS
+    RESULTS_PER_PAGE, SEARCH_CACHE, PROXY, IPv6, OWNER_IDS, CACHE_EXPIRE_SECONDS
 from Meilisearch4TelegramSearchCKJ.src.models.meilisearch_handler import MeiliSearchClient
 from Meilisearch4TelegramSearchCKJ.src.utils.fmt_size import sizeof_fmt
 from Meilisearch4TelegramSearchCKJ.src.models.logger import setup_logger
@@ -30,7 +30,7 @@ class BotHandler:
         self.meili = MeiliSearchClient(MEILI_HOST, MEILI_PASS)
         self.search_results_cache = {}
         self.main = main
-        self.download_task = None  # 用于存储下载任务
+        self.download_task = None  # Used to store the download task
 
     async def initialize(self):
         await self.bot_client.start(bot_token=TOKEN)
@@ -68,32 +68,31 @@ class BotHandler:
         else:
             await event.reply("下载任务已经在运行中...")
 
-    
     async def search_handler(self, event, query):
         try:
-            results = await self.get_search_results(query) if SEARCH_CACHE else await self.get_search_results(query,
-                                                                                                              limit=50)
+            results = await self.get_search_results(query, limit=50) if not SEARCH_CACHE else await self.get_search_results(query)
             if results:
-                self.search_results_cache[query] = results
-                await self.send_results_page(event, results, 0, query)
                 if SEARCH_CACHE:
-                    addtion_cache = await self.get_search_results(query, limit=40, offset=10)
-                    self.search_results_cache[query].extend(addtion_cache) if addtion_cache else None
+                    self.search_results_cache[query] = results
+                    asyncio.create_task(self.clean_cache(query))
+                    additional_cache = await self.get_search_results(query, limit=40, offset=10)
+                    if additional_cache:
+                        self.search_results_cache[query].extend(additional_cache)
+                await self.send_results_page(event, results, 0, query)
             else:
                 await event.reply("没有找到相关结果。")
         except Exception as e:
-            await event.reply(f"搜索出错：{e}")
-            self.logger.error(f"搜索出错：{e}")
+            await event.reply(f"Search error: {e}")
+            self.logger.error(f"Search error: {e}")
 
     async def get_search_results(self, query, limit=10, offset=0, index_name='telegram'):
         try:
             results = self.meili.search(query, index_name, limit=limit, offset=offset)
             return results['hits'] if results['hits'] else None
         except Exception as e:
-            self.logger.error(f"MeiliSearch 查询出错：{e}")
+            self.logger.error(f"MeiliSearch query error: {e}")
             return None
 
-    
     async def start_handler(self, event):
         await event.reply("""
 🔍 Telegram 消息搜索机器人
@@ -130,10 +129,18 @@ stop_client - 停止下载历史消息,监听历史消息
 
     @set_permission
     async def clean(self, event):
-        await event.reply("正在清理缓存...")
         self.search_results_cache.clear()
-        await event.reply("缓存已清理。")
+        await event.reply("缓存已清理。") if event else None
+        self.logger.info("Cache cleared.")
         gc.collect()
+
+    async def clean_cache(self,key):
+        await asyncio.sleep(CACHE_EXPIRE_SECONDS)
+        try:
+            del self.search_results_cache[key]
+            self.logger.info(f"Cache for {key} deleted.")
+        except Exception as e:
+            self.logger.error(f"Error deleting cache: {e}")
 
     
     async def about_handler(self, event):
@@ -151,11 +158,11 @@ stop_client - 停止下载历史消息,监听历史消息
         text += f"\nDatabase size: {sizeof_fmt(size)}\nLast update: {last_update}\n"
         await event.reply(text)
 
+
     @set_permission
     async def message_handler(self, event):
         await self.search_handler(event, event.raw_text)
 
-    
     def format_search_result(self, hit):
         if len(hit['text']) > 360:
             text = hit['text'][:360] + "..."
@@ -164,13 +171,13 @@ stop_client - 停止下载历史消息,监听历史消息
 
         chat_type = hit['chat']['type']
         if chat_type == 'private':
-            chat_title = f"Private：{hit['chat']['username']}"
+            chat_title = f"Private: {hit['chat']['username']}"
             url = f"tg://openmessage?user_id={hit['id'].split('-')[0]}&message_id={hit['id'].split('-')[1]}"
         elif chat_type == 'channel':
-            chat_title = f"Channel：{hit['chat']['title']}"
+            chat_title = f"Channel: {hit['chat']['title']}"
             url = f"https://t.me/c/{hit['id'].split('-')[0]}/{hit['id'].split('-')[1]}"
         else:
-            chat_title = f"Group：{hit['chat']['title']}"
+            chat_title = f"Group: {hit['chat']['title']}"
             url = f"https://t.me/c/{hit['id'].split('-')[0]}/{hit['id'].split('-')[1]}"
 
         chat_username = hit['chat'].get('username', 'N/A')
@@ -196,7 +203,6 @@ stop_client - 停止下载历史消息,监听历史消息
         await self.bot_client.send_message(event.chat_id, f"搜索结果 (第 {page_number + 1} 页):\n{response}",
                                            buttons=buttons if buttons else None)
 
-    
     async def edit_results_page(self, event, hits, page_number, query):
         start_index = page_number * RESULTS_PER_PAGE
         end_index = min((page_number + 1) * RESULTS_PER_PAGE, len(hits))
@@ -215,7 +221,6 @@ stop_client - 停止下载历史消息,监听历史消息
 
         await event.edit(f"搜索结果 (第 {page_number + 1} 页):\n{response}", buttons=buttons if buttons else None)
 
-    
     async def callback_query_handler(self, event):
         data = event.data.decode('utf-8')
         if data.startswith('page_'):

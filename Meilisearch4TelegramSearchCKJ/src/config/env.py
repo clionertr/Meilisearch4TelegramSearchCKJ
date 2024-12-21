@@ -36,6 +36,7 @@ NOT_RECORD_MSG = ast.literal_eval(os.getenv("NOT_RECORD_MSG", "True"))
 # 是否开启消息缓存
 SEARCH_CACHE = ast.literal_eval(os.getenv("SEARCH_CACHE", "True"))
 RESULTS_PER_PAGE = int(os.getenv("RESULTS_PER_PAGE", 5))
+CACHE_EXPIRE_SECONDS = int(os.getenv("CACHE_EXPIRE", 60*60*12))
 
 TIME_ZONE=os.getenv("TIME_ZONE", "Asia/Shanghai")
 
