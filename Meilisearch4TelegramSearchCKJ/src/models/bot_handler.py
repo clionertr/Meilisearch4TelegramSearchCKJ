@@ -7,21 +7,26 @@ from Meilisearch4TelegramSearchCKJ.src.models.meilisearch_handler import MeiliSe
 from Meilisearch4TelegramSearchCKJ.src.utils.fmt_size import sizeof_fmt
 from Meilisearch4TelegramSearchCKJ.src.models.logger import setup_logger
 
+
 def set_permission(func):
     """装饰器：检查用户是否在白名单中"""
-    async def wrapper(self,event):
+
+    async def wrapper(self, event, *args, **kwargs):
         user_id = event.sender_id
-        if user_id in OWNER_IDS:
-            await func(event)
+        if OWNER_IDS and user_id in OWNER_IDS:
+            await func(self, event, *args, **kwargs)
         else:
             await event.respond('你没有权限使用此指令。')
+            self.logger.info(f"User {user_id} tried to use command {event.text}, but does not have permission.")
+
     return wrapper
 
 
 class BotHandler:
     def __init__(self, main):
         self.logger = setup_logger()
-        self.bot_client = TelegramClient('bot', APP_ID, APP_HASH, use_ipv6=IPv6, proxy=PROXY, auto_reconnect=True, connection_retries=5)
+        self.bot_client = TelegramClient('bot', APP_ID, APP_HASH, use_ipv6=IPv6, proxy=PROXY, auto_reconnect=True,
+                                         connection_retries=5)
         self.meili = MeiliSearchClient(MEILI_HOST, MEILI_PASS)
         self.search_results_cache = {}
         self.main = main
@@ -30,12 +35,14 @@ class BotHandler:
     async def initialize(self):
         await self.bot_client.start(bot_token=TOKEN)
         self.bot_client.on(events.NewMessage(pattern=r'^/(start|help)$'))(self.start_handler)
-        self.bot_client.on(events.NewMessage(pattern=r'^/(start_client)$'))(lambda event: self.start_download_and_listening(event))
+        self.bot_client.on(events.NewMessage(pattern=r'^/(start_client)$'))(
+            lambda event: self.start_download_and_listening(event))
         self.bot_client.on(events.NewMessage(pattern=r'^/search (.+)'))(self.search_command_handler)
         self.bot_client.on(events.NewMessage(pattern=r'^/cc$'))(self.clean)
         self.bot_client.on(events.NewMessage(pattern=r'^/about$'))(self.about_handler)
         self.bot_client.on(events.NewMessage(pattern=r'^/ping$'))(self.ping_handler)
-        self.bot_client.on(events.NewMessage(func=lambda e: e.is_private and not e.text.startswith('/')))(self.message_handler)
+        self.bot_client.on(events.NewMessage(func=lambda e: e.is_private and not e.text.startswith('/')))(
+            self.message_handler)
         self.bot_client.on(events.CallbackQuery)(self.callback_query_handler)
         self.bot_client.on(events.NewMessage(pattern=r'^/(stop_client)$'))(self.stop_download_and_listening)
 
@@ -61,11 +68,11 @@ class BotHandler:
         else:
             await event.reply("下载任务已经在运行中...")
 
-
-
+    
     async def search_handler(self, event, query):
         try:
-            results = await self.get_search_results(query) if SEARCH_CACHE else await self.get_search_results(query, limit=50)
+            results = await self.get_search_results(query) if SEARCH_CACHE else await self.get_search_results(query,
+                                                                                                              limit=50)
             if results:
                 self.search_results_cache[query] = results
                 await self.send_results_page(event, results, 0, query)
@@ -78,7 +85,6 @@ class BotHandler:
             await event.reply(f"搜索出错：{e}")
             self.logger.error(f"搜索出错：{e}")
 
-
     async def get_search_results(self, query, limit=10, offset=0, index_name='telegram'):
         try:
             results = self.meili.search(query, index_name, limit=limit, offset=offset)
@@ -87,6 +93,7 @@ class BotHandler:
             self.logger.error(f"MeiliSearch 查询出错：{e}")
             return None
 
+    
     async def start_handler(self, event):
         await event.reply("""
 🔍 Telegram 消息搜索机器人
@@ -115,20 +122,25 @@ stop_client - 停止下载历史消息,监听历史消息
 • 每页最多显示10条结果
 """)
 
+    @set_permission
     async def search_command_handler(self, event):
         self.logger.info(f"Received search command: {event.pattern_match.group(1)}")
         query = event.pattern_match.group(1)
         await self.search_handler(event, query)
 
+    @set_permission
     async def clean(self, event):
         await event.reply("正在清理缓存...")
         self.search_results_cache.clear()
         await event.reply("缓存已清理。")
         gc.collect()
 
+    
     async def about_handler(self, event):
-        await event.reply("本项目基于 MeiliSearch 和 Telethon 构建，用于搜索保存的 Telegram 消息历史记录。解决了 Telegram 中文搜索功能的不足，提供了更强大的搜索功能。\n   \n    本项目的github地址为：[Meilisearch4TelegramSearchCKJ](https://github.com/clionertr/Meilisearch4TelegramSearchCKJ)，如果觉得好用可以点个star\n\n    得益于telethon的优秀代码，相比使用pyrogram，本项目更加稳定，同时减少大量负载\n\n    项目由[SearchGram](https://github.com/tgbot-collection/SearchGram)重构而来，感谢原作者的贡献❤️\n\n    同时感谢Claude3.5s和GeminiExp的帮助\n\n    从这次的编程中，我学到了很多，也希望大家能够喜欢这个项目😘")
+        await event.reply(
+            "本项目基于 MeiliSearch 和 Telethon 构建，用于搜索保存的 Telegram 消息历史记录。解决了 Telegram 中文搜索功能的不足，提供了更强大的搜索功能。\n   \n    本项目的github地址为：[Meilisearch4TelegramSearchCKJ](https://github.com/clionertr/Meilisearch4TelegramSearchCKJ)，如果觉得好用可以点个star\n\n    得益于telethon的优秀代码，相比使用pyrogram，本项目更加稳定，同时减少大量负载\n\n    项目由[SearchGram](https://github.com/tgbot-collection/SearchGram)重构而来，感谢原作者的贡献❤️\n\n    同时感谢Claude3.5s和GeminiExp的帮助\n\n    从这次的编程中，我学到了很多，也希望大家能够喜欢这个项目😘")
 
+    @set_permission
     async def ping_handler(self, event):
         text = "Pong!\n"
         stats = self.meili.client.get_all_stats()
@@ -139,9 +151,11 @@ stop_client - 停止下载历史消息,监听历史消息
         text += f"\nDatabase size: {sizeof_fmt(size)}\nLast update: {last_update}\n"
         await event.reply(text)
 
+    @set_permission
     async def message_handler(self, event):
         await self.search_handler(event, event.raw_text)
 
+    
     def format_search_result(self, hit):
         if len(hit['text']) > 360:
             text = hit['text'][:360] + "..."
@@ -179,8 +193,10 @@ stop_client - 停止下载历史消息,监听历史消息
         if end_index < len(hits):
             buttons.append(Button.inline("下一页", data=f"page_{query}_{page_number + 1}"))
 
-        await self.bot_client.send_message(event.chat_id, f"搜索结果 (第 {page_number + 1} 页):\n{response}", buttons=buttons if buttons else None)
+        await self.bot_client.send_message(event.chat_id, f"搜索结果 (第 {page_number + 1} 页):\n{response}",
+                                           buttons=buttons if buttons else None)
 
+    
     async def edit_results_page(self, event, hits, page_number, query):
         start_index = page_number * RESULTS_PER_PAGE
         end_index = min((page_number + 1) * RESULTS_PER_PAGE, len(hits))
@@ -199,6 +215,7 @@ stop_client - 停止下载历史消息,监听历史消息
 
         await event.edit(f"搜索结果 (第 {page_number + 1} 页):\n{response}", buttons=buttons if buttons else None)
 
+    
     async def callback_query_handler(self, event):
         data = event.data.decode('utf-8')
         if data.startswith('page_'):
@@ -219,8 +236,3 @@ stop_client - 停止下载历史消息,监听历史消息
             except Exception as e:
                 await event.answer(f"搜索出错：{e}", alert=True)
                 self.logger.error(f"搜索出错：{e}")
-
-
-
-
-
