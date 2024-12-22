@@ -13,7 +13,7 @@ def set_permission(func):
 
     async def wrapper(self, event, *args, **kwargs):
         user_id = event.sender_id
-        if OWNER_IDS and user_id in OWNER_IDS:
+        if not OWNER_IDS or user_id in OWNER_IDS:
             await func(self, event, *args, **kwargs)
         else:
             await event.respond('你没有权限使用此指令。')
