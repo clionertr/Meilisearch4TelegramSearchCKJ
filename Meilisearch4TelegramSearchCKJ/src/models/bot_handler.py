@@ -7,6 +7,10 @@ from Meilisearch4TelegramSearchCKJ.src.models.meilisearch_handler import MeiliSe
 from Meilisearch4TelegramSearchCKJ.src.utils.fmt_size import sizeof_fmt
 from Meilisearch4TelegramSearchCKJ.src.models.logger import setup_logger
 
+# TODO
+# 1. 环境变量设置
+# 2. 完善缓存逻辑，增加最大搜索数量
+# 3. 优化代码逻辑和结构
 
 def set_permission(func):
     """装饰器：检查用户是否在白名单中"""
@@ -228,14 +232,8 @@ stop_client - 停止下载历史消息,监听历史消息
             query = parts[1]
             page_number = int(parts[2])
             try:
-                results = self.search_results_cache.get(query)
-                if results is None:
-                    results = await self.get_search_results(query)
-                    if results:
-                        self.search_results_cache[query] = results
-                    else:
-                        await event.answer("没有找到相关结果。", alert=True)
-                        return
+                #TODO  加速未缓存时的搜索速度
+                results = await self.get_search_results(query, limit=50) if not SEARCH_CACHE else self.search_results_cache.get(query)
                 await event.edit(f"正在加载第 {page_number + 1} 页...")
                 await self.edit_results_page(event, results, page_number, query)
             except Exception as e:
