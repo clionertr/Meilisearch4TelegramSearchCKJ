@@ -47,6 +47,7 @@ class BotHandler:
     async def initialize(self):
         await self.bot_client.start(bot_token=TOKEN)
         await self.set_commands_list()
+        await self.auto_start_download_and_listening()
         self.bot_client.on(events.NewMessage(pattern=r'^/(start|help)$'))(self.start_handler)
         self.bot_client.on(events.NewMessage(pattern=r'^/(start_client)$'))(
             lambda event: self.start_download_and_listening(event))
@@ -99,6 +100,12 @@ class BotHandler:
             self.download_task = asyncio.create_task(self.main())
         else:
             await event.reply("下载任务已经在运行中...")
+
+    async def auto_start_download_and_listening(self):
+        if self.download_task is None or self.download_task.done():
+            self.download_task = asyncio.create_task(self.main())
+        else:
+            self.logger.info("Downloading task is already running...")
 
     async def search_handler(self, event, query):
         try:
