@@ -26,7 +26,7 @@ class MeiliSearchClient:
         # 初始化 MeiliSearch 客户端
         try:
             self.client = Client(host, api_key)
-            logger.info(f"Successfully connected to MeiliSearch at {host}")
+            logger.info(f"Connecting to MeiliSearch at {host}")
         except meilisearch.errors.MeilisearchApiError as e:
             logger.error(f"Failed to connect to MeiliSearch: {str(e)}")
             raise
