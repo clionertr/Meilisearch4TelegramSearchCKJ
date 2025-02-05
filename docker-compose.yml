@@ -6,6 +6,3 @@ services:
     container_name: tg_msg_search_from_meili
     ports:
       - "8012:7860"  # 端口映射
-#    volumes:
-#      - ./env.py:/app/Meilisearch4TelegramSearchCKJ/config/env.py  # 挂载本地 env.py 文件
-#    environment:

@@ -40,10 +40,10 @@ def read_config_from_meili(meili: MeiliSearchClient):
     meili.create_index("config")
     try:
         client_bot_config = meili.search(None, "config", limit=1)
-        return client_bot_config['hits'][0] if client_bot_config['hits'] else {'id':0}
+        return client_bot_config['hits'][0] if client_bot_config['hits'] else {'id': 0}
     except Exception as e:
         print(f"Failed to read config from MeiliSearch: {str(e)}")
-        return {'id':0}
+        return {'id': 0}
 
 
 def write_config2_meili(meili: MeiliSearchClient, config):
@@ -54,7 +54,6 @@ def write_config2_meili(meili: MeiliSearchClient, config):
         print(f"Failed to write config to MeiliSearch: {str(e)}")
 
 
-
 def get_latest_msg_id4_meili(config, chat_id: int):
     """获取最新消息ID"""
     try:
@@ -63,6 +62,7 @@ def get_latest_msg_id4_meili(config, chat_id: int):
     except  KeyError:
         return 0
 
-def update_latest_msg_config4_meili(dialog_id, message, config,meili):
+
+def update_latest_msg_config4_meili(dialog_id, message, config, meili):
     config[str(dialog_id)] = int(message["id"].split('-')[1])
-    write_config2_meili(meili,config)
+    write_config2_meili(meili, config)

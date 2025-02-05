@@ -10,17 +10,23 @@ from Meilisearch4TelegramSearchCKJ.src.utils.record_lastest_msg_id import get_la
 meili = MeiliSearchClient(MEILI_HOST, MEILI_PASS)
 logger = setup_logger()
 
-async def download_and_listen(user_bot_client:TelegramUserBot):
+
+async def download_and_listen(user_bot_client: TelegramUserBot):
     try:
         config = read_config_from_meili(meili)
+        white_list = config.get("WHITE_LIST") or WHITE_LIST
+        black_list = config.get("BLACK_LIST") or BLACK_LIST
         logger.info("Reading latest message id from config")
+        logger.log(25, f"Current white_list: {white_list}, black_list: {black_list}")
         tasks = []
         async for d in user_bot_client.client.iter_dialogs():
-            logger.log(25, f"Dialogs: {d.id}, {d.title if d.title else d }")
-            if (WHITE_LIST and d.id in WHITE_LIST) or (not WHITE_LIST and d.id not in BLACK_LIST):
+            logger.log(25, f"Dialogs: {d.id}, {d.title if d.title else d}")
+            if (white_list and d.id in white_list) or (not white_list and d.id not in black_list):
                 logger.info(f"Downloading history for {d.title or d.id}")
                 peer = await user_bot_client.client.get_entity(d.id)
-                tasks.append(user_bot_client.download_history(peer, limit=None, offset_id=get_latest_msg_id4_meili(config, d.id), latest_msg_config=config, meili=meili,dialog_id=d.id))
+                tasks.append(
+                    user_bot_client.download_history(peer, limit=None, offset_id=get_latest_msg_id4_meili(config, d.id),
+                                                     latest_msg_config=config, meili=meili, dialog_id=d.id))
         # 并行处理所有下载任务
         await asyncio.gather(*tasks)
         # 监控内存使用
@@ -31,6 +37,7 @@ async def download_and_listen(user_bot_client:TelegramUserBot):
         logger.info("下载任务被取消")
     except Exception as e:
         logger.error(f"下载任务出错: {e}")
+
 
 async def main():
     user_bot_client = TelegramUserBot(meili)
@@ -54,11 +61,13 @@ async def main():
     finally:
         await user_bot_client.cleanup()
 
+
 async def run():
     try:
         await main()
     except KeyboardInterrupt:
         logger.info("Bot stopped by user")
+
 
 if __name__ == "__main__":
     bot_handler = BotHandler(run)

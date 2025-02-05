@@ -20,7 +20,7 @@ MEILI_PASS = os.getenv("MEILI_MASTER_KEY", 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee')
 WHITE_LIST = ast.literal_eval(os.getenv("WHITE_LIST", "[1]"))
 
 # 禁止下载和监听的频道 ID/用户ID/群组ID
-# 开启白名单后，黑名单失效
+# 开启白名单后（白名单不为空），黑名单失效
 BLACK_LIST = ast.literal_eval(os.getenv("BLACK_LIST", "[]"))
 
 # 机器人管理员ID，设置后，只有这些ID的用户可以使用机器人

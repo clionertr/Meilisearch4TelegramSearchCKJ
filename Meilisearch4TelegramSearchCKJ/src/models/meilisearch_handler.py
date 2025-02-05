@@ -47,7 +47,6 @@ class MeiliSearchClient:
             Dict: 创建结果
         """
 
-
         try:
             result = self.client.create_index(index_name, {'primaryKey': primary_key})
             self.client.index(index_name).update_settings(INDEX_CONFIG)
@@ -57,7 +56,7 @@ class MeiliSearchClient:
             logger.error(f"Failed to create index '{index_name}': {str(e)}")
             raise
 
-    def add_documents(self, documents: List[Dict], index_name: str = 'telegram',max_retry=5) -> TaskInfo:
+    def add_documents(self, documents: List[Dict], index_name: str = 'telegram', max_retry=5) -> TaskInfo:
         """
         添加文档
 
@@ -80,7 +79,7 @@ class MeiliSearchClient:
             time.sleep(1)
             raise
 
-    def search(self, query: str|None,index_name: str ='telegram', **kwargs) -> Dict:
+    def search(self, query: str | None, index_name: str = 'telegram', **kwargs) -> Dict:
         """
         搜索文档
 

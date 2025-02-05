@@ -1,18 +1,22 @@
+import ast
 import asyncio
 import gc
 from telethon import TelegramClient, events, Button
+from telethon.tl.functions.bots import SetBotCommandsRequest
+from telethon.tl.types import BotCommand, BotCommandScopeDefault
+
 from Meilisearch4TelegramSearchCKJ.src.config.env import TOKEN, MEILI_HOST, MEILI_PASS, APP_ID, APP_HASH, \
     RESULTS_PER_PAGE, SEARCH_CACHE, PROXY, IPv6, OWNER_IDS, CACHE_EXPIRE_SECONDS, MAX_PAGE
 from Meilisearch4TelegramSearchCKJ.src.models.meilisearch_handler import MeiliSearchClient
 from Meilisearch4TelegramSearchCKJ.src.utils.fmt_size import sizeof_fmt
 from Meilisearch4TelegramSearchCKJ.src.models.logger import setup_logger
+from Meilisearch4TelegramSearchCKJ.src.utils.record_lastest_msg_id import read_config_from_meili
 
 MAX_RESULTS = MAX_PAGE * RESULTS_PER_PAGE
 
 
 # TODO
 # 1. 加速未缓存时的搜索速度
-# 2. 添加控制黑白名单的指令
 # 3. 优化代码逻辑和结构
 
 def set_permission(func):
@@ -32,19 +36,23 @@ def set_permission(func):
 class BotHandler:
     def __init__(self, main):
         self.logger = setup_logger()
-        self.bot_client = TelegramClient('bot', APP_ID, APP_HASH, use_ipv6=IPv6, proxy=PROXY, auto_reconnect=True,
+        self.bot_client = TelegramClient('session/bot', APP_ID, APP_HASH, use_ipv6=IPv6, proxy=PROXY,
+                                         auto_reconnect=True,
                                          connection_retries=5)
         self.meili = MeiliSearchClient(MEILI_HOST, MEILI_PASS)
         self.search_results_cache = {}
         self.main = main
-        self.download_task = None  # Used to store the download task
+        self.download_task = None
 
     async def initialize(self):
         await self.bot_client.start(bot_token=TOKEN)
+        await self.set_commands_list()
         self.bot_client.on(events.NewMessage(pattern=r'^/(start|help)$'))(self.start_handler)
         self.bot_client.on(events.NewMessage(pattern=r'^/(start_client)$'))(
             lambda event: self.start_download_and_listening(event))
         self.bot_client.on(events.NewMessage(pattern=r'^/search (.+)'))(self.search_command_handler)
+        self.bot_client.on(events.NewMessage(pattern=r'^/set_black_list2meili (.+)'))(self.set_black_list2meili)
+        self.bot_client.on(events.NewMessage(pattern=r'^/set_white_list2meili (.+)'))(self.set_white_list2meili)
         self.bot_client.on(events.NewMessage(pattern=r'^/cc$'))(self.clean)
         self.bot_client.on(events.NewMessage(pattern=r'^/about$'))(self.about_handler)
         self.bot_client.on(events.NewMessage(pattern=r'^/ping$'))(self.ping_handler)
@@ -52,6 +60,23 @@ class BotHandler:
             self.message_handler)
         self.bot_client.on(events.CallbackQuery)(self.callback_query_handler)
         self.bot_client.on(events.NewMessage(pattern=r'^/(stop_client)$'))(self.stop_download_and_listening)
+
+    async def set_commands_list(self):
+        commands = [
+            BotCommand(command='start_client', description='启动消息监听与下载历史消息'),
+            BotCommand(command='stop_client', description='停止消息监听与下载'),
+            BotCommand(command='set_white_list2meili', description='配置Meili白名单，参数为列表'),
+            BotCommand(command='set_black_list2meili', description='配置Meili黑名单，参数为列表'),
+            BotCommand(command='cc', description='清除搜索历史消息缓存'),
+            BotCommand(command='search', description='关键词搜索（空格分隔多个词）'),
+            BotCommand(command='ping', description='检查搜索服务状态'),
+            BotCommand(command='about', description='项目信息'),
+        ]
+
+        await self.bot_client(SetBotCommandsRequest(
+            scope=BotCommandScopeDefault(),
+            lang_code='',  # 空字符串表示默认语言
+            commands=commands))
 
     async def run(self):
         await self.initialize()
@@ -84,7 +109,7 @@ class BotHandler:
                 if SEARCH_CACHE:
                     self.search_results_cache[query] = results
                     asyncio.create_task(self.clean_cache(query))
-                    additional_cache = await self.get_search_results(query, limit=MAX_RESULTS-10, offset=10)
+                    additional_cache = await self.get_search_results(query, limit=MAX_RESULTS - 10, offset=10)
                     if additional_cache:
                         self.search_results_cache[query].extend(additional_cache)
                 await self.send_results_page(event, results, 0, query)
@@ -109,22 +134,15 @@ class BotHandler:
 基本命令：
 • 直接输入任何文本以搜索消息
 • 结果将显示发送者、发送位置、时间及消息预览
-/search <关键词1> <关键词2>
-/ping - 检查搜索服务是否运行
-/about - 关于本项目
 /cc - 清理缓存
 /start_client - 开始下载历史消息,监听历史消息
 /stop_client - 停止下载历史消息,监听历史消息
+/set_white_list2meili [1,2]- 设置白名单
+/set_black_list2meili []- 设置黑名单
+/search <关键词1> <关键词2>
+/ping - 检查搜索服务是否运行
+/about - 关于本项目
 
-你使用以下代码设置机器人命令
-```
-search - <关键词1 关键词2>
-ping - 检查搜索服务是否运行
-about - 关于本项目
-cc - 清理缓存
-start_client - 开始下载历史消息,监听历史消息
-stop_client - 停止下载历史消息,监听历史消息
-```
 导航：
 • 使用⬅️ 上一页和下一页 ➡️ 按钮浏览搜索结果
 • 每页最多显示10条结果
@@ -135,6 +153,34 @@ stop_client - 停止下载历史消息,监听历史消息
         self.logger.info(f"Received search command: {event.pattern_match.group(1)}")
         query = event.pattern_match.group(1)
         await self.search_handler(event, query)
+
+    @set_permission
+    async def set_white_list2meili(self, event):
+        self.logger.info(f"Received set set_white_list2meili command: {event.pattern_match.group(1)}")
+        try:
+            query = ast.literal_eval(event.pattern_match.group(1))
+            config = read_config_from_meili(self.meili)
+            config['WHITE_LIST'] = query
+            self.meili.add_documents([config], "config")
+            await event.reply(f"白名单设置为: {query}")
+        except Exception as e:
+            await event.reply(f"Error: {e}")
+            self.logger.error(f"Error: {e}")
+            return
+
+    @set_permission
+    async def set_black_list2meili(self, event):
+        self.logger.info(f"Received set set_black_list2meili command: {event.pattern_match.group(1)}")
+        try:
+            query = ast.literal_eval(event.pattern_match.group(1))
+            config = read_config_from_meili(self.meili)
+            config['BLACK_LIST'] = query
+            self.meili.add_documents([config], "config")
+            await event.reply(f"黑名单设置为: {query}")
+        except Exception as e:
+            await event.reply(f"Error: {e}")
+            self.logger.error(f"Error: {e}")
+            return
 
     @set_permission
     async def clean(self, event):
