@@ -22,7 +22,7 @@ async def download_and_listen(user_bot_client: TelegramUserBot):
         async for d in user_bot_client.client.iter_dialogs():
             logger.log(25, f"Dialogs: {d.id}, {d.title if d.title else d}")
             if (white_list and d.id in white_list) or (not white_list and d.id not in black_list):
-                logger.info(f"Downloading history for {d.title or d.id}")
+                logger.log(25, f"Downloading history for {d.title or d.id}")
                 peer = await user_bot_client.client.get_entity(d.id)
                 tasks.append(
                     user_bot_client.download_history(peer, limit=None, offset_id=get_latest_msg_id4_meili(config, d.id),
