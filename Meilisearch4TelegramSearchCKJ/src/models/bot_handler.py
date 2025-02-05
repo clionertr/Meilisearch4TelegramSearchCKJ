@@ -2,14 +2,17 @@ import asyncio
 import gc
 from telethon import TelegramClient, events, Button
 from Meilisearch4TelegramSearchCKJ.src.config.env import TOKEN, MEILI_HOST, MEILI_PASS, APP_ID, APP_HASH, \
-    RESULTS_PER_PAGE, SEARCH_CACHE, PROXY, IPv6, OWNER_IDS, CACHE_EXPIRE_SECONDS
+    RESULTS_PER_PAGE, SEARCH_CACHE, PROXY, IPv6, OWNER_IDS, CACHE_EXPIRE_SECONDS, MAX_PAGE
 from Meilisearch4TelegramSearchCKJ.src.models.meilisearch_handler import MeiliSearchClient
 from Meilisearch4TelegramSearchCKJ.src.utils.fmt_size import sizeof_fmt
 from Meilisearch4TelegramSearchCKJ.src.models.logger import setup_logger
 
+MAX_RESULTS = MAX_PAGE * RESULTS_PER_PAGE
+
+
 # TODO
-# 1. 环境变量设置
-# 2. 完善缓存逻辑，增加最大搜索数量
+# 1. 加速未缓存时的搜索速度
+# 2. 添加控制黑白名单的指令
 # 3. 优化代码逻辑和结构
 
 def set_permission(func):
@@ -74,12 +77,14 @@ class BotHandler:
 
     async def search_handler(self, event, query):
         try:
-            results = await self.get_search_results(query, limit=50) if not SEARCH_CACHE else await self.get_search_results(query)
+            results = await self.get_search_results(query,
+                                                    limit=MAX_RESULTS) if not SEARCH_CACHE else await self.get_search_results(
+                query)
             if results:
                 if SEARCH_CACHE:
                     self.search_results_cache[query] = results
                     asyncio.create_task(self.clean_cache(query))
-                    additional_cache = await self.get_search_results(query, limit=40, offset=10)
+                    additional_cache = await self.get_search_results(query, limit=MAX_RESULTS-10, offset=10)
                     if additional_cache:
                         self.search_results_cache[query].extend(additional_cache)
                 await self.send_results_page(event, results, 0, query)
@@ -138,7 +143,7 @@ stop_client - 停止下载历史消息,监听历史消息
         self.logger.info("Cache cleared.")
         gc.collect()
 
-    async def clean_cache(self,key):
+    async def clean_cache(self, key):
         await asyncio.sleep(CACHE_EXPIRE_SECONDS)
         try:
             del self.search_results_cache[key]
@@ -146,7 +151,6 @@ stop_client - 停止下载历史消息,监听历史消息
         except Exception as e:
             self.logger.error(f"Error deleting cache: {e}")
 
-    
     async def about_handler(self, event):
         await event.reply(
             "本项目基于 MeiliSearch 和 Telethon 构建，用于搜索保存的 Telegram 消息历史记录。解决了 Telegram 中文搜索功能的不足，提供了更强大的搜索功能。\n   \n    本项目的github地址为：[Meilisearch4TelegramSearchCKJ](https://github.com/clionertr/Meilisearch4TelegramSearchCKJ)，如果觉得好用可以点个star\n\n    得益于telethon的优秀代码，相比使用pyrogram，本项目更加稳定，同时减少大量负载\n\n    项目由[SearchGram](https://github.com/tgbot-collection/SearchGram)重构而来，感谢原作者的贡献❤️\n\n    同时感谢Claude3.5s和GeminiExp的帮助\n\n    从这次的编程中，我学到了很多，也希望大家能够喜欢这个项目😘")
@@ -161,7 +165,6 @@ stop_client - 停止下载历史消息,监听历史消息
             text += f"Index {uid} has {index['numberOfDocuments']} documents\n"
         text += f"\nDatabase size: {sizeof_fmt(size)}\nLast update: {last_update}\n"
         await event.reply(text)
-
 
     @set_permission
     async def message_handler(self, event):
@@ -232,8 +235,10 @@ stop_client - 停止下载历史消息,监听历史消息
             query = parts[1]
             page_number = int(parts[2])
             try:
-                #TODO  加速未缓存时的搜索速度
-                results = await self.get_search_results(query, limit=50) if not SEARCH_CACHE else self.search_results_cache.get(query)
+                # TODO  加速未缓存时的搜索速度
+                results = await self.get_search_results(query,
+                                                        limit=MAX_RESULTS) if not SEARCH_CACHE else self.search_results_cache.get(
+                    query)
                 await event.edit(f"正在加载第 {page_number + 1} 页...")
                 await self.edit_results_page(event, results, page_number, query)
             except Exception as e:
