@@ -17,7 +17,7 @@ MEILI_PASS = os.getenv("MEILI_MASTER_KEY", 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee')
 ## BOT 设置
 # 允许下载和监听的频道 ID/用户ID/群组ID
 # 空列表表示下载所有消息
-WHITE_LIST = ast.literal_eval(os.getenv("WHITE_LIST", "[1]"))
+WHITE_LIST = ast.literal_eval(os.getenv("WHITE_LIST", "[]"))
 
 # 禁止下载和监听的频道 ID/用户ID/群组ID
 # 开启白名单后（白名单不为空），黑名单失效

@@ -8,10 +8,11 @@ from telethon.errors import FloodWaitError
 import gc
 import tracemalloc
 from Meilisearch4TelegramSearchCKJ.src.config.env import APP_ID, APP_HASH, BATCH_MSG_UNM, NOT_RECORD_MSG, TIME_ZONE, \
-    TELEGRAM_REACTIONS, IPv6, PROXY, SESSION_STRING
+    TELEGRAM_REACTIONS, IPv6, PROXY, SESSION_STRING, WHITE_LIST, BLACK_LIST
 from Meilisearch4TelegramSearchCKJ.src.models.logger import setup_logger
 from Meilisearch4TelegramSearchCKJ.src.utils.is_in_white_or_black_list import is_allowed
-from Meilisearch4TelegramSearchCKJ.src.utils.record_lastest_msg_id import update_latest_msg_config4_meili
+from Meilisearch4TelegramSearchCKJ.src.utils.record_lastest_msg_id import update_latest_msg_config4_meili, \
+    read_config_from_meili
 from telethon.tl.types import Channel, Chat, User
 
 tz = pytz.timezone(TIME_ZONE)
@@ -130,6 +131,9 @@ class TelegramUserBot:
             self.session = 'session/user_bot_session'
 
         self.meili = meili_client
+        config = read_config_from_meili(self.meili)
+        self.white_list = config.get("WHITE_LIST") or WHITE_LIST
+        self.black_list = config.get("BLACK_LIST") or BLACK_LIST
 
         # 初始化客户端
         self.client = TelegramClient(
@@ -169,7 +173,7 @@ class TelegramUserBot:
         async def handle_new_message(event):
             peer_id = event.chat_id
             try:
-                if is_allowed(peer_id):
+                if is_allowed(peer_id, self.white_list, self.black_list):
                     await self._process_message(event.message)
                 else:
                     logger.info(f"Chat id {peer_id} is not allowed")
@@ -180,7 +184,7 @@ class TelegramUserBot:
         async def handle_edit_message(event):
             peer_id = event.chat_id
             try:
-                if is_allowed(peer_id):
+                if is_allowed(peer_id, self.white_list, self.black_list):
                     await self._process_message(event.message, NOT_RECORD_MSG)
                 else:
                     logger.info(f"Chat id {peer_id} is not allowed")

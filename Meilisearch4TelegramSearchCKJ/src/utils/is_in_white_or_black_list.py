@@ -1,13 +1,13 @@
 import logging
-from Meilisearch4TelegramSearchCKJ.src.config.env import WHITE_LIST, BLACK_LIST
+
 
 
 def is_allowed(chat_id: int, sync_white_list=None, sync_black_list=None) -> bool:
     """
     检查是否允许访问
     """
-    sync_white_list = sync_white_list or WHITE_LIST
-    sync_black_list = sync_black_list or BLACK_LIST
+    sync_white_list = sync_white_list
+    sync_black_list = sync_black_list
 
     if (sync_white_list and chat_id not in sync_white_list) or (chat_id in sync_black_list):
         return False
