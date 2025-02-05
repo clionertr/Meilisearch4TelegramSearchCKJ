@@ -32,6 +32,10 @@ SESSION_STRING = os.getenv("SESSION_STRING", None)
 
 
 ### 其他设置 ###
+## 日志设置
+# 20为INFO，25为NOTICE,30为WARNING，40为ERROR
+LOGGING_LEVEL = int(os.getenv("LOGGING_LEVEL", 25))
+LOGGING2FILE_LEVEL = int(os.getenv("LOGGING2FILE_LEVEL", 30))
 
 ## 网络设置
 IPv6 = ast.literal_eval(os.getenv("IPv6", "False"))

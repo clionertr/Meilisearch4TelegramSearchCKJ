@@ -1,11 +1,13 @@
 import coloredlogs
 import logging
 
+from Meilisearch4TelegramSearchCKJ.src.config.env import LOGGING_LEVEL, LOGGING2FILE_LEVEL
+
 
 def setup_logger():
     # 创建文件handler
     file_handler = logging.FileHandler('log_file.log', encoding='utf-8')
-    file_handler.setLevel(logging.WARNING)
+    file_handler.setLevel(LOGGING2FILE_LEVEL)
 
     # 设置日志格式
     formatter = logging.Formatter('%(asctime)s - %(module)s - %(funcName)s - %(levelname)s - %(message)s')
@@ -23,7 +25,7 @@ def setup_logger():
         error=dict(color='red'),
         critical=dict(color='red', bold=True),
     )
-    coloredlogs.install(level=20, level_styles=level_styles,
+    coloredlogs.install(level=LOGGING_LEVEL, level_styles=level_styles,
                         fmt='%(asctime)s - %(module)s - %(funcName)s - %(levelname)s - %(message)s',
                         encodings='utf-8')
 
