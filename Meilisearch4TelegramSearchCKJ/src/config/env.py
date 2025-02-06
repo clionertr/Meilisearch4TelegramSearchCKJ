@@ -118,13 +118,15 @@ INDEX_CONFIG = {
     ],
     "rankingRules": [
         "words",
-        "date:desc",
         "typo",
+        "proximity",
+        "attribute",
+        "sort",
+        "exactness",
+        "date:desc",
         "reactions_scores:desc"
     ],
-    # 这个配置可以设置广告词过滤
     "stopWords": [
-        "亚太实体赌场"
     ],
     "nonSeparatorTokens": [],
     "separatorTokens": [],
