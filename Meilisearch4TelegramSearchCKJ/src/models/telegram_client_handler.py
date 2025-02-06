@@ -24,7 +24,8 @@ logger = setup_logger()
 # 内存跟踪
 tracemalloc.start()
 
-async def calculate_reaction_score(reactions: dict) -> float|None:
+
+async def calculate_reaction_score(reactions: dict) -> float | None:
     total_score = 0.0
     if reactions:
         for reaction, count in reactions.items():
@@ -94,7 +95,7 @@ async def serialize_reactions(message: Message):
     return reactions_dict if reactions_dict else None
 
 
-async def serialize_message(message:Message, not_edited=True):
+async def serialize_message(message: Message, not_edited=True):
     try:
         chat_future = message.get_chat()
         sender_future = message.get_sender()
@@ -108,8 +109,8 @@ async def serialize_message(message:Message, not_edited=True):
                                                                                                 'caption') else None,
             'from_user': await serialize_sender(sender),
             'reactions': await serialize_reactions(message),
-            'reactions_scores': await calculate_reaction_score(reactions)
-            # 'raw': message.message
+            'reactions_scores': await calculate_reaction_score(reactions),
+            'text_len': len(message.text or '')
         }
     except Exception as e:
         logger.error(f"Error serializing message: {str(e)}")
@@ -211,7 +212,8 @@ class TelegramUserBot:
             logger.error(f"Error caching message: {str(e)}")
 
     # @check_is_allowed()
-    async def download_history(self, peer, limit=None, batch_size=BATCH_MSG_UNM, offset_id=0, offset_date=None,latest_msg_config=None,meili=None,dialog_id=None):
+    async def download_history(self, peer, limit=None, batch_size=BATCH_MSG_UNM, offset_id=0, offset_date=None,
+                               latest_msg_config=None, meili=None, dialog_id=None):
         """
         下载历史消息
         :param meili:
@@ -240,7 +242,7 @@ class TelegramUserBot:
 
                 # 批量处理
                 if len(messages) >= batch_size:
-                    update_latest_msg_config4_meili(dialog_id, messages[-1], latest_msg_config,meili)
+                    update_latest_msg_config4_meili(dialog_id, messages[-1], latest_msg_config, meili)
                     await self._process_message_batch(messages)
                     messages = []
 
@@ -252,7 +254,7 @@ class TelegramUserBot:
 
             # 处理剩余消息
             if messages:
-                update_latest_msg_config4_meili(dialog_id, messages[-1], latest_msg_config,meili)
+                update_latest_msg_config4_meili(dialog_id, messages[-1], latest_msg_config, meili)
                 await self._process_message_batch(messages)
                 messages = []
                 gc.collect()
