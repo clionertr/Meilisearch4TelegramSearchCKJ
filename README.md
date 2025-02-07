@@ -1,6 +1,6 @@
 # 展示
 
-<img src="Meilisearch4TelegramSearchCKJ/asset/image-20250206132432097.png" alt="展示图" style="zoom:25%;" />
+<img src="asset/image-20250206132432097.png" alt="展示图" style="zoom:25%;" />
 
 
 # 介绍
@@ -9,7 +9,7 @@ Telegram 由于中文搜索不断词，官方搜索是灾难性的，pyrogram �
 
 本项目的功能的架构大致如下
 
-<img src="Meilisearch4TelegramSearchCKJ/asset/2025-02-05-1646.png" alt="架构概图" style="zoom:25%;" />
+<img src="asset/2025-02-05-1646.png" alt="架构概图" style="zoom:25%;" />
 
 TG Client：从Telegram 下载和监听消息到meilisearch
 
