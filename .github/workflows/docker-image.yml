@@ -4,9 +4,15 @@ on:
   push:
     branches: [ "main", "fix", "feature" ]
     tags: [ 'v*.*.*' ]
+    paths:
+      - 'Meilisearch4TelegramSearchCKJ/src/**'            
+
   pull_request:
     branches: [ "main", "fix", "feature" ]
+    paths:
+      - 'Meilisearch4TelegramSearchCKJ/src/**'     
   workflow_dispatch:
+  
 
 env:
   REGISTRY: ghcr.io
