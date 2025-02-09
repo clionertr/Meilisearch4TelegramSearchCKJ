@@ -8,11 +8,11 @@ from telethon.errors import FloodWaitError
 from telethon.sessions import StringSession
 from telethon.tl.types import Channel, Chat, User, Message, ReactionCount, ReactionEmoji, ReactionCustomEmoji
 
-from Meilisearch4TelegramSearchCKJ.src.config.env import APP_ID, APP_HASH, BATCH_MSG_UNM, NOT_RECORD_MSG, TIME_ZONE, \
+from Meilisearch4TelegramSearchCKJ.src.config.env import APP_ID, APP_HASH, BATCH_MSG_NUM, NOT_RECORD_MSG, TIME_ZONE, \
     TELEGRAM_REACTIONS, IPv6, PROXY, SESSION_STRING, WHITE_LIST, BLACK_LIST
 from Meilisearch4TelegramSearchCKJ.src.models.logger import setup_logger
 from Meilisearch4TelegramSearchCKJ.src.utils.is_in_white_or_black_list import is_allowed
-from Meilisearch4TelegramSearchCKJ.src.utils.record_lastest_msg_id import update_latest_msg_config4_meili, read_config_from_meili
+from Meilisearch4TelegramSearchCKJ.src.utils.record_lastest_msg_id import update_download_incremental
 
 tz = pytz.timezone(TIME_ZONE)
 logger = setup_logger()
@@ -102,9 +102,8 @@ class TelegramUserBot:
         self.api_hash = APP_HASH
         self.session = StringSession(SESSION_STRING) if SESSION_STRING else 'session/user_bot_session'
         self.meili = meili_client
-        config = read_config_from_meili(self.meili)
-        self.white_list = config.get("WHITE_LIST") or WHITE_LIST
-        self.black_list = config.get("BLACK_LIST") or BLACK_LIST
+        self.white_list = WHITE_LIST
+        self.black_list = BLACK_LIST
 
         self.client = TelegramClient(
             self.session,
@@ -172,8 +171,8 @@ class TelegramUserBot:
         except Exception as e:
             logger.error(f"缓存消息出错: {e}")
 
-    async def download_history(self, peer, limit=None, batch_size=BATCH_MSG_UNM, offset_id=0, offset_date=None,
-                               latest_msg_config=None, meili=None, dialog_id=None):
+    async def download_history(self, peer, limit=None, batch_size=BATCH_MSG_NUM, offset_id=0, offset_date=None,
+                               latest_msg_config=None, dialog_id=None):
         try:
             messages = []
             total_messages = 0
@@ -190,12 +189,12 @@ class TelegramUserBot:
                     messages.append(serialized)
                     total_messages += 1
                 if len(messages) >= batch_size:
-                    update_latest_msg_config4_meili(dialog_id, messages[-1], latest_msg_config, meili)
+                    update_download_incremental(dialog_id, messages[-1], latest_msg_config)
                     await self._process_message_batch(messages)
                     messages.clear()
                     logger.info(f"已下载 {total_messages} 条消息")
             if messages:
-                update_latest_msg_config4_meili(dialog_id, messages[-1], latest_msg_config, meili)
+                update_download_incremental(dialog_id, messages[-1], latest_msg_config)
                 await self._process_message_batch(messages)
                 logger.info(f"完成下载 {peer.id} 的历史消息")
         except FloodWaitError as e:

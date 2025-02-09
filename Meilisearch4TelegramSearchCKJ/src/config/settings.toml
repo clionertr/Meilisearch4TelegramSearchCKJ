@@ -1,0 +1,91 @@
+[required]
+app_id = "23010002"
+app_hash = "d1f1d1f1d1f1d1f1d1f1d1f1d1f1d1f1"
+bot_token = "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
+meili_host = "https://username-spacename.hf.space"
+meili_key = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+
+[bot]
+white_list = [ 1,]
+black_list = []
+owner_ids = []
+
+[login]
+session_string = ""
+
+[download_incremental]
+-1002012086176 = 85
+
+[logging]
+level = 20
+file_level = 30
+
+[network]
+ipv6 = false
+proxy = ""
+
+[performance]
+batch_msg_num = 200
+not_record_msg = true
+
+[search]
+search_cache_enabled = true
+cache_expire_seconds = 7200
+max_page = 10
+results_per_page = 5
+
+[timezone]
+time_zone = "Asia/Shanghai"
+
+[telegram_reactions]
+"👍" = 1.0
+"❤️" = 1.5
+"🔥" = 1.4
+"🎉" = 1.3
+"🤩" = 1.4
+"👏" = 1.2
+"♥️" = 1.5
+"🥰" = 1.5
+"🤔" = 0.0
+"🤯" = 0.0
+"👎" = -1.0
+"😱" = -0.5
+"😢" = -0.8
+"🤬" = -1.2
+"💩" = -1.5
+
+[meilisearch_index_config]
+displayedAttributes = [ "*",]
+searchableAttributes = [ "text", "id",]
+filterableAttributes = [ "chat.type", "date", "from_user", "reactions_scores",]
+sortableAttributes = [ "date", "id",]
+rankingRules = [ "words", "typo", "proximity", "attribute", "sort", "exactness", "date:desc", "reactions_scores:desc",]
+stopWords = []
+nonSeparatorTokens = []
+separatorTokens = []
+dictionary = []
+proximityPrecision = "byWord"
+
+[meilisearch_index_config.synonyms]
+
+[INDEX_CONFIG.typoTolerance]
+enabled = true
+
+[INDEX_CONFIG.faceting]
+maxValuesPerFacet = 100
+
+[INDEX_CONFIG.pagination]
+maxTotalHits = 500
+
+[INDEX_CONFIG.typoTolerance.minWordSizeForTypos]
+oneTypo = 5
+twoTypos = 9
+
+[INDEX_CONFIG.typoTolerance.disableOnWords]
+disableOnWords = []
+
+[INDEX_CONFIG.typoTolerance.disableOnAttributes]
+disableOnAttributes = []
+
+[INDEX_CONFIG.faceting.sortFacetValuesBy]
+"*" = "alpha"

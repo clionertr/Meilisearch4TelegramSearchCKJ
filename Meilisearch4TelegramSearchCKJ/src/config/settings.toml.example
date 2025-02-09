@@ -1,0 +1,141 @@
+# 必填
+# Telegram API 设置
+[required]
+app_id = "23010002"
+app_hash = "d1f1d1f1d1f1d1f1d1f1d1f1d1f1d1f1"
+bot_token = "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
+
+# MeiliSearch 设置
+meili_host = "https://username-spacename.hf.space"
+meili_key = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+
+
+# 可选
+# BOT 设置
+[bot]
+# 允许下载和监听的频道ID/用户ID/群组ID（若要下载所有消息，请设置为空列表 []）
+white_list = [1]
+# 禁止下载和监听的频道ID/用户ID/群组ID（开启白名单后，黑名单失效）
+black_list = []
+# 机器人管理员ID，只有这些ID的用户可以使用机器人
+owner_ids = []
+
+
+# 登录设置
+[login]
+# 设置了SESSION_STRING后将使用字符串登录，否则将使用文件登录
+# "" 表示未设置
+session_string = ""
+
+# 增量更新
+[download_incremental]
+
+
+# 日志设置
+[logging]
+# 20为INFO、25为NOTICE、30为WARNING、40为ERROR
+level = 20
+file_level = 30
+
+
+# 网络设置
+[network]
+ipv6 = false
+proxy = ""
+
+
+# 性能控制
+[performance]
+# 每次上传消息到MeiliSearch的数量
+batch_msg_num = 200
+# 不记录消息编辑的历史，true 表示不记录；若消息被删除，MeiliSearch 会自动删除
+not_record_msg = true
+
+
+# 搜索设置
+[search]
+# 是否开启搜索记录缓存。开启后会缓存搜索记录，以减少对MeiliSearch的请求次数
+search_cache_enabled = true
+# 缓存过期时间，单位秒（默认2小时，即7200秒）
+cache_expire_seconds = 7200
+# 分页的最大页数（注意，设置过大会导致内存占用较多）
+max_page = 10
+# 每页显示的消息数量（默认每页5条消息）
+results_per_page = 5
+
+
+# 时区设置
+[timezone]
+# 控制MeiliSearch中消息时间的显示
+time_zone = "Asia/Shanghai"
+
+
+# 机器人设置 - Telegram 表情符号情感分数设置
+[telegram_reactions]
+"👍" = 1.0        # 正面情感 (基准正面)
+"❤️" = 1.5        # 强烈喜爱
+"🔥" = 1.4        # 热门/精彩
+"🎉" = 1.3        # 庆祝
+"🤩" = 1.4        # 非常喜欢
+"👏" = 1.2        # 赞赏
+"♥️" = 1.5        # 喜爱
+"🥰" = 1.5
+
+"🤔" = 0.0        # 中性/思考 (思考)
+"🤯" = 0.0        # 中性/思考 (震惊)
+
+"👎" = -1.0       # 负面情感 (基准负面)
+"😱" = -0.5       # 惊恐
+"😢" = -0.8       # 悲伤
+"🤬" = -1.2       # 愤怒
+"💩" = -1.5       # 强烈否定
+
+
+# MeiliSearch 索引设置
+[meilisearch_index_config]
+displayedAttributes = ["*"]
+searchableAttributes = ["text", "id"]
+filterableAttributes = ["chat.type", "date", "from_user", "reactions_scores"]
+sortableAttributes = ["date", "id"]
+rankingRules = [
+    "words",
+    "typo",
+    "proximity",
+    "attribute",
+    "sort",
+    "exactness",
+    "date:desc",
+    "reactions_scores:desc",
+]
+stopWords = []
+nonSeparatorTokens = []
+separatorTokens = []
+dictionary = []
+synonyms = {}
+distinctAttribute = []
+proximityPrecision = "byWord"
+
+[INDEX_CONFIG.typoTolerance]
+enabled = true
+
+[INDEX_CONFIG.typoTolerance.minWordSizeForTypos]
+oneTypo = 5
+twoTypos = 9
+
+[INDEX_CONFIG.typoTolerance.disableOnWords]
+disableOnWords = []
+
+[INDEX_CONFIG.typoTolerance.disableOnAttributes]
+disableOnAttributes = []
+
+[INDEX_CONFIG.faceting]
+maxValuesPerFacet = 100
+
+[INDEX_CONFIG.faceting.sortFacetValuesBy]
+"*" = "alpha"
+
+[INDEX_CONFIG.pagination]
+maxTotalHits = 500
+
+searchCutoffMs = []
+localizedAttributes = []

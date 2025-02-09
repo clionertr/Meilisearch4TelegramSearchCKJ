@@ -7,12 +7,12 @@ from telethon import TelegramClient, events, Button
 from telethon.tl.functions.bots import SetBotCommandsRequest
 from telethon.tl.types import BotCommand, BotCommandScopeDefault
 
-from Meilisearch4TelegramSearchCKJ.src.config.env import TOKEN, MEILI_HOST, MEILI_PASS, APP_ID, APP_HASH, \
+from Meilisearch4TelegramSearchCKJ.src.config.env import BOT_TOKEN, MEILI_HOST, MEILI_PASS, APP_ID, APP_HASH, \
     RESULTS_PER_PAGE, SEARCH_CACHE, PROXY, IPv6, OWNER_IDS, CACHE_EXPIRE_SECONDS, MAX_PAGE
 from Meilisearch4TelegramSearchCKJ.src.models.logger import setup_logger
 from Meilisearch4TelegramSearchCKJ.src.models.meilisearch_handler import MeiliSearchClient
 from Meilisearch4TelegramSearchCKJ.src.utils.fmt_size import sizeof_fmt
-from Meilisearch4TelegramSearchCKJ.src.utils.record_lastest_msg_id import read_config_from_meili
+
 
 MAX_RESULTS = MAX_PAGE * RESULTS_PER_PAGE
 
@@ -47,7 +47,7 @@ class BotHandler:
         self.download_task = None
 
     async def initialize(self):
-        await self.bot_client.start(bot_token=TOKEN)
+        await self.bot_client.start(bot_token=BOT_TOKEN)
         await self.set_commands_list()
         await self.auto_start_download_and_listening()
         # 注册指令
@@ -57,10 +57,6 @@ class BotHandler:
         self.bot_client.add_event_handler(self.stop_download_and_listening,
                                           events.NewMessage(pattern=r'^/(stop_client)$'))
         self.bot_client.add_event_handler(self.search_command_handler, events.NewMessage(pattern=r'^/search (.+)'))
-        self.bot_client.add_event_handler(self.set_black_list2meili,
-                                          events.NewMessage(pattern=r'^/set_black_list2meili (.+)'))
-        self.bot_client.add_event_handler(self.set_white_list2meili,
-                                          events.NewMessage(pattern=r'^/set_white_list2meili (.+)'))
         self.bot_client.add_event_handler(self.clean, events.NewMessage(pattern=r'^/cc$'))
         self.bot_client.add_event_handler(self.about_handler, events.NewMessage(pattern=r'^/about$'))
         self.bot_client.add_event_handler(self.ping_handler, events.NewMessage(pattern=r'^/ping$'))
@@ -162,29 +158,7 @@ class BotHandler:
         self.logger.info(f"收到搜索指令: {query}")
         await self.search_handler(event, query)
 
-    @set_permission
-    async def set_white_list2meili(self, event):
-        try:
-            whitelist = ast.literal_eval(event.pattern_match.group(1))
-            config = read_config_from_meili(self.meili)
-            config['WHITE_LIST'] = whitelist
-            self.meili.add_documents([config], "config")
-            await event.reply(f"白名单已设置为: {whitelist}")
-        except Exception as e:
-            await event.reply(f"设置白名单出错: {e}")
-            self.logger.error(f"设置白名单出错: {e}")
 
-    @set_permission
-    async def set_black_list2meili(self, event):
-        try:
-            blacklist = ast.literal_eval(event.pattern_match.group(1))
-            config = read_config_from_meili(self.meili)
-            config['BLACK_LIST'] = blacklist
-            self.meili.add_documents([config], "config")
-            await event.reply(f"黑名单已设置为: {blacklist}")
-        except Exception as e:
-            await event.reply(f"设置黑名单出错: {e}")
-            self.logger.error(f"设置黑名单出错: {e}")
 
     @set_permission
     async def clean(self, event):

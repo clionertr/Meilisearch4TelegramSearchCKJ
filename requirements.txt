@@ -3,4 +3,5 @@ coloredlogs~=15.0.1
 Telethon~=1.38.1
 meilisearch~=0.33.1
 pytz~=2025.1
-PyYAML~=6.0.2
+toml~=0.10.2
+dynaconf~=3.2.7
