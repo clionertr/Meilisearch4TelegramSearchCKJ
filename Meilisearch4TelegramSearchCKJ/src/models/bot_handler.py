@@ -1,8 +1,12 @@
+
+# bot_handler.py
 import ast
 import asyncio
 import gc
 from typing import Callable, Any, Coroutine, Dict, List, Optional
 
+# 导入配置读写函数
+from Meilisearch4TelegramSearchCKJ.src.utils.record_lastest_msg_id import save_config, load_config
 from telethon import TelegramClient, events, Button
 from telethon.tl.functions.bots import SetBotCommandsRequest
 from telethon.tl.types import BotCommand, BotCommandScopeDefault
@@ -49,7 +53,7 @@ class BotHandler:
         await self.bot_client.start(bot_token=BOT_TOKEN)
         await self.set_commands_list()
         await self.auto_start_download_and_listening()
-        # 注册指令
+        # 注册各类事件处理器
         self.bot_client.add_event_handler(self.start_handler, events.NewMessage(pattern=r'^/(start|help)$'))
         self.bot_client.add_event_handler(self.start_download_and_listening,
                                           events.NewMessage(pattern=r'^/(start_client)$'))
@@ -60,8 +64,17 @@ class BotHandler:
         self.bot_client.add_event_handler(self.clean, events.NewMessage(pattern=r'^/cc$'))
         self.bot_client.add_event_handler(self.about_handler, events.NewMessage(pattern=r'^/about$'))
         self.bot_client.add_event_handler(self.ping_handler, events.NewMessage(pattern=r'^/ping$'))
+        # 新增：转发消息处理器（仅在私聊中，对转发消息询问是否添加黑名单）
+        self.bot_client.add_event_handler(self.forwarded_message_handler,
+                                          events.NewMessage(func=lambda e: e.is_private and e.fwd_from is not None))
         self.bot_client.add_event_handler(self.message_handler,
-                                          events.NewMessage(func=lambda e: e.is_private and not e.text.startswith('/')))
+                                          events.NewMessage(func=lambda e: e.is_private and e.fwd_from is None and not e.text.startswith('/')))
+        # 新增：处理 /ban 命令
+        self.bot_client.add_event_handler(self.ban_command_handler, events.NewMessage(pattern=r'^/ban\b'))
+        # 新增：处理 /banlist 命令
+        self.bot_client.add_event_handler(self.banlist_handler, events.NewMessage(pattern=r'^/banlist\b'))
+
+        # 处理按钮回调，包括翻页和黑名单确认
         self.bot_client.add_event_handler(self.callback_query_handler, events.CallbackQuery)
 
     async def set_commands_list(self) -> None:
@@ -75,6 +88,9 @@ class BotHandler:
             BotCommand(command='ping', description='检查搜索服务状态'),
             BotCommand(command='about', description='项目信息'),
             BotCommand(command='help', description='显示帮助信息'),
+            # 新增：黑名单管理命令
+            BotCommand(command='ban', description='添加黑名单，格式: /ban <id/word> ...'),
+            BotCommand(command='banlist', description='显示当前黑名单'),
         ]
         await self.bot_client(SetBotCommandsRequest(
             scope=BotCommandScopeDefault(),
@@ -147,6 +163,8 @@ class BotHandler:
             "• /search <关键词1> <关键词2>\n"
             "• /ping 检查搜索服务状态\n"
             "• /about 关于项目\n"
+            "• /ban 添加黑名单，如：/ban 123 广告4 321\n"
+            "• /banlist 查看当前黑名单\n"
             "使用按钮进行翻页导航。"
         )
         await event.reply(text)
@@ -292,3 +310,104 @@ class BotHandler:
             except Exception as e:
                 self.logger.error(f"翻页搜索出错：{e}", exc_info=True)
                 await event.answer(f"搜索出错：{e}", alert=True)
+        elif data.startswith("ban_yes_"):
+            try:
+                user_id = int(data[len("ban_yes_"):])
+                config = load_config()
+                banned_ids = config['bot'].get('banned_ids', [])
+                if user_id not in banned_ids:
+                    banned_ids.append(user_id)
+                    config['bot']['banned_ids'] = banned_ids
+                    save_config(config)
+                    await event.answer(f"用户 {user_id} 已添加到黑名单", alert=True)
+                else:
+                    await event.answer(f"用户 {user_id} 已经在黑名单中", alert=True)
+            except Exception as e:
+                self.logger.error(f"添加黑名单失败: {e}", exc_info=True)
+                await event.answer(f"添加黑名单失败: {e}", alert=True)
+        elif data.startswith("ban_no_"):
+            await event.answer("已取消添加", alert=True)
+
+    @set_permission
+    async def ban_command_handler(self, event) -> None:
+        """
+        处理 /ban 命令，格式：/ban 123 广告4 321
+        将能转换为 int 的参数加入 banned_ids，将其他参数加入 banned_words
+        """
+        tokens = event.text.split()[1:]
+        if not tokens:
+            await event.reply("用法: /ban <id或关键词> ...")
+            return
+        config = load_config()
+        banned_ids = config['bot'].get('banned_ids', [])
+        banned_words = config['bot'].get('banned_words', [])
+        new_ids = []
+        new_words = []
+        for token in tokens:
+            try:
+                val = int(token)
+                if val not in banned_ids:
+                    banned_ids.append(val)
+                    new_ids.append(val)
+            except ValueError:
+                if token not in banned_words:
+                    banned_words.append(token)
+                    new_words.append(token)
+        config['bot']['banned_ids'] = banned_ids
+        config['bot']['banned_words'] = banned_words
+        save_config(config)
+        reply_msg = "已添加：\n"
+        if new_ids:
+            reply_msg += f"黑名单 ID: {new_ids}\n"
+        if new_words:
+            reply_msg += f"禁用关键词: {new_words}"
+        await event.reply(reply_msg)
+
+    @set_permission
+    async def banlist_handler(self, event) -> None:
+        """
+        处理 /banlist 命令，显示当前 banned_ids 与 banned_words
+        """
+        config = load_config()
+        print(config)
+        banned_ids = config['bot'].get('banned_ids', [])
+        banned_words = config['bot'].get('banned_words', [])
+
+        banned_ids_str = '\n'.join(map(str, banned_ids)) if banned_ids else '无'
+        banned_words_str = '\n'.join(banned_words) if banned_words else '无'
+
+        reply_msg = (
+            "当前黑名单信息：\n"
+            f"黑名单 IDs:\n{banned_ids_str}\n\n"
+            f"禁用关键词:\n{banned_words_str}"
+        )
+        await event.reply(reply_msg)
+
+    async def forwarded_message_handler(self, event) -> None:
+        from telethon.tl.types import PeerUser
+
+        # 确保存在转发信息
+        if not event.fwd_from:
+            return
+
+        # 安全获取用户 ID
+        try:
+            from_id = event.fwd_from.from_id
+            if not isinstance(from_id, PeerUser):
+                await event.reply("⚠️ 仅支持用户来源的转发消息")
+                return
+
+            from_user_id = from_id.user_id
+        except AttributeError:
+            await event.reply("❌ 无法获取来源用户信息")
+            return
+
+        text = f"你是否要将用户 {from_user_id} 添加到黑名单？"
+        buttons = [
+            Button.inline("是", data=f"ban_yes_{from_user_id}"),
+            Button.inline("否", data=f"ban_no_{from_user_id}")
+        ]
+        await event.reply(text, buttons=buttons)
+
+
+
