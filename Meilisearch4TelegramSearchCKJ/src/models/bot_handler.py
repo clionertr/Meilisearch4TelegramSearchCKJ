@@ -200,7 +200,7 @@ class BotHandler:
 
     # TODO 优化抬头
     def format_search_result(self, hit):
-        text = hit.get('text', '')
+        text = hit.get('text') or ''
         if len(text) > 360:
             text = text[:360] + "..."
         chat = hit.get('chat', {})
@@ -231,6 +231,7 @@ class BotHandler:
                                            buttons=buttons if buttons else None)
 
     async def edit_results_page(self, event, hits, page_number, query):
+        hits = hits or ''
         start_index = page_number * RESULTS_PER_PAGE
         end_index = min((page_number + 1) * RESULTS_PER_PAGE, len(hits))
         page_results = hits[start_index:end_index]
