@@ -2,7 +2,7 @@ name: Docker Image CI/CD
 
 on:
   push:
-    branches: [ "main", "fix", "feature" ]
+    branches: [ "main", "fix", "feature","next" ]
     tags: [ 'v*.*.*' ]
     paths:
       - 'Meilisearch4TelegramSearchCKJ/src/**'            
