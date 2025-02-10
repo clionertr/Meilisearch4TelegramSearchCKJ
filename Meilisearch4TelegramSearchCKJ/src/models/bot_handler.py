@@ -1,4 +1,3 @@
-
 # bot_handler.py
 import ast
 import asyncio
@@ -14,7 +13,7 @@ from telethon.tl.types import BotCommand, BotCommandScopeDefault
 from Meilisearch4TelegramSearchCKJ.src.config.env import (
     BOT_TOKEN, MEILI_HOST, MEILI_PASS, APP_ID, APP_HASH,
     RESULTS_PER_PAGE, SEARCH_CACHE, PROXY, IPv6, OWNER_IDS,
-    CACHE_EXPIRE_SECONDS, MAX_PAGE
+    CACHE_EXPIRE_SECONDS, MAX_PAGE, BANNED_WORDS
 )
 from Meilisearch4TelegramSearchCKJ.src.models.logger import setup_logger
 from Meilisearch4TelegramSearchCKJ.src.models.meilisearch_handler import MeiliSearchClient
@@ -22,10 +21,12 @@ from Meilisearch4TelegramSearchCKJ.src.utils.fmt_size import sizeof_fmt
 
 MAX_RESULTS = MAX_PAGE * RESULTS_PER_PAGE
 
+
 def set_permission(func: Callable[..., Coroutine[Any, Any, None]]) -> Callable[..., Coroutine[Any, Any, None]]:
     """
     权限检查装饰器：仅允许 OWNER_IDS 中的用户使用
     """
+
     async def wrapper(self, event, *args, **kwargs):
         user_id = event.sender_id
         if not OWNER_IDS or user_id in OWNER_IDS:
@@ -37,7 +38,9 @@ def set_permission(func: Callable[..., Coroutine[Any, Any, None]]) -> Callable[.
         else:
             self.logger.info(f"用户 {user_id} 无权使用指令 {event.text}")
             await event.reply('你没有权限使用此指令。')
+
     return wrapper
+
 
 class BotHandler:
     def __init__(self, main_callback: Callable[[], Coroutine[Any, Any, None]]):
@@ -64,33 +67,38 @@ class BotHandler:
         self.bot_client.add_event_handler(self.clean, events.NewMessage(pattern=r'^/cc$'))
         self.bot_client.add_event_handler(self.about_handler, events.NewMessage(pattern=r'^/about$'))
         self.bot_client.add_event_handler(self.ping_handler, events.NewMessage(pattern=r'^/ping$'))
-        # 新增：转发消息处理器（仅在私聊中，对转发消息询问是否添加黑名单）
+        # 新增：转发消息处理器（仅在私聊中，对转发消息询问是否添加阻止名单）
         self.bot_client.add_event_handler(self.forwarded_message_handler,
                                           events.NewMessage(func=lambda e: e.is_private and e.fwd_from is not None))
         self.bot_client.add_event_handler(self.message_handler,
-                                          events.NewMessage(func=lambda e: e.is_private and e.fwd_from is None and not e.text.startswith('/')))
+                                          events.NewMessage(func=lambda
+                                              e: e.is_private and e.fwd_from is None and not e.text.startswith('/')))
         # 新增：处理 /ban 命令
         self.bot_client.add_event_handler(self.ban_command_handler, events.NewMessage(pattern=r'^/ban\b'))
         # 新增：处理 /banlist 命令
         self.bot_client.add_event_handler(self.banlist_handler, events.NewMessage(pattern=r'^/banlist\b'))
-
-        # 处理按钮回调，包括翻页和黑名单确认
-        self.bot_client.add_event_handler(self.callback_query_handler, events.CallbackQuery)
+        self.bot_client.add_event_handler(self.set_config, events.NewMessage(pattern=r'^/set\b'))
+        self.bot_client.add_event_handler(self.delete_all_contain_keyword, events.NewMessage(pattern=r'^/delete\b'))
+        # 处理按钮回调，包括翻页和阻止名单确认
+        self.bot_client.add_event_handler(self.list_part_config, events.NewMessage(pattern=r'^/list$'))
+        self.bot_client.add_event_handler(self.callback_handler, events.CallbackQuery)
 
     async def set_commands_list(self) -> None:
         commands = [
+            BotCommand(command='help', description='显示帮助信息'),
             BotCommand(command='start_client', description='启动消息监听与下载历史消息'),
             BotCommand(command='stop_client', description='停止消息监听与下载'),
-            BotCommand(command='set_white_list2meili', description='配置Meili白名单，参数为列表'),
-            BotCommand(command='set_black_list2meili', description='配置Meili黑名单，参数为列表'),
+            BotCommand(command='list', description='显示当前配置'),
+            BotCommand(command='set', description='设置配置项，格式: /set <key> <value>'),
             BotCommand(command='cc', description='清除搜索历史消息缓存'),
             BotCommand(command='search', description='关键词搜索（空格分隔多个词）'),
             BotCommand(command='ping', description='检查搜索服务状态'),
             BotCommand(command='about', description='项目信息'),
-            BotCommand(command='help', description='显示帮助信息'),
-            # 新增：黑名单管理命令
-            BotCommand(command='ban', description='添加黑名单，格式: /ban <id/word> ...'),
-            BotCommand(command='banlist', description='显示当前黑名单'),
+            # 新增：阻止名单管理命令
+            BotCommand(command='ban', description='添加阻止名单，格式: /ban <id/word> ...'),
+            BotCommand(command='banlist', description='显示当前阻止名单'),
+            BotCommand(command='delete', description='删除包含关键词的文档，格式: /delete <word/id> ...'),
+            BotCommand(command='list', description='显示当前配置')
         ]
         await self.bot_client(SetBotCommandsRequest(
             scope=BotCommandScopeDefault(),
@@ -144,7 +152,8 @@ class BotHandler:
             self.logger.error(f"搜索出错: {e}", exc_info=True)
             await event.reply(f"搜索出错: {e}")
 
-    async def get_search_results(self, query: str, limit: int = 10, offset: int = 0, index_name: str = 'telegram') -> List[Dict]:
+    async def get_search_results(self, query: str, limit: int = 10, offset: int = 0, index_name: str = 'telegram') -> \
+    List[Dict]:
         try:
             results = self.meili.search(query, index_name, limit=limit, offset=offset)
             return results.get('hits', [])
@@ -163,8 +172,11 @@ class BotHandler:
             "• /search <关键词1> <关键词2>\n"
             "• /ping 检查搜索服务状态\n"
             "• /about 关于项目\n"
-            "• /ban 添加黑名单，如：/ban 123 广告4 321\n"
-            "• /banlist 查看当前黑名单\n"
+            "• /ban 添加阻止名单，如：/ban 123 广告4 321\n"
+            "• /banlist 查看当前阻止名单\n"
+            "• /delete 删除包含关键词的文档，如：/delete 广告4 321\n"
+            "• /list 显示当前配置\n\n"
+            "• /set <key> <value> 设置配置项，如：/set inc {}"
             "使用按钮进行翻页导航。"
         )
         await event.reply(text)
@@ -315,44 +327,69 @@ class BotHandler:
                 self.logger.error(f"编辑结果页出错：{e}", exc_info=True)
                 await event.reply(f"编辑结果页时出错：{e}")
 
-    async def callback_query_handler(self, event) -> None:
+    async def callback_page_handler(self, data, event) -> None:
+        try:
+            # 解析格式：page_{query}_{page_number}
+            _, query, page_str = data.split('_')
+            page_number = int(page_str)
+            # 根据配置从缓存中获取或重新获取搜索结果
+            results = None
+            if SEARCH_CACHE:
+                results = self.search_results_cache.get(query)
+            if not results:
+                results = await self.get_search_results(query, limit=MAX_RESULTS)
+                self.search_results_cache[query] = results
+                # 后台异步清理缓存，无需阻塞执行
+                asyncio.create_task(self.clean_cache(query))
+            await event.edit(f"正在加载第 {page_number + 1} 页...")
+            await self.edit_results_page(event, results, page_number, query)
+        except Exception as e:
+            self.logger.error(f"翻页搜索出错：{e}", exc_info=True)
+            await event.answer(f"搜索出错：{e}", alert=True)
+
+    async def callback_ban_handler(self, data, event) -> None:
+        try:
+            user_id = int(data[len("ban_yes_"):])
+            config = load_config()
+            banned_ids = config['bot'].get('banned_ids', [])
+            if user_id not in banned_ids:
+                banned_ids.append(user_id)
+                config['bot']['banned_ids'] = banned_ids
+                save_config(config)
+                await event.edit(f"用户 {user_id} 已添加到阻止名单中")
+            else:
+                await event.edit(f"用户 {user_id} 已经在阻止名单中")
+        except Exception as e:
+            self.logger.error(f"添加阻止名单中失败: {e}", exc_info=True)
+            await event.answer(f"添加阻止名单中失败: {e}", alert=True)
+
+    async def callback_delete_handler(self, data, event) -> None:
+        try:
+            delete_list = data[len("d`y`"):]
+            delete_list = ast.literal_eval(delete_list)
+            target_keyword_list = [f'"{keyword}"' for keyword in delete_list]
+            for target_keyword in target_keyword_list:
+                self.meili.delete_all_contain_keyword(target_keyword)
+            await event.reply("已删除所有包含关键词的文档")
+        except Exception as e:
+            self.logger.error(f"删除关键词失败: {e}", exc_info=True)
+            await event.answer(f"删除关键词失败: {e}", alert=True)
+
+    async def callback_handler(self, event) -> None:
         data = event.data.decode('utf-8')
         if data.startswith('page_'):
-            try:
-                # 解析格式：page_{query}_{page_number}
-                _, query, page_str = data.split('_')
-                page_number = int(page_str)
-                # 根据配置从缓存中获取或重新获取搜索结果
-                results = None
-                if SEARCH_CACHE:
-                    results = self.search_results_cache.get(query)
-                if not results:
-                    results = await self.get_search_results(query, limit=MAX_RESULTS)
-                    self.search_results_cache[query] = results
-                    # 后台异步清理缓存，无需阻塞执行
-                    asyncio.create_task(self.clean_cache(query))
-                await event.edit(f"正在加载第 {page_number + 1} 页...")
-                await self.edit_results_page(event, results, page_number, query)
-            except Exception as e:
-                self.logger.error(f"翻页搜索出错：{e}", exc_info=True)
-                await event.answer(f"搜索出错：{e}", alert=True)
+            await self.callback_page_handler(data, event)
         elif data.startswith("ban_yes_"):
-            try:
-                user_id = int(data[len("ban_yes_"):])
-                config = load_config()
-                banned_ids = config['bot'].get('banned_ids', [])
-                if user_id not in banned_ids:
-                    banned_ids.append(user_id)
-                    config['bot']['banned_ids'] = banned_ids
-                    save_config(config)
-                    await event.answer(f"用户 {user_id} 已添加到黑名单", alert=True)
-                else:
-                    await event.answer(f"用户 {user_id} 已经在黑名单中", alert=True)
-            except Exception as e:
-                self.logger.error(f"添加黑名单失败: {e}", exc_info=True)
-                await event.answer(f"添加黑名单失败: {e}", alert=True)
+            await self.callback_ban_handler(data, event)
         elif data.startswith("ban_no_"):
-            await event.answer("已取消添加", alert=True)
+            await event.edit("已取消添加")
+        elif data.startswith("d`y`"):
+            await self.callback_delete_handler(data, event)
+        elif data.startswith("d`n"):
+            await event.edit("已取消删除")
+        else:
+            self.logger.info(f"未知回调数据: {data}")
+            await event.answer("未知回调数据", alert=True)
 
     @set_permission
     async def ban_command_handler(self, event) -> None:
@@ -384,7 +421,7 @@ class BotHandler:
         save_config(config)
         reply_msg = "已添加：\n"
         if new_ids:
-            reply_msg += f"黑名单 ID: {new_ids}\n"
+            reply_msg += f"阻止名单 ID: {new_ids}\n"
         if new_words:
             reply_msg += f"禁用关键词: {new_words}"
         await event.reply(reply_msg)
@@ -395,7 +432,6 @@ class BotHandler:
         处理 /banlist 命令，显示当前 banned_ids 与 banned_words
         """
         config = load_config()
-        print(config)
         banned_ids = config['bot'].get('banned_ids', [])
         banned_words = config['bot'].get('banned_words', [])
 
@@ -403,8 +439,8 @@ class BotHandler:
         banned_words_str = '\n'.join(banned_words) if banned_words else '无'
 
         reply_msg = (
-            "当前黑名单信息：\n"
-            f"黑名单 IDs:\n{banned_ids_str}\n\n"
+            "当前阻止名单信息：\n"
+            f"阻止名单 IDs:\n{banned_ids_str}\n\n"
             f"禁用关键词:\n{banned_words_str}"
         )
         await event.reply(reply_msg)
@@ -428,12 +464,68 @@ class BotHandler:
             await event.reply("❌ 无法获取来源用户信息")
             return
 
-        text = f"你是否要将用户 {from_user_id} 添加到黑名单？"
+        text = f"你是否要将用户 {from_user_id} 添加到阻止名单？"
         buttons = [
             Button.inline("是", data=f"ban_yes_{from_user_id}"),
             Button.inline("否", data=f"ban_no_{from_user_id}")
         ]
         await event.reply(text, buttons=buttons)
 
+    @set_permission
+    async def set_config(self, event) -> None:
+        tokens = event.text.split()[1:]
+        try:
+            self.logger.info(f"设置配置项: {tokens}")
+            if not tokens:
+                await event.reply("用法: /set <white_list|black_list|banned_words|banned_ids|incremental> <value:List>")
+                return
+            key, value = tokens
+            config = load_config()
+            if key in {'white_list','wl'}:
+                config['bot']['white_list'] = ast.literal_eval(value)
+            elif key == 'black_list':
+                config['bot']['black_list'] = ast.literal_eval(value)
+            elif key in {'banned_words','bw'}:
+                config['bot']['banned_words'] = ast.literal_eval(value)
+            elif key in {'banned_ids', 'bi'}:
+                config['bot']['banned_ids'] = ast.literal_eval(value)
+            elif key in {'incremental','inc'}:
+                config['download_incremental'] = ast.literal_eval(value)
+            else:
+                await event.reply("未知配置项")
+                return
+            save_config(config)
+            await event.reply(f"设置配置项 {key} 成功")
+        except Exception as e:
+            self.logger.error(f"设置配置出错: {e}", exc_info=True)
+            await event.reply(f"设置配置出错: {e}")
 
+    @set_permission
+    async def list_part_config(self, event) -> None:
+        try:
+            config = load_config()
+            await event.reply(f"当前配置:"
+                              f"\n白名单: {config['bot']['white_list']}"
+                              f"\n黑名单: {config['bot']['black_list']}"
+                              f"\n禁用关键词: {config['bot']['banned_words']}"
+                              f"\n禁用用户: {config['bot']['banned_ids']}"
+                              f"\n增量下载: {config['download_incremental']}"
+                              )
+        except Exception as e:
+            self.logger.error(f"获取配置出错: {e}", exc_info=True)
+            await event.reply(f"获取配置出错: {e}")
 
+    @set_permission
+    async def delete_all_contain_keyword(self, event) -> None:
+        try:
+            target_keyword_list = event.text.split()[1:] or BANNED_WORDS
+            text = f"你是否要删除所有包含关键词{target_keyword_list}的文档？"
+            buttons = [
+                Button.inline("是", data=f"d`y`{target_keyword_list}"),
+                Button.inline("否", data=f"d`n")
+            ]
+            await event.reply(text, buttons=buttons)
+
+        except Exception as e:
+            self.logger.error(f"删除包含关键词的文档失败: {e}", exc_info=True)
+            await event.edit(f"删除包含关键词的文档失败: {e}")

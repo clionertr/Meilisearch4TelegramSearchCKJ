@@ -7,7 +7,7 @@ from meilisearch import Client
 from meilisearch.models.index import IndexStats
 from meilisearch.models.task import TaskInfo
 
-from Meilisearch4TelegramSearchCKJ.src.config.env import INDEX_CONFIG
+from Meilisearch4TelegramSearchCKJ.src.config.env import INDEX_CONFIG, BANNED_WORDS
 from Meilisearch4TelegramSearchCKJ.src.models.logger import setup_logger
 
 logger = setup_logger()
@@ -79,3 +79,44 @@ class MeiliSearchClient:
         except Exception as e:
             logger.error(f"获取索引 '{index_name}' 统计信息失败: {e}")
             raise
+
+    def delete_all_contain_keyword(self, target_keyword: str, index_name: str = 'telegram'):
+        try:
+            # 获取索引对象
+            index = self.client.index(index_name)
+
+            # 分页搜索所有包含关键词的文档（循环处理所有结果）
+            document_ids = []
+            offset = 0
+            limit = 1000  # 每次最多获取 1000 条
+
+            while True:
+                search_results = index.search(
+                    target_keyword,
+                    {
+                        "limit": limit,
+                        "offset": offset,
+                        "attributesToRetrieve": ["id"],  # 仅获取文档 ID
+                        "showMatchesPosition": False  # 提升性能
+                    }
+                )
+
+                # 提取文档 ID
+                batch_ids = [hit["id"] for hit in search_results["hits"]]
+                logger.debug(search_results["hits"])
+                document_ids.extend(batch_ids)
+
+                # 判断是否还有更多结果
+                if len(batch_ids) < limit:
+                    break
+                offset += limit
+
+            # 执行批量删除
+            if document_ids:
+                task = index.delete_documents(document_ids)
+                logger.info(f"✅ 删除了 {len(document_ids)} 篇包含关键词{target_keyword}的文档 | 任务ID: {task.task_uid}")
+            else:
+                logger.info("ℹ️ 未找到包含关键词的文档")
+
+        except Exception as e:
+            logger.info(f"❌ 操作失败: {e}")
