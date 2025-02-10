@@ -225,8 +225,13 @@ class BotHandler:
         格式化搜索结果，限制文字长度，并根据消息类型生成对应的跳转链接
         """
         text = hit.get('text') or ''
+        # 添加安全检查，去除可能导致格式化错误的字符
+        text = text.replace('**', '').replace('__', '')  # 去除可能导致 markdown 解析错误的标记
+
         if len(text) > 360:
-            text = text[:360] + "..."
+            # 确保不会在多字节字符中间截断
+            text = text[:360].strip() + "..."
+
         chat = hit.get('chat', {})
         chat_type = chat.get('type', 'private')
         if chat_type == 'private':
@@ -237,8 +242,11 @@ class BotHandler:
             chat_title = f"{chat_type.capitalize()}: {chat.get('title', 'N/A')}"
             parts = hit.get('id', '').split('-')
             url = f"https://t.me/c/{parts[0]}/{parts[1]}" if len(parts) >= 2 else ""
+
         date = hit.get('date', '').split('T')[0]
-        return f"- **{chat_title}** ({date})\n{text}\n[🔗跳转]({url})\n{'—' * 18}\n"
+
+        # 修改链接格式，使用更安全的格式化方式
+        return f"- **{chat_title}** ({date})\n{text}\n{f'[🔗跳转]({url})' if url else ''}\n{'—' * 18}\n"
 
     def get_pagination_buttons(self, query: str, page_number: int, total_hits: int) -> List[Button]:
         """
@@ -270,21 +278,39 @@ class BotHandler:
         if hits is None:
             await event.reply("搜索结果无效或过期，请重新搜索。")
             return
-        start_index = page_number * RESULTS_PER_PAGE
-        end_index = min((page_number + 1) * RESULTS_PER_PAGE, len(hits))
-        page_results = hits[start_index:end_index]
-        if not page_results:
-            await event.reply("没有更多结果了。")
-            return
-        response = "".join(self.format_search_result(hit) for hit in page_results)
-        buttons = self.get_pagination_buttons(query, page_number, len(hits))
-        new_message = f"搜索结果 (第 {page_number + 1} 页):\n{response}"
+
         try:
-            await event.edit(new_message, buttons=buttons if buttons else None)
+            start_index = page_number * RESULTS_PER_PAGE
+            end_index = min((page_number + 1) * RESULTS_PER_PAGE, len(hits))
+            page_results = hits[start_index:end_index]
+
+            if not page_results:
+                await event.reply("没有更多结果了。")
+                return
+
+            response = "".join(self.format_search_result(hit) for hit in page_results)
+            buttons = self.get_pagination_buttons(query, page_number, len(hits))
+            new_message = f"搜索结果 (第 {page_number + 1} 页):\n{response}"
+
+            # 添加解析模式参数，确保正确处理 markdown
+            await event.edit(
+                new_message,
+                buttons=buttons if buttons else None,
+                parse_mode='markdown'  # 明确指定解析模式
+            )
         except Exception as e:
-            # 针对“Content of the message was not modified”错误进行忽略
             if "Content of the message was not modified" in str(e):
                 self.logger.info("消息内容无变化，不需要更新。")
+            elif "EntityBoundsInvalidError" in str(e):
+                # 如果遇到实体边界错误，尝试以纯文本方式发送
+                try:
+                    await event.edit(
+                        new_message.replace('**', '').replace('[', '').replace(']', ''),
+                        buttons=buttons if buttons else None
+                    )
+                except Exception as e2:
+                    self.logger.error(f"尝试纯文本编辑也失败：{e2}", exc_info=True)
+                    await event.reply("编辑消息时出现格式错误，请重试。")
             else:
                 self.logger.error(f"编辑结果页出错：{e}", exc_info=True)
                 await event.reply(f"编辑结果页时出错：{e}")
