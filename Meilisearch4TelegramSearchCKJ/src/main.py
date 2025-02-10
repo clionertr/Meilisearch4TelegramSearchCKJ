@@ -3,7 +3,7 @@ import asyncio
 from Meilisearch4TelegramSearchCKJ.src.models.meilisearch_handler import MeiliSearchClient
 from Meilisearch4TelegramSearchCKJ.src.models.logger import setup_logger
 from Meilisearch4TelegramSearchCKJ.src.models.telegram_client_handler import TelegramUserBot
-from Meilisearch4TelegramSearchCKJ.src.config.env import MEILI_HOST, MEILI_PASS, WHITE_LIST, BLACK_LIST
+from Meilisearch4TelegramSearchCKJ.src.config.env import MEILI_HOST, MEILI_PASS
 from Meilisearch4TelegramSearchCKJ.src.utils.record_lastest_msg_id import load_config
 
 logger = setup_logger()
@@ -14,6 +14,7 @@ meili = MeiliSearchClient(MEILI_HOST, MEILI_PASS)
 async def download_and_listen():
     user_bot_client = TelegramUserBot(meili)
     try:
+        from Meilisearch4TelegramSearchCKJ.src.config.env import WHITE_LIST, BLACK_LIST
         await user_bot_client.start()
         logger.info("UserBot 已启动")
         config = load_config()
