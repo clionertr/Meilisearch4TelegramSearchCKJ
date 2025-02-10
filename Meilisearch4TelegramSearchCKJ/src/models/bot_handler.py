@@ -1,52 +1,51 @@
-# bot_handler.py
 import ast
 import asyncio
 import gc
+from typing import Callable, Any, Coroutine, Dict, List, Optional
 
 from telethon import TelegramClient, events, Button
 from telethon.tl.functions.bots import SetBotCommandsRequest
 from telethon.tl.types import BotCommand, BotCommandScopeDefault
 
-from Meilisearch4TelegramSearchCKJ.src.config.env import BOT_TOKEN, MEILI_HOST, MEILI_PASS, APP_ID, APP_HASH, \
-    RESULTS_PER_PAGE, SEARCH_CACHE, PROXY, IPv6, OWNER_IDS, CACHE_EXPIRE_SECONDS, MAX_PAGE
+from Meilisearch4TelegramSearchCKJ.src.config.env import (
+    BOT_TOKEN, MEILI_HOST, MEILI_PASS, APP_ID, APP_HASH,
+    RESULTS_PER_PAGE, SEARCH_CACHE, PROXY, IPv6, OWNER_IDS,
+    CACHE_EXPIRE_SECONDS, MAX_PAGE
+)
 from Meilisearch4TelegramSearchCKJ.src.models.logger import setup_logger
 from Meilisearch4TelegramSearchCKJ.src.models.meilisearch_handler import MeiliSearchClient
 from Meilisearch4TelegramSearchCKJ.src.utils.fmt_size import sizeof_fmt
 
-
 MAX_RESULTS = MAX_PAGE * RESULTS_PER_PAGE
 
-
-def set_permission(func):
-    """权限检查装饰器：仅允许 OWNER_IDS 中的用户使用"""
-
+def set_permission(func: Callable[..., Coroutine[Any, Any, None]]) -> Callable[..., Coroutine[Any, Any, None]]:
+    """
+    权限检查装饰器：仅允许 OWNER_IDS 中的用户使用
+    """
     async def wrapper(self, event, *args, **kwargs):
         user_id = event.sender_id
         if not OWNER_IDS or user_id in OWNER_IDS:
             try:
                 await func(self, event, *args, **kwargs)
             except Exception as e:
-                self.logger.error(f"执行 {func.__name__} 时出错: {e}")
+                self.logger.error(f"执行 {func.__name__} 时出错: {e}", exc_info=True)
                 await event.reply(f"执行命令时发生错误: {e}")
         else:
-            await event.reply('你没有权限使用此指令。')
             self.logger.info(f"用户 {user_id} 无权使用指令 {event.text}")
-
+            await event.reply('你没有权限使用此指令。')
     return wrapper
 
-
 class BotHandler:
-    def __init__(self, main_callback):
+    def __init__(self, main_callback: Callable[[], Coroutine[Any, Any, None]]):
         self.logger = setup_logger()
         self.bot_client = TelegramClient('session/bot', APP_ID, APP_HASH, use_ipv6=IPv6, proxy=PROXY,
-                                         auto_reconnect=True,
-                                         connection_retries=5)
+                                         auto_reconnect=True, connection_retries=5)
         self.meili = MeiliSearchClient(MEILI_HOST, MEILI_PASS)
-        self.search_results_cache = {}
+        self.search_results_cache: Dict[str, List[Dict]] = {}
         self.main_callback = main_callback
-        self.download_task = None
+        self.download_task: Optional[asyncio.Task] = None
 
-    async def initialize(self):
+    async def initialize(self) -> None:
         await self.bot_client.start(bot_token=BOT_TOKEN)
         await self.set_commands_list()
         await self.auto_start_download_and_listening()
@@ -56,7 +55,8 @@ class BotHandler:
                                           events.NewMessage(pattern=r'^/(start_client)$'))
         self.bot_client.add_event_handler(self.stop_download_and_listening,
                                           events.NewMessage(pattern=r'^/(stop_client)$'))
-        self.bot_client.add_event_handler(self.search_command_handler, events.NewMessage(pattern=r'^/search (.+)'))
+        self.bot_client.add_event_handler(self.search_command_handler,
+                                          events.NewMessage(pattern=r'^/search (.+)'))
         self.bot_client.add_event_handler(self.clean, events.NewMessage(pattern=r'^/cc$'))
         self.bot_client.add_event_handler(self.about_handler, events.NewMessage(pattern=r'^/about$'))
         self.bot_client.add_event_handler(self.ping_handler, events.NewMessage(pattern=r'^/ping$'))
@@ -64,7 +64,7 @@ class BotHandler:
                                           events.NewMessage(func=lambda e: e.is_private and not e.text.startswith('/')))
         self.bot_client.add_event_handler(self.callback_query_handler, events.CallbackQuery)
 
-    async def set_commands_list(self):
+    async def set_commands_list(self) -> None:
         commands = [
             BotCommand(command='start_client', description='启动消息监听与下载历史消息'),
             BotCommand(command='stop_client', description='停止消息监听与下载'),
@@ -79,15 +79,16 @@ class BotHandler:
         await self.bot_client(SetBotCommandsRequest(
             scope=BotCommandScopeDefault(),
             lang_code='',
-            commands=commands))
+            commands=commands)
+        )
 
-    async def run(self):
+    async def run(self) -> None:
         await self.initialize()
         self.logger.log(25, "Bot started")
         await self.bot_client.run_until_disconnected()
 
     @set_permission
-    async def stop_download_and_listening(self, event):
+    async def stop_download_and_listening(self, event) -> None:
         if self.download_task and not self.download_task.done():
             self.download_task.cancel()
             await event.reply("下载任务已停止")
@@ -95,47 +96,47 @@ class BotHandler:
             await event.reply("没有正在运行的下载任务")
 
     @set_permission
-    async def start_download_and_listening(self, event):
+    async def start_download_and_listening(self, event) -> None:
         await event.reply("开始下载历史消息，监听新消息...")
         self.logger.info("启动下载与监听任务")
-        if self.download_task is None or self.download_task.done():  # ?done
+        if self.download_task is None or self.download_task.done():
             self.download_task = asyncio.create_task(self.main_callback())
         else:
             await event.reply("下载任务已经在运行中。")
 
-    async def auto_start_download_and_listening(self):
+    async def auto_start_download_and_listening(self) -> None:
         if self.download_task is None or self.download_task.done():
             self.download_task = asyncio.create_task(self.main_callback())
         else:
             self.logger.info("下载任务已在运行")
 
-    async def search_handler(self, event, query):
+    async def search_handler(self, event, query: str) -> None:
         try:
-            results = None
             if SEARCH_CACHE and query in self.search_results_cache:
                 results = self.search_results_cache[query]
             else:
                 results = await self.get_search_results(query, limit=MAX_RESULTS)
                 if SEARCH_CACHE:
                     self.search_results_cache[query] = results
-                    asyncio.create_task(self.clean_cache(query)) #?await
+                    # 后台异步清理缓存，无需阻塞执行
+                    asyncio.create_task(self.clean_cache(query))
             if results:
                 await self.send_results_page(event, results, 0, query)
             else:
                 await event.reply("没有找到相关结果。")
         except Exception as e:
+            self.logger.error(f"搜索出错: {e}", exc_info=True)
             await event.reply(f"搜索出错: {e}")
-            self.logger.error(f"搜索出错: {e}")
 
-    async def get_search_results(self, query, limit=10, offset=0, index_name='telegram'):
+    async def get_search_results(self, query: str, limit: int = 10, offset: int = 0, index_name: str = 'telegram') -> List[Dict]:
         try:
             results = self.meili.search(query, index_name, limit=limit, offset=offset)
             return results.get('hits', [])
         except Exception as e:
-            self.logger.error(f"MeiliSearch 搜索错误: {e}")
-            return None
+            self.logger.error(f"MeiliSearch 搜索错误: {e}", exc_info=True)
+            return []
 
-    async def start_handler(self, event):
+    async def start_handler(self, event) -> None:
         text = (
             "🔍 Telegram 消息搜索机器人\n"
             "基本命令：\n"
@@ -143,8 +144,6 @@ class BotHandler:
             "• /cc 清理缓存\n"
             "• /start_client 启动消息监听与历史下载\n"
             "• /stop_client 停止下载任务\n"
-            "• /set_white_list2meili [1,2,...] 设置白名单\n"
-            "• /set_black_list2meili [1,2,...] 设置黑名单\n"
             "• /search <关键词1> <关键词2>\n"
             "• /ping 检查搜索服务状态\n"
             "• /about 关于项目\n"
@@ -153,34 +152,39 @@ class BotHandler:
         await event.reply(text)
 
     @set_permission
-    async def search_command_handler(self, event):
+    async def search_command_handler(self, event) -> None:
         query = event.pattern_match.group(1)
         self.logger.info(f"收到搜索指令: {query}")
         await self.search_handler(event, query)
 
-
-
     @set_permission
-    async def clean(self, event):
+    async def clean(self, event) -> None:
         self.search_results_cache.clear()
         await event.reply("缓存已清理。")
         self.logger.info("缓存清理完成")
         gc.collect()
 
-    async def clean_cache(self, key):
+    async def clean_cache(self, key: str) -> None:
         await asyncio.sleep(CACHE_EXPIRE_SECONDS)
         try:
             self.search_results_cache.pop(key, None)
             self.logger.info(f"缓存 {key} 删除")
         except Exception as e:
-            self.logger.error(f"删除缓存 {key} 出错: {e}")
+            self.logger.error(f"删除缓存 {key} 出错: {e}", exc_info=True)
 
-    async def about_handler(self, event):
-        await event.reply(
-            "本项目基于 MeiliSearch 和 Telethon 构建，用于搜索保存的 Telegram 消息历史记录。解决了 Telegram 中文搜索功能的不足，提供了更强大的搜索功能。\n   \n    本项目的github地址为：[Meilisearch4TelegramSearchCKJ](https://github.com/clionertr/Meilisearch4TelegramSearchCKJ)，如果觉得好用可以点个star\n\n    得益于telethon的优秀代码，相比使用pyrogram，本项目更加稳定，同时减少大量负载\n\n    项目由[SearchGram](https://github.com/tgbot-collection/SearchGram)重构而来，感谢原作者的贡献❤️\n\n    同时感谢Claude3.5s和GeminiExp的帮助\n\n    从这次的编程中，我学到了很多，也希望大家能够喜欢这个项目😘")
+    async def about_handler(self, event) -> None:
+        about_text = (
+            "本项目基于 MeiliSearch 和 Telethon 构建，用于搜索保存的 Telegram 消息历史记录。解决了 Telegram 中文搜索功能的不足，提供了更强大的搜索功能。\n\n"
+            "本项目的github地址为：[Meilisearch4TelegramSearchCKJ](https://github.com/clionertr/Meilisearch4TelegramSearchCKJ)，如果觉得好用可以点个star\n\n"
+            "得益于telethon的优秀代码，相比使用pyrogram，本项目更加稳定，同时减少大量负载\n\n"
+            "项目由[SearchGram](https://github.com/tgbot-collection/SearchGram)重构而来，感谢原作者的贡献❤️\n\n"
+            "同时感谢Claude3.5s和GeminiExp的帮助\n\n"
+            "从这次的编程中，我学到了很多，也希望大家能够喜欢这个项目😘"
+        )
+        await event.reply(about_text)
 
     @set_permission
-    async def ping_handler(self, event):
+    async def ping_handler(self, event) -> None:
         try:
             stats = self.meili.client.get_all_stats()
             text = "Pong!\n"
@@ -190,16 +194,18 @@ class BotHandler:
                 text += f"Index {uid} 有 {index.get('numberOfDocuments', 0)} 条文档\n"
             await event.reply(text)
         except Exception as e:
+            self.logger.error(f"Ping 出错: {e}", exc_info=True)
             await event.reply(f"Ping 出错: {e}")
-            self.logger.error(f"Ping 出错: {e}")
 
     @set_permission
-    async def message_handler(self, event):
-        # 当私聊非命令消息时也尝试搜索
+    async def message_handler(self, event) -> None:
+        # 当私聊中非命令消息时也尝试搜索
         await self.search_handler(event, event.raw_text)
 
-    # TODO 优化抬头
-    def format_search_result(self, hit):
+    def format_search_result(self, hit: Dict) -> str:
+        """
+        格式化搜索结果，限制文字长度，并根据消息类型生成对应的跳转链接
+        """
         text = hit.get('text') or ''
         if len(text) > 360:
             text = text[:360] + "..."
@@ -207,14 +213,27 @@ class BotHandler:
         chat_type = chat.get('type', 'private')
         if chat_type == 'private':
             chat_title = f"Private: {chat.get('username', 'N/A')}"
-            url = f"tg://openmessage?user_id={hit['id'].split('-')[0]}&message_id={hit['id'].split('-')[1]}"
+            parts = hit.get('id', '').split('-')
+            url = f"tg://openmessage?user_id={parts[0]}&message_id={parts[1]}" if len(parts) >= 2 else ""
         else:
             chat_title = f"{chat_type.capitalize()}: {chat.get('title', 'N/A')}"
-            url = f"https://t.me/c/{hit['id'].split('-')[0]}/{hit['id'].split('-')[1]}"
+            parts = hit.get('id', '').split('-')
+            url = f"https://t.me/c/{parts[0]}/{parts[1]}" if len(parts) >= 2 else ""
         date = hit.get('date', '').split('T')[0]
         return f"- **{chat_title}** ({date})\n{text}\n[🔗跳转]({url})\n{'—' * 18}\n"
 
-    async def send_results_page(self, event, hits, page_number, query):
+    def get_pagination_buttons(self, query: str, page_number: int, total_hits: int) -> List[Button]:
+        """
+        根据当前页码和总结果生成翻页按钮
+        """
+        buttons = []
+        if page_number > 0:
+            buttons.append(Button.inline("上一页", data=f"page_{query}_{page_number - 1}"))
+        if (page_number + 1) * RESULTS_PER_PAGE < total_hits:
+            buttons.append(Button.inline("下一页", data=f"page_{query}_{page_number + 1}"))
+        return buttons
+
+    async def send_results_page(self, event, hits: List[Dict], page_number: int, query: str) -> None:
         start_index = page_number * RESULTS_PER_PAGE
         end_index = min((page_number + 1) * RESULTS_PER_PAGE, len(hits))
         page_results = hits[start_index:end_index]
@@ -222,16 +241,17 @@ class BotHandler:
             await event.reply("没有更多结果了。")
             return
         response = "".join(self.format_search_result(hit) for hit in page_results)
-        buttons = []
-        if page_number > 0:
-            buttons.append(Button.inline("上一页", data=f"page_{query}_{page_number - 1}"))
-        if end_index < len(hits):
-            buttons.append(Button.inline("下一页", data=f"page_{query}_{page_number + 1}"))
-        await self.bot_client.send_message(event.chat_id, f"搜索结果 (第 {page_number + 1} 页):\n{response}",
-                                           buttons=buttons if buttons else None)
+        buttons = self.get_pagination_buttons(query, page_number, len(hits))
+        await self.bot_client.send_message(
+            event.chat_id,
+            f"搜索结果 (第 {page_number + 1} 页):\n{response}",
+            buttons=buttons if buttons else None
+        )
 
-    async def edit_results_page(self, event, hits, page_number, query):
-        hits = hits or ''
+    async def edit_results_page(self, event, hits: List[Dict], page_number: int, query: str) -> None:
+        if hits is None:
+            await event.reply("搜索结果无效或过期，请重新搜索。")
+            return
         start_index = page_number * RESULTS_PER_PAGE
         end_index = min((page_number + 1) * RESULTS_PER_PAGE, len(hits))
         page_results = hits[start_index:end_index]
@@ -239,24 +259,36 @@ class BotHandler:
             await event.reply("没有更多结果了。")
             return
         response = "".join(self.format_search_result(hit) for hit in page_results)
-        buttons = []
-        if page_number > 0:
-            buttons.append(Button.inline("上一页", data=f"page_{query}_{page_number - 1}"))
-        if end_index < len(hits):
-            buttons.append(Button.inline("下一页", data=f"page_{query}_{page_number + 1}"))
-        await event.edit(f"搜索结果 (第 {page_number + 1} 页):\n{response}", buttons=buttons if buttons else None)
+        buttons = self.get_pagination_buttons(query, page_number, len(hits))
+        new_message = f"搜索结果 (第 {page_number + 1} 页):\n{response}"
+        try:
+            await event.edit(new_message, buttons=buttons if buttons else None)
+        except Exception as e:
+            # 针对“Content of the message was not modified”错误进行忽略
+            if "Content of the message was not modified" in str(e):
+                self.logger.info("消息内容无变化，不需要更新。")
+            else:
+                self.logger.error(f"编辑结果页出错：{e}", exc_info=True)
+                await event.reply(f"编辑结果页时出错：{e}")
 
-    async def callback_query_handler(self, event):
+    async def callback_query_handler(self, event) -> None:
         data = event.data.decode('utf-8')
         if data.startswith('page_'):
             try:
+                # 解析格式：page_{query}_{page_number}
                 _, query, page_str = data.split('_')
                 page_number = int(page_str)
-                # 从缓存或重新获取搜索结果
-                results = self.search_results_cache.get(query) if SEARCH_CACHE else await self.get_search_results(query,
-                                                                                                                  limit=MAX_RESULTS)
+                # 根据配置从缓存中获取或重新获取搜索结果
+                results = None
+                if SEARCH_CACHE:
+                    results = self.search_results_cache.get(query)
+                if not results:
+                    results = await self.get_search_results(query, limit=MAX_RESULTS)
+                    self.search_results_cache[query] = results
+                    # 后台异步清理缓存，无需阻塞执行
+                    asyncio.create_task(self.clean_cache(query))
                 await event.edit(f"正在加载第 {page_number + 1} 页...")
                 await self.edit_results_page(event, results, page_number, query)
             except Exception as e:
+                self.logger.error(f"翻页搜索出错：{e}", exc_info=True)
                 await event.answer(f"搜索出错：{e}", alert=True)
-                self.logger.error(f"翻页搜索出错：{e}")

@@ -1,4 +1,9 @@
 from Meilisearch4TelegramSearchCKJ.src.config.config import settings
+###
+###
+### 你可以直接修改此文件，也可以使用settings.toml文件进行配置
+###
+###
 #### 必填 ####
 ## Telegram API 设置
 APP_ID = settings.required.app_id
@@ -76,3 +81,6 @@ TELEGRAM_REACTIONS = settings.telegram_reactions
 ## Meilisearch 索引设置
 # 用于创建Meilisearch索引的配置
 INDEX_CONFIG = settings.meilisearch_index_config
+
+BANNED_WORDS = settings.bot.banned_words
+BANNED_IDS = settings.bot.banned_ids

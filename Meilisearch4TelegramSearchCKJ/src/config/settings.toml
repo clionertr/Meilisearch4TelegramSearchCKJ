@@ -6,6 +6,8 @@ meili_host = "https://username-spacename.hf.space"
 meili_key = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
 
 [bot]
+banned_words = ['广告关键词123']
+banned_ids = []
 white_list = [ 1,]
 black_list = []
 owner_ids = []
@@ -14,7 +16,7 @@ owner_ids = []
 session_string = ""
 
 [download_incremental]
--1002012086176 = 85
+
 
 [logging]
 level = 20

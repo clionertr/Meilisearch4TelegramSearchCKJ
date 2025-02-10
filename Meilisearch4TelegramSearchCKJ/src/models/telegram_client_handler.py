@@ -9,7 +9,7 @@ from telethon.sessions import StringSession
 from telethon.tl.types import Channel, Chat, User, Message, ReactionCount, ReactionEmoji, ReactionCustomEmoji
 
 from Meilisearch4TelegramSearchCKJ.src.config.env import APP_ID, APP_HASH, BATCH_MSG_NUM, NOT_RECORD_MSG, TIME_ZONE, \
-    TELEGRAM_REACTIONS, IPv6, PROXY, SESSION_STRING, WHITE_LIST, BLACK_LIST
+    TELEGRAM_REACTIONS, IPv6, PROXY, SESSION_STRING, WHITE_LIST, BLACK_LIST, BANNED_IDS, BANNED_WORDS
 from Meilisearch4TelegramSearchCKJ.src.models.logger import setup_logger
 from Meilisearch4TelegramSearchCKJ.src.utils.is_in_white_or_black_list import is_allowed
 from Meilisearch4TelegramSearchCKJ.src.utils.record_lastest_msg_id import update_download_incremental
@@ -75,18 +75,43 @@ async def serialize_reactions(message: Message):
     return reactions_dict if reactions_dict else None
 
 
+
+
+def is_banned_message(text, from_user):
+    # 检查用户是否被禁言
+    user_id = from_user.get('id')
+    if user_id in BANNED_IDS:
+        logger.debug(f"用户 {user_id} 被禁止")
+        return True  # 用户被禁止
+
+    # 处理 text 为 None 的情况
+    text = text or ''
+
+    # 检查是否存在敏感词
+    for banned_word in BANNED_WORDS:
+        if banned_word in text:
+            logger.debug(f"违禁词被禁止")
+            return True  # 含违禁词
+
+    return False  # 消息合法
+
+
 async def serialize_message(message: Message, not_edited=True):
     try:
         # 并行获取 chat 与 sender
         chat, sender = await asyncio.gather(message.get_chat(), message.get_sender())
         reactions = await serialize_reactions(message)
         reaction_score = await calculate_reaction_score(reactions)
+        text = getattr(message, 'text', None) or getattr(message, 'caption', None)
+        from_user = await serialize_sender(sender)
+        if is_banned_message(text, from_user):
+            return None
         return {
             'id': f"{chat.id}-{message.id}" if not_edited else f"{chat.id}-{message.id}-{int(message.edit_date.timestamp())}",
             'chat': await serialize_chat(chat),
             'date': message.date.astimezone(tz).isoformat(),
-            'text': getattr(message, 'text', None) or getattr(message, 'caption', None),
-            'from_user': await serialize_sender(sender),
+            'text': text,
+            'from_user': from_user,
             'reactions': reactions,
             'reactions_scores': reaction_score,
             'text_len': len(getattr(message, 'text', '') or '')
