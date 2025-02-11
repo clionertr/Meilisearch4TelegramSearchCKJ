@@ -2,15 +2,14 @@ name: Docker Image CI/CD
 
 on:
   push:
-    branches: [ "main", "fix", "feature","next" ]
+    branches: [ "main", "fix", "feature", "next" ]
     tags: [ 'v*.*.*' ]
     paths:
-      - 'Meilisearch4TelegramSearchCKJ/src/**'            
-
+      - 'Meilisearch4TelegramSearchCKJ/src/**'
   pull_request:
     branches: [ "main", "fix", "feature" ]
     paths:
-      - 'Meilisearch4TelegramSearchCKJ/src/**'     
+      - 'Meilisearch4TelegramSearchCKJ/src/**'
   workflow_dispatch:
     inputs:
       tag:
@@ -29,7 +28,7 @@ jobs:
       contents: read
       packages: write
       checks: write
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -63,7 +62,7 @@ jobs:
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:scan-target
           format: 'table'
-          exit-code: '1'  # 发现漏洞时终止
+          exit-code: '1'  # Terminate if vulnerabilities are found
           ignore-unfixed: true
           vuln-type: 'os,library'
           severity: 'CRITICAL,HIGH'
@@ -71,13 +70,22 @@ jobs:
       - name: Generate tags
         id: generate-tags
         run: |
-          MAIN_OR_TAG=${{ github.ref_name == 'main' || startsWith(github.ref, 'refs/tags/') }}
-          TAG_NAME=${{ MAIN_OR_TAG && 'latest' || github.ref_name }}
+          # Determine the tag name
+          if [[ "${GITHUB_REF##*/}" == "main" || "${GITHUB_REF}" == refs/tags/* ]]; then
+            TAG_NAME="latest"
+          else
+            TAG_NAME="${GITHUB_REF##*/}"
+          fi
+
+          # Build the tags using the determined TAG_NAME and current commit SHA.
           TAGS="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${TAG_NAME}"
-          TAGS+=",${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          TAGS+=",${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${GITHUB_SHA}"
+          
+          # If the workflow is triggered manually, add the input tag.
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             TAGS+=",${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.event.inputs.tag }}"
           fi
+
           echo "tags=${TAGS}" >> $GITHUB_OUTPUT
 
       - name: Build and push multi-arch image
