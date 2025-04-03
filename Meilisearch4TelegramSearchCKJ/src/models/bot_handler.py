@@ -57,7 +57,8 @@ class BotHandler:
         await self.set_commands_list()
         await self.auto_start_download_and_listening()
         # 注册各类事件处理器
-        self.bot_client.add_event_handler(self.start_handler, events.NewMessage(pattern=r'^/(start|help)$'))
+        self.bot_client.add_event_handler(self.start_handler, events.NewMessage(pattern=r'^/start$'))
+        self.bot_client.add_event_handler(self.help_handler, events.NewMessage(pattern=r'^/help$'))
         self.bot_client.add_event_handler(self.start_download_and_listening,
                                           events.NewMessage(pattern=r'^/(start_client)$'))
         self.bot_client.add_event_handler(self.stop_download_and_listening,
@@ -85,20 +86,19 @@ class BotHandler:
 
     async def set_commands_list(self) -> None:
         commands = [
+            BotCommand(command='start', description='开始使用机器人'),
             BotCommand(command='help', description='显示帮助信息'),
+            BotCommand(command='search', description='关键词搜索（空格分隔多个词）'),
+            BotCommand(command='about', description='关于本项目'),
+            BotCommand(command='ping', description='检查搜索服务状态'),
+            BotCommand(command='cc', description='清除搜索历史消息缓存'),
             BotCommand(command='start_client', description='启动消息监听与下载历史消息'),
             BotCommand(command='stop_client', description='停止消息监听与下载'),
             BotCommand(command='list', description='显示当前配置'),
             BotCommand(command='set', description='设置配置项，格式: /set <key> <value>'),
-            BotCommand(command='cc', description='清除搜索历史消息缓存'),
-            BotCommand(command='search', description='关键词搜索（空格分隔多个词）'),
-            BotCommand(command='ping', description='检查搜索服务状态'),
-            BotCommand(command='about', description='项目信息'),
-            # 新增：阻止名单管理命令
             BotCommand(command='ban', description='添加阻止名单，格式: /ban <id/word> ...'),
             BotCommand(command='banlist', description='显示当前阻止名单'),
-            BotCommand(command='delete', description='删除包含关键词的文档，格式: /delete <word/id> ...'),
-            BotCommand(command='list', description='显示当前配置')
+            BotCommand(command='delete', description='删除包含关键词的文档，格式: /delete <word/id> ...')
         ]
         await self.bot_client(SetBotCommandsRequest(
             scope=BotCommandScopeDefault(),
@@ -163,23 +163,52 @@ class BotHandler:
 
     async def start_handler(self, event) -> None:
         text = (
-            "🔍 Telegram 消息搜索机器人\n"
-            "基本命令：\n"
-            "• 直接输入文本进行搜索\n"
-            "• /cc 清理缓存\n"
-            "• /start_client 启动消息监听与历史下载\n"
-            "• /stop_client 停止下载任务\n"
-            "• /search <关键词1> <关键词2>\n"
-            "• /ping 检查搜索服务状态\n"
-            "• /about 关于项目\n"
-            "• /ban 添加阻止名单，如：/ban 123 广告4 321\n"
-            "• /banlist 查看当前阻止名单\n"
-            "• /delete 删除包含关键词的文档，如：/delete 广告4 321\n"
-            "• /list 显示当前配置\n\n"
-            "• /set <key> <value> 设置配置项，如：/set inc {}"
-            "使用按钮进行翻页导航。"
+            "🔍 **Telegram 消息搜索机器人**\n\n"
+            "欢迎使用 Telegram 消息搜索机器人！本机器人可以帮助您搜索保存的 Telegram 消息，解决中文搜索的不足。\n\n"
+            "**基本使用方法**：\n"
+            "• 直接在对话框中输入文本即可进行搜索\n"
+            "• 使用 /search 命令后跟关键词进行搜索\n"
+            "• 搜索结果支持翻页导航\n\n"
+            "**常用命令**：\n"
+            "• /help - 显示详细帮助信息\n"
+            "• /search <关键词1> <关键词2> - 搜索多个关键词\n"
+            "• /about - 了解项目信息\n"
+            "• /ping - 检查搜索服务状态\n\n"
+            "输入 /help 获取更多命令和详细说明。"
         )
         await event.reply(text)
+
+    async def help_handler(self, event) -> None:
+        help_text = (
+            "📖 **Telegram 消息搜索机器人帮助**\n\n"
+            "**搜索命令**：\n"
+            "• 直接输入文本 - 在私聊中直接输入文本即可搜索\n"
+            "• /search <关键词1> <关键词2> - 搜索包含多个关键词的消息\n\n"
+
+            "**管理命令**：\n"
+            "• /start_client - 启动消息监听与下载历史消息\n"
+            "• /stop_client - 停止消息监听与下载任务\n"
+            "• /cc - 清除搜索结果缓存\n"
+            "• /ping - 检查搜索服务状态和数据库信息\n\n"
+
+            "**配置命令**：\n"
+            "• /list - 显示当前配置信息\n"
+            "• /set <key> <value> - 设置配置项，例如：/set inc {}\n\n"
+
+            "**过滤命令**：\n"
+            "• /ban <id/word> ... - 添加用户ID或关键词到阻止名单\n"
+            "• /banlist - 查看当前阻止名单\n"
+            "• /delete <word/id> ... - 删除包含指定关键词的文档\n\n"
+
+            "**其他命令**：\n"
+            "• /about - 关于本项目的详细信息\n\n"
+
+            "**搜索技巧**：\n"
+            "• 多个关键词之间用空格分隔，将搜索同时包含这些关键词的消息\n"
+            "• 搜索结果支持翻页，使用底部的翻页按钮浏览更多结果\n"
+            "• 点击搜索结果中的跳转链接可直接查看原始消息"
+        )
+        await event.reply(help_text)
 
     @set_permission
     async def search_command_handler(self, event) -> None:
@@ -204,12 +233,17 @@ class BotHandler:
 
     async def about_handler(self, event) -> None:
         about_text = (
-            "本项目基于 MeiliSearch 和 Telethon 构建，用于搜索保存的 Telegram 消息历史记录。解决了 Telegram 中文搜索功能的不足，提供了更强大的搜索功能。\n\n"
-            "本项目的github地址为：[Meilisearch4TelegramSearchCKJ](https://github.com/clionertr/Meilisearch4TelegramSearchCKJ)，如果觉得好用可以点个star\n\n"
-            "得益于telethon的优秀代码，相比使用pyrogram，本项目更加稳定，同时减少大量负载\n\n"
-            "项目由[SearchGram](https://github.com/tgbot-collection/SearchGram)重构而来，感谢原作者的贡献❤️\n\n"
-            "同时感谢Claude3.5s和GeminiExp的帮助\n\n"
-            "从这次的编程中，我学到了很多，也希望大家能够喜欢这个项目😘"
+            "**🔍 Meilisearch4TelegramSearchCKJ**\n\n"
+            "本项目基于 MeiliSearch 和 Telethon 构建，专为解决 Telegram 中文搜索功能不足而设计，提供强大的全文搜索能力。\n\n"
+            "**主要特点**：\n"
+            "• 支持中日韩文字的高效搜索\n"
+            "• 支持多关键词组合搜索\n"
+            "• 自动下载和索引历史消息\n"
+            "• 实时监听和索引新消息\n"
+            "• 支持阻止名单和关键词过滤\n\n"
+            "**项目地址**：[Meilisearch4TelegramSearchCKJ](https://github.com/clionertr/Meilisearch4TelegramSearchCKJ)\n\n"
+            "得益于 Telethon 的优秀设计，本项目运行稳定且资源占用低。项目由 [SearchGram](https://github.com/tgbot-collection/SearchGram) 重构而来，感谢原作者的贡献。\n\n"
+            "如果您觉得本项目有用，欢迎在 GitHub 上给我们一个 Star ⭐"
         )
         await event.reply(about_text)
 

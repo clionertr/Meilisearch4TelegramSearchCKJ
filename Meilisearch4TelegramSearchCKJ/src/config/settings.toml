@@ -6,7 +6,7 @@ meili_host = "https://username-spacename.hf.space"
 meili_key = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
 
 [bot]
-banned_words = ['广告关键词123']
+banned_words = [ "广告关键词123",]
 banned_ids = []
 white_list = [ 1,]
 black_list = []
