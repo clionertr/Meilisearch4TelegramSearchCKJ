@@ -10,3 +10,8 @@
 .gitignore
 .idea
 /Meilisearch4TelegramSearchCKJ/src/config.ini
+.vscode/settings.json
+Meilisearch4TelegramSearchCKJ/src/utils/__pycache__/record_lastest_msg_id.cpython-313.pyc
+__pycache__
+*.pyc
+log_file.log
