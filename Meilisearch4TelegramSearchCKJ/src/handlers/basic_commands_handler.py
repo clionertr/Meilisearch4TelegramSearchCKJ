@@ -28,6 +28,7 @@ class BasicCommandsHandler:
             "**常用命令**：\n"
             "• /help - 显示详细帮助信息\n"
             "• /search <关键词1> <关键词2> - 搜索多个关键词\n"
+            "• /rs - 重启消息监听与下载任务\n"
             "• /about - 了解项目信息\n"
             "• /ping - 检查搜索服务状态\n\n"
             "输入 /help 获取更多命令和详细说明。"
@@ -45,12 +46,14 @@ class BasicCommandsHandler:
             "**管理命令**：\n"
             "• /start_client - 启动消息监听与下载历史消息\n"
             "• /stop_client - 停止消息监听与下载任务\n"
+            "• /rs - 重启消息监听与下载任务（3秒延迟）\n"
             "• /cc - 清除搜索结果缓存\n"
             "• /ping - 检查搜索服务状态和数据库信息\n\n"
 
             "**配置命令**：\n"
             "• /list - 显示当前配置信息\n"
-            "• /set <key> <value> - 设置配置项，例如：/set inc {}\n\n"
+            "• /set <key> <value> - 设置配置项，例如：/set inc {}\n"
+            "  （配置更新后会自动重启以应用新配置）\n\n"
 
             "**过滤命令**：\n"
             "• /ban <id/word> ... - 添加用户ID或关键词到阻止名单\n"

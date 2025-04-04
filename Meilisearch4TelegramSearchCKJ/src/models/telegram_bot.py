@@ -68,6 +68,10 @@ class TelegramBot:
         self.config_handler = ConfigHandler(self.bot_client, self.logger)
         self.filter_handler = FilterHandler(self.bot_client, self.meili, self.logger)
         self.callback_dispatcher = CallbackQueryDispatcher(self.logger, self.search_handler, self.filter_handler)
+
+        # 设置ConfigHandler中的telegram_bot引用，以便其可以调用重启方法
+        self.config_handler.telegram_bot = self
+
         self.logger.info("All handlers initialized.")
 
     async def _set_commands_list(self) -> None:
@@ -81,6 +85,7 @@ class TelegramBot:
             BotCommand(command="cc", description="清除搜索历史消息缓存"),
             BotCommand(command="start_client", description="启动消息监听与下载"),
             BotCommand(command="stop_client", description="停止消息监听与下载"),
+            BotCommand(command="rs", description="重启消息监听与下载（3秒延迟）"),
             BotCommand(command="list", description="显示当前配置"),
             BotCommand(command="set", description="设置配置项 (格式: /set <key> <value>)"),
             BotCommand(command="ban", description="添加阻止名单 (格式: /ban <id/word> ...)"),
@@ -119,6 +124,9 @@ class TelegramBot:
         )
         self.bot_client.add_event_handler(
             self.stop_download_and_listening, events.NewMessage(pattern=r'^/(stop_client)$')
+        )
+        self.bot_client.add_event_handler(
+            self.restart_download_and_listening, events.NewMessage(pattern=r'^/(rs)$')
         )
 
         # 3. Search Commands & Messages
@@ -267,6 +275,78 @@ class TelegramBot:
                 # 任务可能已被取消或未正确创建
                 await self._safe_edit_or_reply(initial_message, "⚠️ 启动任务时遇到问题，请检查日志。")
 
+
+    @set_permission
+    async def restart_download_and_listening(self, event) -> None:
+        """重启下载与监听任务，先停止再启动，中间有3秒延迟"""
+        self.logger.info("收到重启下载与监听任务的指令...")
+        initial_message = await event.reply("⏳ 正在重启消息监听与下载任务...")
+
+        # 1. 先停止任务
+        if self.download_task and not self.download_task.done():
+            self.logger.info("停止当前运行的任务...")
+            self.download_task.cancel()
+            try:
+                # 等待任务取消完成
+                await asyncio.wait_for(self.download_task, timeout=5.0)
+                self.logger.info("下载任务已成功取消，准备重启。")
+                await self._safe_edit_or_reply(initial_message, "✅ 任务已停止，等待3秒后重启...")
+            except asyncio.CancelledError:
+                self.logger.info("下载任务已成功取消，准备重启。")
+            except asyncio.TimeoutError:
+                self.logger.warning("下载任务未在超时时间内取消，将继续尝试重启。")
+                await self._safe_edit_or_reply(initial_message, "⚠️ 任务可能未完全停止，但将继续尝试重启...")
+            except Exception as e:
+                self.logger.error(f"停止下载任务时出错: {e}", exc_info=True)
+                await self._safe_edit_or_reply(initial_message, f"⚠️ 停止任务时出错: {e}，但将继续尝试重启...")
+
+            self.download_task = None  # 清除任务引用
+        else:
+            self.logger.info("当前没有运行中的任务，将直接启动新任务。")
+            await self._safe_edit_or_reply(initial_message, "ℹ️ 当前没有运行中的任务，将直接启动...")
+
+        # 2. 等待3秒
+        await asyncio.sleep(3)
+
+        # 3. 重新加载配置并启动任务
+        try:
+            self.logger.info("重新加载配置文件...")
+            reload_config()
+            self.logger.info("配置文件重新加载成功")
+        except Exception as e:
+            self.logger.error(f"重新加载配置文件失败: {e}", exc_info=True)
+            await self._safe_edit_or_reply(initial_message, f"⚠️ 重新加载配置文件失败: {e}，将使用旧配置继续")
+
+        # 4. 启动新任务
+        self.logger.info("启动新的下载与监听任务...")
+        self.download_task = asyncio.create_task(self.main_callback())
+
+        # 5. 添加延迟以允许任务启动或立即失败
+        await asyncio.sleep(1)
+
+        # 6. 检查任务状态
+        if self.download_task and self.download_task.done():
+            # 任务已完成，检查是否有异常
+            try:
+                if self.download_task.exception():
+                    err = self.download_task.exception()
+                    self.logger.error(f"重启下载任务失败: {err}", exc_info=True)
+                    await self._safe_edit_or_reply(initial_message, f"❌ 重启任务失败: {err}")
+                    self.download_task = None
+                else:
+                    # 任务完成但没有异常（可能是正常完成）
+                    await self._safe_edit_or_reply(initial_message, "✅ 消息监听与下载任务已重启并完成。")
+                    self.download_task = None
+            except Exception as e:
+                self.logger.error(f"检查重启任务状态时出错: {e}", exc_info=True)
+                await self._safe_edit_or_reply(initial_message, f"⚠️ 检查任务状态时出错: {e}")
+                self.download_task = None
+        elif self.download_task:
+            # 任务仍在运行中
+            await self._safe_edit_or_reply(initial_message, "✅ 消息监听与下载任务已成功重启。")
+        else:
+            # 任务可能已被取消或未正确创建
+            await self._safe_edit_or_reply(initial_message, "⚠️ 重启任务时遇到问题，请检查日志。")
 
     async def _auto_start_download_and_listening(self) -> None:
         """Automatically starts the download/listening task on bot startup if not running."""

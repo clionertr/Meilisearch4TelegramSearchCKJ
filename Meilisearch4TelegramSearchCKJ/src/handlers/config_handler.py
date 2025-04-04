@@ -4,9 +4,11 @@
 config_handler.py - Handles configuration commands
 """
 import ast
+import asyncio
 from telethon import TelegramClient
 from Meilisearch4TelegramSearchCKJ.src.utils.record_lastest_msg_id import load_config, save_config
 from Meilisearch4TelegramSearchCKJ.src.utils.permissions import set_permission
+from Meilisearch4TelegramSearchCKJ.src.config.env import reload_config
 
 class ConfigHandler:
     """Handles commands for viewing and modifying configuration."""
@@ -14,6 +16,7 @@ class ConfigHandler:
     def __init__(self, bot_client: TelegramClient, logger):
         self.bot_client = bot_client
         self.logger = logger
+        self.telegram_bot = None  # 将在TelegramBot类中设置，用于调用重启方法
 
     @set_permission
     async def handle_set_config(self, event) -> None:
@@ -23,7 +26,8 @@ class ConfigHandler:
             await event.reply("用法: /set <key> <value>\n支持的 Key: white_list(wl), black_list, banned_words(bw), banned_ids(bi), incremental(inc)\nValue 必须是有效的 Python list/dict literal.")
             return
 
-        command, key, value_str = tokens
+        # 分解命令、键和值
+        _, key, value_str = tokens
         key = key.lower() # Normalize key
 
         try:
@@ -66,7 +70,17 @@ class ConfigHandler:
             if config_updated:
                 save_config(config)
                 self.logger.info(f"配置项 {key} 已更新为: {parsed_value}")
-                await event.reply(f"配置项 {key} 设置成功。")
+                
+                # 发送成功消息并提示将自动重启
+                await event.reply(f"✅ 配置项 {key} 设置成功。将在3秒后自动重启以应用新配置...")
+                
+                # 如果telegram_bot已设置，则调用重启方法
+                if self.telegram_bot:
+                    # 创建一个延迟任务来执行重启，这样可以先返回消息给用户
+                    asyncio.create_task(self._delayed_restart(event))
+                else:
+                    self.logger.warning("无法自动重启：telegram_bot引用未设置")
+                    await event.reply("⚠️ 无法自动重启，请手动使用 /rs 命令重启。")
             else:
                  # Should not happen if logic is correct, but as a safeguard
                  await event.reply(f"未更新配置项 {key}。")
@@ -106,3 +120,36 @@ class ConfigHandler:
         except Exception as e:
             self.logger.error(f"获取配置出错: {e}", exc_info=True)
             await event.reply(f"获取配置出错: {e}")
+
+    async def _delayed_restart(self, event):
+        """在短暂停后执行重启操作"""
+        try:
+            # 等待3秒后执行重启
+            await asyncio.sleep(3)
+
+            # 创建一个虚拟事件对象来模拟用户发送的/rs命令
+            # 这样可以复用现有的restart_download_and_listening方法
+            # 创建一个消息通知用户正在重启
+            restart_msg = await self.bot_client.send_message(
+                event.chat_id, "⚙️ 正在自动重启以应用新配置..."
+            )
+
+            # 创建一个包含必要属性的虚拟事件对象
+            fake_event = type('obj', (object,), {
+                'reply': restart_msg.reply,
+                'chat_id': event.chat_id,
+                'sender_id': event.sender_id,  # 添加sender_id以通过权限检查
+                'text': '/rs'  # 添加text属性以便在日志中显示正确的命令
+            })
+
+            # 调用TelegramBot的重启方法
+            await self.telegram_bot.restart_download_and_listening(fake_event)
+
+        except Exception as e:
+            self.logger.error(f"自动重启时出错: {e}", exc_info=True)
+            try:
+                await self.bot_client.send_message(
+                    event.chat_id, f"❌ 自动重启失败: {e}\n请手动使用 /rs 命令重启。"
+                )
+            except Exception as send_err:
+                self.logger.error(f"发送重启失败消息时出错: {send_err}")
