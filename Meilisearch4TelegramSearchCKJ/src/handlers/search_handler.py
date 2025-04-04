@@ -7,7 +7,7 @@ import asyncio
 import gc
 from typing import Dict, List, Optional
 
-from telethon import Button, TelegramClient, events
+from telethon import Button, TelegramClient
 from Meilisearch4TelegramSearchCKJ.src.config.env import (
     CACHE_EXPIRE_SECONDS, MAX_PAGE, RESULTS_PER_PAGE, SEARCH_CACHE
 )
@@ -112,6 +112,11 @@ class SearchHandler:
     def _format_result(self, hit: Dict) -> str:
         """Formats a single search hit for display."""
         text = hit.get('text', '')
+        # 确保text不是None，如果是None则设置为空字符串
+        if text is None:
+            text = ''
+            self.logger.warning(f"搜索结果中存在text为None的记录: {hit.get('id', 'unknown_id')}")
+
         text = text.replace('**', '').replace('__', '').replace('[', '').replace(']', '').replace('`', '') # Basic sanitization
         text = (text[:360].strip() + "...") if len(text) > 360 else text
 
@@ -164,6 +169,18 @@ class SearchHandler:
 
     async def _send_results_page(self, event, hits: List[Dict], page_number: int, query: str) -> None:
         """Sends a new message with a page of search results."""
+        if hits is None:
+            self.logger.warning(f"Attempted to send page for query '{query}' but results were None.")
+            await event.reply("搜索时发生错误，请重试。")
+            return
+
+        # 确保页码在有效范围内
+        max_page = (len(hits) + RESULTS_PER_PAGE - 1) // RESULTS_PER_PAGE - 1
+        if page_number < 0 or (max_page >= 0 and page_number > max_page):
+            self.logger.warning(f"Invalid page number {page_number} for query '{query}'. Max page: {max_page}")
+            await event.reply(f"无效的页码: {page_number + 1}\n最大页码: {max_page + 1}")
+            return
+
         start_index = page_number * RESULTS_PER_PAGE
         end_index = start_index + RESULTS_PER_PAGE # No need for min with slicing
         page_results = hits[start_index:end_index]
@@ -171,8 +188,17 @@ class SearchHandler:
         if not page_results:
             # This case should ideally be handled before calling send/edit
             self.logger.warning(f"Attempted to send empty page {page_number} for query '{query}'")
-            # Avoid sending an empty message, maybe reply?
-            # await event.reply("没有更多结果了。") # Or just log and do nothing
+            await event.reply("没有找到相关结果。")
+            return
+
+        # 处理搜索结果中可能存在的None值
+        valid_results = [hit for hit in page_results if hit is not None]
+        if len(valid_results) < len(page_results):
+            self.logger.warning(f"Found {len(page_results) - len(valid_results)} None results in page {page_number} for query '{query}'")
+            page_results = valid_results
+
+        if not page_results:
+            await event.reply("此页结果无效，请尝试其他页码。")
             return
 
         response_text = "".join(self._format_result(hit) for hit in page_results)
@@ -207,6 +233,16 @@ class SearchHandler:
                  pass # Ignore edit error
              return
 
+        # 确保页码在有效范围内
+        max_page = (len(hits) + RESULTS_PER_PAGE - 1) // RESULTS_PER_PAGE - 1
+        if page_number < 0 or (max_page >= 0 and page_number > max_page):
+            self.logger.warning(f"Invalid page number {page_number} for query '{query}'. Max page: {max_page}")
+            try:
+                await event.answer(f"无效的页码: {page_number + 1}\n最大页码: {max_page + 1}", alert=True)
+            except Exception:
+                pass
+            return
+
         start_index = page_number * RESULTS_PER_PAGE
         end_index = start_index + RESULTS_PER_PAGE
         page_results = hits[start_index:end_index]
@@ -218,6 +254,19 @@ class SearchHandler:
             try:
                 # Keep the last known good page or inform user?
                 await event.answer("没有更多结果了。") # Use answer for callbacks
+            except Exception:
+                pass
+            return
+
+        # 处理搜索结果中可能存在的None值
+        valid_results = [hit for hit in page_results if hit is not None]
+        if len(valid_results) < len(page_results):
+            self.logger.warning(f"Found {len(page_results) - len(valid_results)} None results in page {page_number} for query '{query}'")
+            page_results = valid_results
+
+        if not page_results:
+            try:
+                await event.answer("此页结果无效，请尝试其他页码。", alert=True)
             except Exception:
                 pass
             return
@@ -284,6 +333,17 @@ class SearchHandler:
 
             # 3. Edit the message
             if results is not None:
+                 # 检查结果是否为空列表
+                 if not results:
+                     await event.answer("没有找到相关结果。", alert=True)
+                     return
+
+                 # 检查页码是否有效
+                 max_page = (len(results) + RESULTS_PER_PAGE - 1) // RESULTS_PER_PAGE - 1
+                 if page_number < 0 or (max_page >= 0 and page_number > max_page):
+                     await event.answer(f"无效的页码: {page_number + 1}\n最大页码: {max_page + 1}", alert=True)
+                     return
+
                  # Show loading state (optional but good UX)
                  try: await event.edit(f"正在加载 \"{query}\" 第 {page_number + 1} 页...")
                  except Exception: pass # Ignore if edit fails here

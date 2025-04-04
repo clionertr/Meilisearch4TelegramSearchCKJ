@@ -49,7 +49,7 @@ async def download_and_listen_task():
         async for dialog in user_bot_client_instance.client.iter_dialogs():
             dialog_count += 1
             dialog_name = dialog.title or dialog.name or f"Dialog {dialog.id}"
-            logger.debug(f"检查 Dialog: ID={dialog.id}, Name='{dialog_name}'") # More detailed log
+            logger.log(25,f"检查 Dialog: ID={dialog.id}, Name='{dialog_name}'") # More detailed log
 
             # Determine if dialog should be processed
             should_process = False

@@ -4,6 +4,8 @@
 filter_handler.py - Handles banning, filtering, and deletion logic
 """
 import ast
+import json
+import re
 from telethon import Button, TelegramClient
 from telethon.tl.types import PeerUser, PeerChannel, PeerChat
 from Meilisearch4TelegramSearchCKJ.src.config.env import BANNED_WORDS, reload_config # Import default if needed
@@ -120,11 +122,14 @@ class FilterHandler:
 
             # Sanitize keywords slightly before showing confirmation
             display_keywords = [f"`{kw}`" for kw in target_keyword_list] # Use backticks for clarity
-            keywords_repr = repr(target_keyword_list) # Safe representation for callback data
+
+            # 使用JSON格式化关键词列表，避免特殊字符引起的解析问题
+            import json
+            keywords_json = json.dumps(target_keyword_list, ensure_ascii=False)
 
             text = f"❓ 确认删除所有包含以下任一关键词的文档？\n{', '.join(display_keywords)}"
             buttons = [
-                Button.inline("是，删除", data=f"d`y`{keywords_repr}"), # Use repr for safe encoding
+                Button.inline("是，删除", data=f"d`y`{keywords_json}"), # Use JSON for safe encoding
                 Button.inline("否，取消", data=f"d`n`")
             ]
             await event.reply(text, buttons=buttons, parse_mode='markdown')
@@ -302,23 +307,54 @@ class FilterHandler:
             return
 
         try:
-            # Safely evaluate the keyword list representation
-            delete_list = ast.literal_eval(keywords_repr)
+            # 尝试使用JSON解析关键词列表
+            import json
+            try:
+                delete_list = json.loads(keywords_repr)
+            except json.JSONDecodeError:
+                # 兼容旧版本的回调数据格式，尝试使用ast.literal_eval
+                try:
+                    delete_list = ast.literal_eval(keywords_repr)
+                except (SyntaxError, ValueError):
+                    # 如果上述方法都失败，尝试处理特殊格式
+                    if keywords_repr.startswith('`<') and '>' in keywords_repr:
+                        # 处理类似 `<BoxList: ['广告关键词123']> 的格式
+                        # 提取方括号中的内容
+                        start_idx = keywords_repr.find("[")
+                        end_idx = keywords_repr.find("]", start_idx)
+                        if start_idx != -1 and end_idx != -1:
+                            # 提取并解析列表内容
+                            list_content = keywords_repr[start_idx:end_idx+1]
+                            try:
+                                delete_list = ast.literal_eval(list_content)
+                            except (SyntaxError, ValueError):
+                                # 如果解析失败，尝试直接提取引号中的内容
+                                import re
+                                matches = re.findall(r"'([^']*)'|\"([^\"]*)\"|", list_content)
+                                delete_list = [m[0] or m[1] for m in matches if m[0] or m[1]]
+                        else:
+                            # 如果找不到方括号，尝试提取引号中的内容
+                            import re
+                            matches = re.findall(r"'([^']*)'|\"([^\"]*)\"|", keywords_repr)
+                            delete_list = [m[0] or m[1] for m in matches if m[0] or m[1]]
+                    else:
+                        # 如果所有方法都失败，尝试将其作为单个关键词处理
+                        delete_list = [keywords_repr]
+
+            # 确保结果是列表类型且非空
             if not isinstance(delete_list, list):
-                 raise ValueError("Invalid format for delete list in callback")
+                delete_list = [delete_list]
+
+            if not delete_list:
+                raise ValueError("Invalid format for delete list in callback")
 
             self.logger.info(f"开始删除包含关键词 {delete_list} 的文档")
             await event.edit(f"⏳ 正在删除包含以下关键词的文档：{', '.join(f'`{k}`' for k in delete_list)} ...", parse_mode='markdown')
 
-            # Perform deletion (consider doing this in chunks or background task if large)
-            # MeiliSearch delete is usually fast, but might block if deleting millions
-            tasks = []
-            total_deleted_count = 0 # Optional: track count
-
+            # Perform deletion for each keyword
             # Note: Meilisearch `delete_documents_by_filter` might be more efficient
             # if you can construct a filter like `text CONTAINS 'word1' OR text CONTAINS 'word2'`
-            # However, `delete_all_contain_keyword` seems to use search then delete IDs,
-            # which might be okay. Let's stick to the original logic pattern.
+            # However, we'll process each keyword individually for better error handling
 
             for keyword in delete_list:
                  # This method name is slightly misleading if it searches then deletes.
@@ -337,9 +373,6 @@ class FilterHandler:
                  except Exception as del_err:
                      self.logger.error(f"删除包含关键词 '{keyword}' 的文档时出错: {del_err}", exc_info=True)
                      await event.reply(f"❌ 删除关键词 `{keyword}` 时出错: {del_err}") # Reply immediately on error
-
-            # Consider waiting for tasks if the delete method was async and returned tasks
-            # await asyncio.gather(*tasks)
 
             await event.edit(f"✅ 已完成删除包含指定关键词的文档的任务。") # Edit confirmation
 

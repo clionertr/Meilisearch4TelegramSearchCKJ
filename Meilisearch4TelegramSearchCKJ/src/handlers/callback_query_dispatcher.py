@@ -101,11 +101,15 @@ class CallbackQueryDispatcher:
                     await event.answer("无效的名单拒绝请求。", alert=True)
 
             elif data.startswith("d`"): # Using ` as delimiter from filter_handler
-                 # Format: d`y`{repr_list} or d`n`
+                 # Format: d`y`{json_list} or d`n`
                  confirm_char = data[2] # 'y' or 'n'
                  if confirm_char == 'y' and len(data) > 3:
                       keywords_repr = data[3:]
-                      await self.filter_handler.handle_delete_callback(event, confirm=True, keywords_repr=keywords_repr)
+                      try:
+                          await self.filter_handler.handle_delete_callback(event, confirm=True, keywords_repr=keywords_repr)
+                      except Exception as e:
+                          self.logger.error(f"处理删除回调时出错: {e}\nData: {data}", exc_info=True)
+                          await event.answer(f"处理删除请求时出错: {str(e)[:100]}", alert=True)
                  elif confirm_char == 'n':
                       await self.filter_handler.handle_delete_callback(event, confirm=False, keywords_repr="") # No keywords needed for 'no'
                  else:
