@@ -413,18 +413,56 @@ class TelegramBot:
     async def cleanup(self):
         """Perform cleanup actions before shutdown."""
         self.logger.info("Performing cleanup...")
+        cleanup_tasks = []
+
+        # 1. 取消下载任务
         if self.download_task and not self.download_task.done():
             self.logger.info("Cancelling active download task...")
             self.download_task.cancel()
-            try:
-                await asyncio.wait_for(self.download_task, timeout=5.0)
-                self.logger.info("Download task cancelled during cleanup.")
-            except (asyncio.CancelledError, asyncio.TimeoutError):
-                self.logger.warning("Download task did not fully stop during cleanup.")
-            except Exception as e:
-                 self.logger.error(f"Error cancelling download task during cleanup: {e}")
+            # 创建一个等待任务取消的任务
+            cleanup_tasks.append(self._wait_for_task_cancellation(self.download_task))
+
+        # 2. 断开客户端连接
         if self.bot_client and self.bot_client.is_connected():
             self.logger.info("Disconnecting bot client...")
-            await self.bot_client.disconnect()
-            self.logger.info("Bot client disconnected.")
+            # 创建一个安全断开连接的任务
+            cleanup_tasks.append(self._safe_disconnect())
+
+        # 并行执行所有清理任务
+        if cleanup_tasks:
+            results = await asyncio.gather(*cleanup_tasks, return_exceptions=True)
+            for i, result in enumerate(results):
+                if isinstance(result, Exception):
+                    self.logger.error(f"Error during cleanup task {i}: {result}", exc_info=True)
+
         self.logger.info("Cleanup complete.")
+
+    async def _wait_for_task_cancellation(self, task):
+        """等待任务取消，带超时"""
+        try:
+            await asyncio.wait_for(task, timeout=3.0)
+            self.logger.info("Download task cancelled during cleanup.")
+            return True
+        except asyncio.CancelledError:
+            self.logger.info("Download task cancelled normally.")
+            return True
+        except asyncio.TimeoutError:
+            self.logger.warning("Download task did not fully stop during cleanup.")
+            return False
+        except Exception as e:
+            self.logger.error(f"Error cancelling download task during cleanup: {e}", exc_info=True)
+            return False
+
+    async def _safe_disconnect(self):
+        """安全断开客户端连接，带超时"""
+        try:
+            # 使用超时来防止断开连接操作无限等待
+            await asyncio.wait_for(self.bot_client.disconnect(), timeout=3.0)
+            self.logger.info("Bot client disconnected.")
+            return True
+        except asyncio.TimeoutError:
+            self.logger.warning("Bot client disconnect timed out.")
+            return False
+        except Exception as e:
+            self.logger.error(f"Error disconnecting bot client: {e}", exc_info=True)
+            return False

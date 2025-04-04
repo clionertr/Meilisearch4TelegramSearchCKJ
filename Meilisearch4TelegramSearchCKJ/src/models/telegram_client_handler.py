@@ -390,11 +390,22 @@ class TelegramUserBot:
         清理资源
         """
         try:
-            await self.client.disconnect()
+            # 使用超时来防止断开连接操作无限等待
+            if self.client and self.client.is_connected():
+                logger.info("正在断开 UserBot 客户端连接...")
+                try:
+                    await asyncio.wait_for(self.client.disconnect(), timeout=3.0)
+                    logger.info("UserBot 客户端已断开连接")
+                except asyncio.TimeoutError:
+                    logger.warning("UserBot 客户端断开连接超时")
+                except Exception as e:
+                    logger.error(f"断开 UserBot 客户端连接时出错: {e}", exc_info=True)
+
+            # 强制进行垃圾回收
             gc.collect()
             logger.info("资源清理完成")
         except Exception as e:
-            logger.error(f"清理资源时出错: {e}")
+            logger.error(f"清理资源时出错: {e}", exc_info=True)
 
     @staticmethod
     def get_memory_usage():
