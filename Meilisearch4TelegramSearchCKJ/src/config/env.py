@@ -1,4 +1,5 @@
 from Meilisearch4TelegramSearchCKJ.src.config.config import settings
+from dynaconf import Dynaconf
 ###
 ###
 ### 你可以直接修改此文件，也可以使用settings.toml文件进行配置
@@ -84,3 +85,44 @@ INDEX_CONFIG = settings.meilisearch_index_config
 
 BANNED_WORDS = settings.bot.banned_words
 BANNED_IDS = settings.bot.banned_ids
+
+
+def reload_config():
+    """
+    重新加载配置文件
+
+    当settings.toml文件被修改后，调用此函数可以重新加载配置
+    使配置变更生效
+    """
+    global WHITE_LIST, BLACK_LIST, OWNER_IDS, SESSION_STRING, LOGGING_LEVEL, LOGGING2FILE_LEVEL
+    global IPv6, PROXY, BATCH_MSG_NUM, NOT_RECORD_MSG, SEARCH_CACHE, CACHE_EXPIRE_SECONDS
+    global MAX_PAGE, RESULTS_PER_PAGE, TIME_ZONE, TELEGRAM_REACTIONS, INDEX_CONFIG
+    global BANNED_WORDS, BANNED_IDS
+
+    # 重新加载配置文件
+    new_settings = Dynaconf(
+        envvar_prefix="MTS",
+        settings_files=['settings.toml', '.secrets.toml'],
+        merge_enabled=True,
+    )
+
+    # 更新配置变量
+    WHITE_LIST = new_settings.bot.white_list
+    BLACK_LIST = new_settings.bot.black_list
+    OWNER_IDS = new_settings.bot.owner_ids
+    SESSION_STRING = new_settings.login.session_string or None
+    LOGGING_LEVEL = new_settings.logging.level
+    LOGGING2FILE_LEVEL = new_settings.logging.file_level
+    IPv6 = new_settings.network.ipv6
+    PROXY = new_settings.network.proxy or None
+    BATCH_MSG_NUM = new_settings.performance.batch_msg_num
+    NOT_RECORD_MSG = new_settings.performance.not_record_msg
+    SEARCH_CACHE = new_settings.search.search_cache_enabled
+    CACHE_EXPIRE_SECONDS = new_settings.search.cache_expire_seconds
+    MAX_PAGE = new_settings.search.max_page
+    RESULTS_PER_PAGE = new_settings.search.results_per_page
+    TIME_ZONE = new_settings.timezone.time_zone
+    TELEGRAM_REACTIONS = new_settings.telegram_reactions
+    INDEX_CONFIG = new_settings.meilisearch_index_config
+    BANNED_WORDS = new_settings.bot.banned_words
+    BANNED_IDS = new_settings.bot.banned_ids
