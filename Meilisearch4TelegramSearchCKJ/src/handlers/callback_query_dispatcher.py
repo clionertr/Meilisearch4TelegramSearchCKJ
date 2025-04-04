@@ -55,6 +55,51 @@ class CallbackQueryDispatcher:
                     self.logger.warning(f"格式错误的阻止回调数据: {data}")
                     await event.answer("无效的阻止请求。", alert=True)
 
+            elif data.startswith("wl_add_"):
+                # Format: wl_add_{chat_id}
+                parts = data.split('_', 2)
+                if len(parts) == 3:
+                    _, _, chat_id_str = parts
+                    try:
+                        chat_id = int(chat_id_str)
+                        await self.filter_handler.handle_whitelist_callback(event, chat_id)
+                    except ValueError:
+                        self.logger.warning(f"无效的聊天 ID: {chat_id_str} in callback data: {data}")
+                        await event.answer("无效的聊天ID。", alert=True)
+                else:
+                    self.logger.warning(f"格式错误的白名单回调数据: {data}")
+                    await event.answer("无效的白名单请求。", alert=True)
+
+            elif data.startswith("bl_add_"):
+                # Format: bl_add_{chat_id}
+                parts = data.split('_', 2)
+                if len(parts) == 3:
+                    _, _, chat_id_str = parts
+                    try:
+                        chat_id = int(chat_id_str)
+                        await self.filter_handler.handle_blacklist_callback(event, chat_id)
+                    except ValueError:
+                        self.logger.warning(f"无效的聊天 ID: {chat_id_str} in callback data: {data}")
+                        await event.answer("无效的聊天ID。", alert=True)
+                else:
+                    self.logger.warning(f"格式错误的黑名单回调数据: {data}")
+                    await event.answer("无效的黑名单请求。", alert=True)
+
+            elif data.startswith("list_no_"):
+                # Format: list_no_{chat_id}
+                parts = data.split('_', 2)
+                if len(parts) == 3:
+                    _, _, chat_id_str = parts
+                    try:
+                        chat_id = int(chat_id_str)
+                        await self.filter_handler.handle_list_no_callback(event, chat_id)
+                    except ValueError:
+                        self.logger.warning(f"无效的聊天 ID: {chat_id_str} in callback data: {data}")
+                        await event.answer("无效的聊天ID。", alert=True)
+                else:
+                    self.logger.warning(f"格式错误的名单拒绝回调数据: {data}")
+                    await event.answer("无效的名单拒绝请求。", alert=True)
+
             elif data.startswith("d`"): # Using ` as delimiter from filter_handler
                  # Format: d`y`{repr_list} or d`n`
                  confirm_char = data[2] # 'y' or 'n'

@@ -5,8 +5,8 @@ filter_handler.py - Handles banning, filtering, and deletion logic
 """
 import ast
 from telethon import Button, TelegramClient
-from telethon.tl.types import PeerUser
-from Meilisearch4TelegramSearchCKJ.src.config.env import BANNED_WORDS # Import default if needed
+from telethon.tl.types import PeerUser, PeerChannel, PeerChat
+from Meilisearch4TelegramSearchCKJ.src.config.env import BANNED_WORDS, reload_config # Import default if needed
 from Meilisearch4TelegramSearchCKJ.src.models.meilisearch_handler import MeiliSearchClient
 from Meilisearch4TelegramSearchCKJ.src.utils.record_lastest_msg_id import load_config, save_config
 from Meilisearch4TelegramSearchCKJ.src.utils.permissions import set_permission
@@ -136,43 +136,84 @@ class FilterHandler:
     # --- Event Handlers ---
 
     async def handle_forwarded_message(self, event) -> None:
-        """Handles forwarded messages to potentially ban the original sender."""
-        if not event.is_private or not event.fwd_from or not event.fwd_from.from_id:
+        """Handles forwarded messages to potentially ban the original sender or add chat to lists."""
+        if not event.is_private or not event.fwd_from:
             return # Only handle private chats with valid forward info
 
-        # Check if the sender is a user (not a channel)
-        if not isinstance(event.fwd_from.from_id, PeerUser):
-            # Optionally log or inform the user
-            # self.logger.debug("Forwarded message is not from a user.")
-            # await event.reply("⚠️ 仅支持对来自用户的转发消息执行操作。")
-            return
-
         try:
-            from_user_id = event.fwd_from.from_id.user_id
-            # Maybe get user info for display?
-            # user = await self.bot_client.get_entity(from_user_id)
-            # display_name = user.first_name + (f" {user.last_name}" if user.last_name else "")
+            # 获取转发消息的来源信息
+            from_id = event.fwd_from.from_id
+            from_user_id = None
+            from_chat_id = None
+            chat_type = None
 
-            # Check if already banned before asking
+            # 处理不同类型的来源
+            if isinstance(from_id, PeerUser):
+                from_user_id = from_id.user_id
+                chat_type = "user"
+            elif isinstance(from_id, PeerChannel):
+                from_chat_id = from_id.channel_id
+                # 频道ID需要添加-100前缀
+                from_chat_id = -1000000000000 - from_chat_id
+                chat_type = "channel"
+            elif isinstance(from_id, PeerChat):
+                from_chat_id = from_id.chat_id
+                # 群组ID需要添加-前缀
+                from_chat_id = -from_chat_id
+                chat_type = "chat"
+            else:
+                self.logger.warning(f"未知的转发消息来源类型: {type(from_id)}")
+                await event.reply("⚠️ 无法识别转发消息的来源类型。")
+                return
+
+            # 加载配置
             config = load_config()
-            if from_user_id in config['bot'].get('banned_ids', []):
-                 await event.reply(f"ℹ️ 用户 `{from_user_id}` 已在阻止名单中。", parse_mode='markdown')
-                 return
 
-            text = f"❓ 是否将转发来源用户 `{from_user_id}` 添加到阻止名单？"
-            buttons = [
-                Button.inline("是", data=f"ban_yes_{from_user_id}"),
-                Button.inline("否", data=f"ban_no_{from_user_id}")
-            ]
-            await event.reply(text, buttons=buttons, parse_mode='markdown')
+            # 构建回复消息和按钮
+            reply_parts = []
+            buttons = []
 
-        except AttributeError:
-            # Should be caught by initial checks, but as safeguard
-            self.logger.warning("无法从转发消息中获取 user_id。")
-            # await event.reply("❌ 无法获取来源用户信息。")
+            # 处理用户ID
+            if from_user_id:
+                # 检查用户是否已在阻止名单中
+                if from_user_id in config['bot'].get('banned_ids', []):
+                    reply_parts.append(f"ℹ️ 用户 `{from_user_id}` 已在阻止名单中。")
+                else:
+                    reply_parts.append(f"❓ 是否将转发来源用户 `{from_user_id}` 添加到阻止名单？")
+                    buttons.extend([
+                        Button.inline("添加到阻止名单", data=f"ban_yes_{from_user_id}"),
+                        Button.inline("不添加", data=f"ban_no_{from_user_id}")
+                    ])
+
+            # 处理群组/频道ID
+            if from_chat_id:
+                # 检查群组/频道是否已在白名单或黑名单中
+                white_list = config['bot'].get('white_list', [])
+                black_list = config['bot'].get('black_list', [])
+
+                if from_chat_id in white_list:
+                    reply_parts.append(f"ℹ️ {chat_type} `{from_chat_id}` 已在白名单中。")
+                elif from_chat_id in black_list:
+                    reply_parts.append(f"ℹ️ {chat_type} `{from_chat_id}` 已在黑名单中。")
+                else:
+                    reply_parts.append(f"❓ 是否将转发来源 {chat_type} `{from_chat_id}` 添加到白名单或黑名单？")
+                    buttons.extend([
+                        Button.inline("添加到白名单", data=f"wl_add_{from_chat_id}"),
+                        Button.inline("添加到黑名单", data=f"bl_add_{from_chat_id}"),
+                        Button.inline("不添加", data=f"list_no_{from_chat_id}")
+                    ])
+
+            # 如果没有可操作的内容，则返回
+            if not reply_parts:
+                await event.reply("⚠️ 无法从转发消息中获取有效的用户ID或群组ID。")
+                return
+
+            # 发送回复
+            await event.reply("\n\n".join(reply_parts), buttons=buttons if buttons else None, parse_mode='markdown')
+
         except Exception as e:
-             self.logger.error(f"处理转发消息时出错: {e}", exc_info=True)
-             # Avoid crashing, maybe just log
+            self.logger.error(f"处理转发消息时出错: {e}", exc_info=True)
+            await event.reply(f"❌ 处理转发消息时出错: {e}")
 
 
     # --- Callback Handlers ---
@@ -198,6 +239,60 @@ class FilterHandler:
         except Exception as e:
             self.logger.error(f"处理 ban 回调出错 for user {user_id}: {e}", exc_info=True)
             await event.answer(f"添加阻止名单失败: {e}", alert=True)
+
+    async def handle_whitelist_callback(self, event, chat_id: int) -> None:
+        """Handles adding a chat to the whitelist."""
+        try:
+            config = load_config()
+            white_list = config['bot'].setdefault('white_list', [])
+            black_list = config['bot'].setdefault('black_list', [])
+
+            # 如果在黑名单中，先移除
+            if chat_id in black_list:
+                black_list.remove(chat_id)
+
+            # 添加到白名单
+            if chat_id not in white_list:
+                white_list.append(chat_id)
+                save_config(config)
+                reload_config()  # 重新加载配置以使更改立即生效
+                self.logger.info(f"聊天 {chat_id} 已添加到白名单。")
+                await event.edit(f"✅ 聊天 `{chat_id}` 已添加到白名单。", parse_mode='markdown')
+            else:
+                self.logger.info(f"聊天 {chat_id} 已在白名单中。")
+                await event.edit(f"ℹ️ 聊天 `{chat_id}` 已在白名单中。", parse_mode='markdown')
+        except Exception as e:
+            self.logger.error(f"处理白名单回调出错 for chat {chat_id}: {e}", exc_info=True)
+            await event.answer(f"添加白名单失败: {e}", alert=True)
+
+    async def handle_blacklist_callback(self, event, chat_id: int) -> None:
+        """Handles adding a chat to the blacklist."""
+        try:
+            config = load_config()
+            white_list = config['bot'].setdefault('white_list', [])
+            black_list = config['bot'].setdefault('black_list', [])
+
+            # 如果在白名单中，先移除
+            if chat_id in white_list:
+                white_list.remove(chat_id)
+
+            # 添加到黑名单
+            if chat_id not in black_list:
+                black_list.append(chat_id)
+                save_config(config)
+                reload_config()  # 重新加载配置以使更改立即生效
+                self.logger.info(f"聊天 {chat_id} 已添加到黑名单。")
+                await event.edit(f"✅ 聊天 `{chat_id}` 已添加到黑名单。", parse_mode='markdown')
+            else:
+                self.logger.info(f"聊天 {chat_id} 已在黑名单中。")
+                await event.edit(f"ℹ️ 聊天 `{chat_id}` 已在黑名单中。", parse_mode='markdown')
+        except Exception as e:
+            self.logger.error(f"处理黑名单回调出错 for chat {chat_id}: {e}", exc_info=True)
+            await event.answer(f"添加黑名单失败: {e}", alert=True)
+
+    async def handle_list_no_callback(self, event, chat_id: int) -> None:
+        """Handles the rejection of adding a chat to any list."""
+        await event.edit(f"已取消将聊天 `{chat_id}` 添加到名单。", parse_mode='markdown')
 
 
     async def handle_delete_callback(self, event, confirm: bool, keywords_repr: str) -> None:
