@@ -20,7 +20,7 @@ from telethon.tl.types import Channel, Chat, User, Message, ReactionCount, React
 
 from Meilisearch4TelegramSearchCKJ.src.config.env import (
     APP_ID, APP_HASH, BATCH_MSG_NUM, NOT_RECORD_MSG, TIME_ZONE,
-    TELEGRAM_REACTIONS, IPv6, PROXY, SESSION_STRING, WHITE_LIST, 
+    TELEGRAM_REACTIONS, IPv6, PROXY, SESSION_STRING, WHITE_LIST,
     BLACK_LIST, BANNED_IDS, BANNED_WORDS
 )
 from Meilisearch4TelegramSearchCKJ.src.models.logger import setup_logger
@@ -39,12 +39,12 @@ tracemalloc.start()
 async def calculate_reaction_score(reactions: dict) -> float | None:
     """
     计算消息反应的总分数
-    
+
     根据不同反应类型的权重计算总分数
-    
+
     Args:
         reactions: 包含反应类型和数量的字典
-        
+
     Returns:
         计算的总分数，如果没有反应则ReturnsNone
     """
@@ -60,16 +60,16 @@ async def calculate_reaction_score(reactions: dict) -> float | None:
 async def serialize_chat(chat):
     """
     将聊天对象序列化为字典
-    
+
     Args:
         chat: Telegram聊天对象
-        
+
     Returns:
         包含聊天信息的字典，如果chat为None则ReturnsNone
     """
     if not chat:
         return None
-    
+
     chat_type = "private"
     if hasattr(chat, 'megagroup') and chat.megagroup:
         chat_type = "group"
@@ -77,7 +77,7 @@ async def serialize_chat(chat):
         chat_type = "channel"
     elif isinstance(chat, Chat):
         chat_type = "group"
-        
+
     return {
         'id': chat.id,
         'type': chat_type,
@@ -89,16 +89,16 @@ async def serialize_chat(chat):
 async def serialize_sender(sender):
     """
     将发送者对象序列化为字典
-    
+
     Args:
         sender: Telegram用户对象
-        
+
     Returns:
         包含发送者信息的字典，如果sender为None则ReturnsNone
     """
     if not sender:
         return None
-        
+
     return {
         'id': sender.id,
         'username': getattr(sender, 'username', None)
@@ -108,10 +108,10 @@ async def serialize_sender(sender):
 async def serialize_reactions(message: Message):
     """
     获取消息对象的reaction表情和数量，并Returns字典
-    
+
     Args:
         message: Telegram消息对象
-        
+
     Returns:
         包含反应信息的字典，如果没有反应则ReturnsNone
     """
@@ -127,28 +127,29 @@ async def serialize_reactions(message: Message):
                     reactions_dict[reaction.document_id] = count
                 else:
                     reactions_dict[f"Unknown:{type(reaction)}"] = count
-                    
+
     return reactions_dict if reactions_dict else None
 
 
 def is_banned_message(text, from_user):
     """
     检查消息是否被禁止
-    
+
     检查消息发送者是否在禁止列表中或消息文本是否包含敏感词
-    
+
     Args:
         text: 消息文本
         from_user: 发送者信息字典
-        
+
     Returns:
         是否禁止该消息的布尔值
     """
     # 检查用户是否被禁言
-    user_id = from_user.get('id')
-    if user_id in BANNED_IDS:
-        logger.debug(f"用户 {user_id} 被禁止")
-        return True  # 用户被禁止
+    if from_user is not None:
+        user_id = from_user.get('id')
+        if user_id in BANNED_IDS:
+            logger.debug(f"用户 {user_id} 被禁止")
+            return True  # 用户被禁止
 
     # 处理text为None的情况
     text = text or ''
@@ -165,11 +166,11 @@ def is_banned_message(text, from_user):
 async def serialize_message(message: Message, not_edited=True):
     """
     将消息对象序列化为字典
-    
+
     Args:
         message: Telegram消息对象
         not_edited: 是否为未编辑的消息，默认为True
-        
+
     Returns:
         包含消息信息的字典，如果消息不合法则ReturnsNone
     """
@@ -180,17 +181,19 @@ async def serialize_message(message: Message, not_edited=True):
         reaction_score = await calculate_reaction_score(reactions)
         text = getattr(message, 'text', None) or getattr(message, 'caption', None)
         from_user = await serialize_sender(sender)
-        
+
         # 检查消息是否被禁止
+        if from_user is None:
+            logger.warning(f"消息 (ID: {getattr(message, 'id', '未知')}) 的发送者信息为空")
         if is_banned_message(text, from_user):
             return None
-            
+
         # 构建消息ID
         if not_edited:
             message_id = f"{chat.id}-{message.id}"
         else:
             message_id = f"{chat.id}-{message.id}-{int(message.edit_date.timestamp())}"
-            
+
         return {
             'id': message_id,
             'chat': await serialize_chat(chat),
@@ -209,14 +212,14 @@ async def serialize_message(message: Message, not_edited=True):
 class TelegramUserBot:
     """
     Telegram用户机器人类
-    
+
     用于获取和处理Telegram消息，并将消息存储到Meilisearch
     """
-    
+
     def __init__(self, meili_client):
         """
         初始化Telegram用户机器人
-        
+
         Args:
             meili_client: Meilisearch客户端实例
         """
@@ -288,7 +291,7 @@ class TelegramUserBot:
     async def _process_message(self, message, not_edited=True):
         """
         处理消息
-        
+
         Args:
             message: Telegram消息对象
             not_edited: 是否为未编辑的消息，默认为True
@@ -304,7 +307,7 @@ class TelegramUserBot:
     async def _cache_message(self, message, not_edited=True):
         """
         缓存消息到Meilisearch
-        
+
         Args:
             message: Telegram消息对象
             not_edited: 是否为未编辑的消息，默认为True
@@ -321,7 +324,7 @@ class TelegramUserBot:
                                latest_msg_config=None, dialog_id=None):
         """
         下载聊天历史记录
-        
+
         Args:
             peer: Telegram聊天对象
             limit: 限制下载消息数量，默认为None表示不限制
@@ -334,7 +337,7 @@ class TelegramUserBot:
         try:
             messages = []
             total_messages = 0
-            
+
             # 迭代获取消息
             async for message in self.client.iter_messages(
                     peer,
@@ -348,20 +351,20 @@ class TelegramUserBot:
                 if serialized:
                     messages.append(serialized)
                     total_messages += 1
-                    
+
                 # 达到批处理数量时处理一批消息
                 if len(messages) >= batch_size:
                     update_download_incremental(dialog_id, messages[-1], latest_msg_config)
                     await self._process_message_batch(messages)
                     messages.clear()
                     logger.info(f"已下载 {total_messages} 条消息")
-                    
+
             # 处理剩余消息
             if messages:
                 update_download_incremental(dialog_id, messages[-1], latest_msg_config)
                 await self._process_message_batch(messages)
                 logger.info(f"完成下载 {peer.id} 的历史消息")
-                
+
         except FloodWaitError as e:
             logger.warning(f"请求过于频繁，等待 {e.seconds} 秒后重试")
             await asyncio.sleep(e.seconds)
@@ -372,7 +375,7 @@ class TelegramUserBot:
     async def _process_message_batch(self, messages):
         """
         批量处理消息
-        
+
         Args:
             messages: 消息列表
         """
@@ -397,7 +400,7 @@ class TelegramUserBot:
     def get_memory_usage():
         """
         获取内存使用情况
-        
+
         Returns:
             当前内存使用量和峰值内存使用量的元组
         """
