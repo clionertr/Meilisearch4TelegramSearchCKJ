@@ -1,0 +1,27 @@
+#Add Windows Docker support
+
+services:
+  # The Database
+  meilisearch:
+    image: getmeili/meilisearch:latest
+    container_name: meili-db
+    restart: unless-stopped
+    environment:
+      - MEILI_MASTER_KEY=myMasterKey123
+    volumes:
+      - ./meili_data:/meili_data
+    ports:
+      - "7700:7700"
+
+  # The Bot
+  telegramsearchckj:
+    image: ghcr.io/clionertr/meilisearch4telegramsearchckj:latest
+    container_name: telegram-bot
+    restart: unless-stopped
+    depends_on:
+      - meilisearch
+    volumes:
+      - ./env.py:/app/Meilisearch4TelegramSearchCKJ/src/config/env.py
+      - ./session:/app/Meilisearch4TelegramSearchCKJ/src/session
+    environment:
+      - TZ=Asia/Shanghai
