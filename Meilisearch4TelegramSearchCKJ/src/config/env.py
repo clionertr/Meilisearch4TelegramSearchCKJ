@@ -153,5 +153,4 @@ INDEX_CONFIG = {
         "maxTotalHits": 500
     },
     "searchCutoffMs": None,
-    "localizedAttributes": None
 } if not os.getenv("INDEX_CONFIG") else ast.literal_eval(os.getenv("INDEX_CONFIG"))
