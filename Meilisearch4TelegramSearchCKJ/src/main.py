@@ -1,11 +1,16 @@
 import asyncio
-from Meilisearch4TelegramSearchCKJ.src.config.env import MEILI_HOST, MEILI_PASS, WHITE_LIST, BLACK_LIST
+
+from Meilisearch4TelegramSearchCKJ.src.config.env import BLACK_LIST, MEILI_HOST, MEILI_PASS, WHITE_LIST
 from Meilisearch4TelegramSearchCKJ.src.models.bot_handler import BotHandler
 from Meilisearch4TelegramSearchCKJ.src.models.logger import setup_logger
 from Meilisearch4TelegramSearchCKJ.src.models.meilisearch_handler import MeiliSearchClient
 from Meilisearch4TelegramSearchCKJ.src.models.telegram_client_handler import TelegramUserBot
-from Meilisearch4TelegramSearchCKJ.src.utils.record_lastest_msg_id import get_latest_msg_id, read_config, \
-    get_latest_msg_id4_meili, read_config_from_meili
+from Meilisearch4TelegramSearchCKJ.src.utils.record_lastest_msg_id import (
+    get_latest_msg_id,
+    get_latest_msg_id4_meili,
+    read_config,
+    read_config_from_meili,
+)
 
 meili = MeiliSearchClient(MEILI_HOST, MEILI_PASS)
 logger = setup_logger()

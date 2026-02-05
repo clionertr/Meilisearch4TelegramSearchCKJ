@@ -1,7 +1,8 @@
-import coloredlogs
 import logging
 
-from Meilisearch4TelegramSearchCKJ.src.config.env import LOGGING_LEVEL, LOGGING2FILE_LEVEL
+import coloredlogs
+
+from Meilisearch4TelegramSearchCKJ.src.config.env import LOGGING2FILE_LEVEL, LOGGING_LEVEL
 
 
 def setup_logger():

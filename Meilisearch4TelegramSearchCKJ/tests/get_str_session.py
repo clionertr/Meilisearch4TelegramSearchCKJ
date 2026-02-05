@@ -1,6 +1,7 @@
 import os
-from telethon.sync import TelegramClient
+
 from telethon.sessions import StringSession
+from telethon.sync import TelegramClient
 
 api_id = os.getenv('APP_ID', '12345')
 api_hash = os.getenv('APP_HASH', '0123456789abcdef0123456789abcdef')

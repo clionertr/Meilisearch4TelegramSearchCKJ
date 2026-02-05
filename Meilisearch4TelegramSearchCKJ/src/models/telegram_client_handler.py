@@ -1,28 +1,106 @@
+"""
+Telegram 客户端封装
+
+提供 Telegram 用户客户端功能，包含：
+- 消息下载与监听
+- 细化的异常处理（区分网络/权限/限流错误）
+- 内存使用监控
+"""
 import asyncio
+import gc
+import os
+import tracemalloc
 
 import pytz
 from telethon import TelegramClient, events
+from telethon.errors import (
+    ChannelPrivateError,
+    # 权限相关错误
+    ChatAdminRequiredError,
+    ChatWriteForbiddenError,
+    FloodWaitError,
+    # RPC 错误基类
+    RPCError,
+    # 网络相关错误
+    TimedOutError,
+    UserBannedInChannelError,
+    UserPrivacyRestrictedError,
+)
+from telethon.errors import (
+    TimeoutError as TelethonTimeoutError,
+)
 from telethon.sessions import StringSession
-from telethon.tl.types import Message, ReactionCount, ReactionEmoji, ReactionCustomEmoji
-from telethon.errors import FloodWaitError
-import gc
-import tracemalloc
-from Meilisearch4TelegramSearchCKJ.src.config.env import APP_ID, APP_HASH, BATCH_MSG_UNM, NOT_RECORD_MSG, TIME_ZONE, \
-    TELEGRAM_REACTIONS, IPv6, PROXY, SESSION_STRING, WHITE_LIST, BLACK_LIST
+from telethon.tl.types import Channel, Chat, Message, ReactionCount, ReactionCustomEmoji, ReactionEmoji, User
+
+from Meilisearch4TelegramSearchCKJ.src.config.env import (
+    APP_HASH,
+    APP_ID,
+    BATCH_MSG_UNM,
+    BLACK_LIST,
+    NOT_RECORD_MSG,
+    PROXY,
+    SESSION_STRING,
+    TELEGRAM_REACTIONS,
+    TIME_ZONE,
+    WHITE_LIST,
+    IPv6,
+)
 from Meilisearch4TelegramSearchCKJ.src.models.logger import setup_logger
 from Meilisearch4TelegramSearchCKJ.src.utils.is_in_white_or_black_list import is_allowed
-from Meilisearch4TelegramSearchCKJ.src.utils.record_lastest_msg_id import update_latest_msg_config4_meili, \
-    read_config_from_meili
-from telethon.tl.types import Channel, Chat, User
+from Meilisearch4TelegramSearchCKJ.src.utils.record_lastest_msg_id import (
+    read_config_from_meili,
+    update_latest_msg_config4_meili,
+)
 
 tz = pytz.timezone(TIME_ZONE)
 logger = setup_logger()
 
-# latest_msg_config = read_config()
-#从config.ini获取最新消息ID
+# 是否启用内存跟踪（生产环境可关闭以提升性能）
+_ENABLE_TRACEMALLOC = os.getenv("ENABLE_TRACEMALLOC", "true").lower() in ("true", "1", "yes")
+if _ENABLE_TRACEMALLOC:
+    tracemalloc.start()
 
-# 内存跟踪
-tracemalloc.start()
+
+# ============ 自定义异常 ============
+
+class TelegramNetworkError(Exception):
+    """Telegram 网络错误（可重试）"""
+    pass
+
+
+class TelegramPermissionError(Exception):
+    """Telegram 权限错误（不可重试，需跳过）"""
+    pass
+
+
+class TelegramRateLimitError(Exception):
+    """Telegram 限流错误（需等待后重试）"""
+
+    def __init__(self, message: str, wait_seconds: int = 0):
+        super().__init__(message)
+        self.wait_seconds = wait_seconds
+
+
+# ============ 权限错误类型集合 ============
+
+PERMISSION_ERRORS = (
+    ChatAdminRequiredError,
+    ChannelPrivateError,
+    UserPrivacyRestrictedError,
+    ChatWriteForbiddenError,
+    UserBannedInChannelError,
+)
+
+# ============ 网络错误类型集合 ============
+
+NETWORK_ERRORS = (
+    TimedOutError,
+    TelethonTimeoutError,
+    ConnectionError,
+    TimeoutError,
+    asyncio.TimeoutError,
+    OSError,
+)
 
 
 async def calculate_reaction_score(reactions: dict) -> float | None:
@@ -95,7 +173,17 @@ async def serialize_reactions(message: Message):
     return reactions_dict if reactions_dict else None
 
 
-async def serialize_message(message: Message, not_edited=True):
+async def serialize_message(message: Message, not_edited: bool = True) -> dict | None:
+    """
+    序列化 Telegram 消息为字典
+
+    Args:
+        message: Telethon Message 对象
+        not_edited: 是否为原始消息（非编辑版本）
+
+    Returns:
+        序列化后的消息字典，失败返回 None
+    """
     try:
         chat_future = message.get_chat()
         sender_future = message.get_sender()
@@ -112,8 +200,14 @@ async def serialize_message(message: Message, not_edited=True):
             'reactions_scores': await calculate_reaction_score(reactions),
             'text_len': len(message.text or '')
         }
+    except NETWORK_ERRORS as e:
+        logger.warning(f"Network error serializing message {message.id}: {type(e).__name__}: {str(e)}")
+        return None
+    except PERMISSION_ERRORS as e:
+        logger.warning(f"Permission error serializing message {message.id}: {type(e).__name__}: {str(e)}")
+        return None
     except Exception as e:
-        logger.error(f"Error serializing message: {str(e)}")
+        logger.error(f"Unexpected error serializing message {message.id}: {type(e).__name__}: {str(e)}")
         return None
 
 
@@ -163,8 +257,20 @@ class TelegramUserBot:
             await self.client.start()
             logger.info("Bot started successfully")
             self.register_handlers()
+        except FloodWaitError as e:
+            logger.error(f"Rate limited on start, need to wait {e.seconds} seconds")
+            raise TelegramRateLimitError(f"限流，需等待 {e.seconds} 秒", e.seconds) from e
+        except NETWORK_ERRORS as e:
+            logger.error(f"Network error starting bot: {type(e).__name__}: {str(e)}")
+            raise TelegramNetworkError(f"网络错误: {str(e)}") from e
+        except PERMISSION_ERRORS as e:
+            logger.error(f"Permission error starting bot: {type(e).__name__}: {str(e)}")
+            raise TelegramPermissionError(f"权限错误: {str(e)}") from e
+        except RPCError as e:
+            logger.error(f"RPC error starting bot: {type(e).__name__}: {str(e)}")
+            raise
         except Exception as e:
-            logger.error(f"Failed to start bot: {str(e)}")
+            logger.error(f"Failed to start bot: {type(e).__name__}: {str(e)}")
             raise
 
     def register_handlers(self):
@@ -177,9 +283,16 @@ class TelegramUserBot:
                 if is_allowed(peer_id, self.white_list, self.black_list):
                     await self._process_message(event.message)
                 else:
-                    logger.info(f"Chat id {peer_id} is not allowed")
+                    logger.debug(f"Chat id {peer_id} is not allowed")
+            except FloodWaitError as e:
+                logger.warning(f"Rate limited processing message, waiting {e.seconds}s")
+                await asyncio.sleep(e.seconds)
+            except NETWORK_ERRORS as e:
+                logger.warning(f"Network error processing message: {type(e).__name__}")
+            except PERMISSION_ERRORS as e:
+                logger.warning(f"Permission denied for chat {peer_id}: {type(e).__name__}")
             except Exception as e:
-                logger.error(f"Error processing message: {str(e)}")
+                logger.error(f"Error processing message: {type(e).__name__}: {str(e)}")
 
         @self.client.on(events.MessageEdited)
         async def handle_edit_message(event):
@@ -188,11 +301,18 @@ class TelegramUserBot:
                 if is_allowed(peer_id, self.white_list, self.black_list):
                     await self._process_message(event.message, NOT_RECORD_MSG)
                 else:
-                    logger.info(f"Chat id {peer_id} is not allowed")
+                    logger.debug(f"Chat id {peer_id} is not allowed")
+            except FloodWaitError as e:
+                logger.warning(f"Rate limited processing edit, waiting {e.seconds}s")
+                await asyncio.sleep(e.seconds)
+            except NETWORK_ERRORS as e:
+                logger.warning(f"Network error processing edit: {type(e).__name__}")
+            except PERMISSION_ERRORS as e:
+                logger.warning(f"Permission denied for chat {peer_id}: {type(e).__name__}")
             except Exception as e:
-                logger.error(f"Error processing message: {str(e)}")
+                logger.error(f"Error processing message edit: {type(e).__name__}: {str(e)}")
 
-    async def _process_message(self, message: Message, not_edited=True):
+    async def _process_message(self, message: Message, not_edited: bool = True):
         """处理新消息"""
         try:
             # 消息处理逻辑
@@ -200,16 +320,22 @@ class TelegramUserBot:
                 logger.info(f"Received message: {message.text[:100] if message.text else message.caption}")
                 # 缓存消息
                 await self._cache_message(message, not_edited)
+        except NETWORK_ERRORS as e:
+            logger.warning(f"Network error processing message {message.id}: {type(e).__name__}")
         except Exception as e:
-            logger.error(f"Error in message processing for {message.id}: {str(e)}")
+            logger.error(f"Error in message processing for {message.id}: {type(e).__name__}: {str(e)}")
 
-    async def _cache_message(self, message: Message, not_edited=True):
+    async def _cache_message(self, message: Message, not_edited: bool = True):
+        """缓存消息到 MeiliSearch"""
         try:
-            result = self.meili.add_documents([await serialize_message(message, not_edited)])
-            # logger.info(f"Successfully added 1 documents to index 'telegram")
-            logger.info(result)
+            serialized = await serialize_message(message, not_edited)
+            if serialized:
+                result = self.meili.add_documents([serialized])
+                logger.info(result)
+        except NETWORK_ERRORS as e:
+            logger.warning(f"Network error caching message {message.id}: {type(e).__name__}")
         except Exception as e:
-            logger.error(f"Error caching message: {str(e)}")
+            logger.error(f"Error caching message {message.id}: {type(e).__name__}: {str(e)}")
 
     # @check_is_allowed()
     async def download_history(self, peer, limit=None, batch_size=BATCH_MSG_UNM, offset_id=0, offset_date=None,
@@ -261,24 +387,37 @@ class TelegramUserBot:
                 logger.log(25, f"Download completed for {peer.id}")
 
         except FloodWaitError as e:
-            logger.warning(f"Need to wait {e.seconds} seconds")
+            logger.warning(f"Rate limited, need to wait {e.seconds} seconds")
             await asyncio.sleep(e.seconds)
+            # 等待后继续（递归调用可能导致栈溢出，这里选择让调用者重试）
+        except NETWORK_ERRORS as e:
+            logger.error(f"Network error downloading history: {type(e).__name__}: {str(e)}")
+            raise TelegramNetworkError(f"网络错误: {str(e)}") from e
+        except PERMISSION_ERRORS as e:
+            logger.error(f"Permission denied downloading history from {peer}: {type(e).__name__}")
+            raise TelegramPermissionError(f"权限错误: {str(e)}") from e
         except Exception as e:
-            logger.error(f"Error downloading history: {str(e)}")
+            logger.error(f"Error downloading history: {type(e).__name__}: {str(e)}")
             raise
 
-    async def _process_message_batch(self, messages):
+    async def _process_message_batch(self, messages: list):
         """批量处理消息"""
+        # 过滤掉 None 值
+        valid_messages = [m for m in messages if m is not None]
+        if not valid_messages:
+            return
+
         try:
-            self.meili.add_documents(messages)
-            logger.info(f"Processing batch of {len(messages)} messages")
+            self.meili.add_documents(valid_messages)
+            logger.info(f"Processing batch of {len(valid_messages)} messages")
+        except NETWORK_ERRORS as e:
+            logger.warning(f"Network error processing batch: {type(e).__name__}")
         except Exception as e:
-            logger.error(f"Error processing message batch: {str(e)}")
+            logger.error(f"Error processing message batch: {type(e).__name__}: {str(e)}")
 
     async def cleanup(self):
         """清理资源"""
         try:
-
             # 断开连接
             await self.client.disconnect()
 
@@ -286,8 +425,10 @@ class TelegramUserBot:
             gc.collect()
 
             logger.info("Cleanup completed")
+        except NETWORK_ERRORS as e:
+            logger.warning(f"Network error during cleanup: {type(e).__name__}")
         except Exception as e:
-            logger.error(f"Error during cleanup: {str(e)}")
+            logger.error(f"Error during cleanup: {type(e).__name__}: {str(e)}")
 
     @staticmethod
     def get_memory_usage():

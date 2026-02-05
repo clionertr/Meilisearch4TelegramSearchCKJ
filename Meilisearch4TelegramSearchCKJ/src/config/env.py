@@ -1,15 +1,91 @@
-import os
 import ast
+import os
+from typing import List, Optional
+
+
+class ConfigurationError(Exception):
+    """配置错误异常"""
+    pass
+
+
+# 示例值列表，用于检测是否使用了示例配置
+_EXAMPLE_VALUES = {
+    "APP_ID": ["23010002", ""],
+    "APP_HASH": ["d1f1d1f1d1f1d1f1d1f1d1f1d1f1d1f1", ""],
+    "BOT_TOKEN": ["123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11", ""],
+    "MEILI_HOST": ["https://username-spacename.hf.space", ""],
+    "MEILI_MASTER_KEY": ["eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", ""],
+}
+
+
+def _get_required_env(name: str, example_values: Optional[List[str]] = None) -> str:
+    """
+    获取必填环境变量，如果缺失或使用示例值则抛出异常
+
+    Args:
+        name: 环境变量名
+        example_values: 示例值列表，如果配置值在此列表中则视为无效
+
+    Returns:
+        环境变量值
+
+    Raises:
+        ConfigurationError: 环境变量缺失或使用了示例值
+    """
+    value = os.getenv(name)
+
+    if value is None:
+        raise ConfigurationError(
+            f"必填环境变量 '{name}' 未设置。请在环境变量或 .env 文件中配置。"
+        )
+
+    if example_values and value in example_values:
+        raise ConfigurationError(
+            f"环境变量 '{name}' 使用了示例值 '{value}'。请设置真实的配置值。"
+        )
+
+    return value
+
+
+def validate_config() -> None:
+    """
+    验证所有必填配置项
+
+    Raises:
+        ConfigurationError: 配置验证失败
+    """
+    errors = []
+
+    for var_name, example_vals in _EXAMPLE_VALUES.items():
+        value = os.getenv(var_name)
+        if value is None:
+            errors.append(f"  - {var_name}: 未设置")
+        elif value in example_vals:
+            errors.append(f"  - {var_name}: 使用了示例值")
+
+    if errors:
+        raise ConfigurationError(
+            "配置验证失败，以下必填项存在问题:\n" + "\n".join(errors) +
+            "\n\n请检查环境变量或 .env 文件配置。"
+        )
+
+
+# 是否跳过配置验证（用于测试环境）
+_SKIP_VALIDATION = os.getenv("SKIP_CONFIG_VALIDATION", "").lower() in ("true", "1", "yes")
+
+if not _SKIP_VALIDATION:
+    validate_config()
+
 
 #### 必填 ####
 ## Telegram API 设置
-APP_ID = os.getenv("APP_ID", "23010002")
-APP_HASH = os.getenv("APP_HASH", "d1f1d1f1d1f1d1f1d1f1d1f1d1f1d1f1")
-TOKEN = os.getenv("BOT_TOKEN", "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11")
+APP_ID = os.getenv("APP_ID", "")
+APP_HASH = os.getenv("APP_HASH", "")
+TOKEN = os.getenv("BOT_TOKEN", "")
 
 ## MeiliSearch 设置
-MEILI_HOST = os.getenv("MEILI_HOST", "https://username-spacename.hf.space")
-MEILI_PASS = os.getenv("MEILI_MASTER_KEY", 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee')
+MEILI_HOST = os.getenv("MEILI_HOST", "")
+MEILI_PASS = os.getenv("MEILI_MASTER_KEY", "")
 
 #### 可选 ####
 ### 建议设置 ###

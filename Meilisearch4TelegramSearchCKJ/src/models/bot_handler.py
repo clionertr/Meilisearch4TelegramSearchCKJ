@@ -1,15 +1,28 @@
 import ast
 import asyncio
 import gc
-from telethon import TelegramClient, events, Button
+
+from telethon import Button, TelegramClient, events
 from telethon.tl.functions.bots import SetBotCommandsRequest
 from telethon.tl.types import BotCommand, BotCommandScopeDefault
 
-from Meilisearch4TelegramSearchCKJ.src.config.env import TOKEN, MEILI_HOST, MEILI_PASS, APP_ID, APP_HASH, \
-    RESULTS_PER_PAGE, SEARCH_CACHE, PROXY, IPv6, OWNER_IDS, CACHE_EXPIRE_SECONDS, MAX_PAGE
+from Meilisearch4TelegramSearchCKJ.src.config.env import (
+    APP_HASH,
+    APP_ID,
+    CACHE_EXPIRE_SECONDS,
+    MAX_PAGE,
+    MEILI_HOST,
+    MEILI_PASS,
+    OWNER_IDS,
+    PROXY,
+    RESULTS_PER_PAGE,
+    SEARCH_CACHE,
+    TOKEN,
+    IPv6,
+)
+from Meilisearch4TelegramSearchCKJ.src.models.logger import setup_logger
 from Meilisearch4TelegramSearchCKJ.src.models.meilisearch_handler import MeiliSearchClient
 from Meilisearch4TelegramSearchCKJ.src.utils.fmt_size import sizeof_fmt
-from Meilisearch4TelegramSearchCKJ.src.models.logger import setup_logger
 from Meilisearch4TelegramSearchCKJ.src.utils.record_lastest_msg_id import read_config_from_meili
 
 MAX_RESULTS = MAX_PAGE * RESULTS_PER_PAGE

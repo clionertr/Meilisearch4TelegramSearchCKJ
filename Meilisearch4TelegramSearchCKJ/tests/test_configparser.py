@@ -1,4 +1,4 @@
-from Meilisearch4TelegramSearchCKJ.src.utils.record_lastest_msg_id import read_config, write_config, get_latest_msg_id
+from Meilisearch4TelegramSearchCKJ.src.utils.record_lastest_msg_id import get_latest_msg_id, read_config, write_config
 
 config = read_config()
 # write_config(config)

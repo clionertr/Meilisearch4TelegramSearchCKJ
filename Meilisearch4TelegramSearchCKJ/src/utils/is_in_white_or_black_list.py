@@ -1,7 +1,6 @@
 import logging
 
 
-
 def is_allowed(chat_id: int, sync_white_list=None, sync_black_list=None) -> bool:
     """
     检查是否允许访问

@@ -1,5 +1,6 @@
 import tracemalloc
 
+
 def get_memory_usage(logger):
         """获取内存使用情况"""
         current, peak = tracemalloc.get_traced_memory()
