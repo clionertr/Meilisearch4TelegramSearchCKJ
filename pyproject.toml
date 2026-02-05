@@ -1,0 +1,86 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "meilisearch-tg-search"
+version = "0.1.0"
+description = "Telegram CJK message search powered by MeiliSearch"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [{name = "clionertr"}]
+
+dependencies = [
+    "setuptools",
+    "configparser",
+    "coloredlogs",
+    "Telethon",
+    "meilisearch",
+    "pytz",
+    "tenacity",
+    "requests",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=4.1",
+    "ruff>=0.2",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["Meilisearch4TelegramSearchCKJ*"]
+
+[tool.pytest.ini_options]
+testpaths = ["Meilisearch4TelegramSearchCKJ/tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+asyncio_mode = "auto"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+env = [
+    "SKIP_CONFIG_VALIDATION=true",
+    "ENABLE_TRACEMALLOC=false",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "I",   # isort
+    "W",   # pycodestyle warnings
+]
+ignore = [
+    "E501",  # line too long (handled by formatter)
+    "E722",  # bare except (有时需要捕获所有异常)
+    "F401",  # unused import (在 __init__.py 中可能需要)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+"tests/*" = ["E501"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+
+[tool.coverage.run]
+source = ["Meilisearch4TelegramSearchCKJ/src"]
+omit = ["*/tests/*", "*/__pycache__/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+]

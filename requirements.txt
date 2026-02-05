@@ -1,6 +1,15 @@
-setuptools~=75.8.0
-configparser~=7.1.0
-coloredlogs~=15.0.1
-Telethon~=1.38.1
-meilisearch~=0.33.1
-pytz~=2025.1
+# Core dependencies
+setuptools
+configparser
+coloredlogs
+Telethon
+meilisearch
+pytz
+tenacity
+requests
+
+# Development dependencies
+pytest
+pytest-asyncio
+pytest-cov
+ruff
