@@ -5,14 +5,61 @@
 """
 
 from functools import partial
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Optional
 
 import anyio
 from fastapi import Depends, HTTPException, Request
+from fastapi.security import APIKeyHeader
+
+from tg_search.config.settings import API_KEY, API_KEY_HEADER
 
 if TYPE_CHECKING:
     from tg_search.api.state import AppState, ProgressRegistry
     from tg_search.core.meilisearch import MeiliSearchClient
+
+
+# API Key 安全依赖
+api_key_header = APIKeyHeader(name=API_KEY_HEADER, auto_error=False)
+
+
+async def verify_api_key(api_key: Optional[str] = Depends(api_key_header)) -> Optional[str]:
+    """
+    验证 API Key
+
+    如果 API_KEY 未配置，则跳过验证（开发模式）
+    如果 API_KEY 已配置但请求未提供或不匹配，返回 401
+
+    Returns:
+        验证通过的 API Key 或 None（无需认证时）
+
+    Raises:
+        HTTPException: 401 认证失败
+    """
+    # 如果未配置 API_KEY，跳过认证
+    if API_KEY is None:
+        return None
+
+    # 检查请求是否提供了 API Key
+    if api_key is None:
+        raise HTTPException(
+            status_code=401,
+            detail={
+                "error_code": "MISSING_API_KEY",
+                "message": f"API Key required. Please provide it in the '{API_KEY_HEADER}' header.",
+            },
+        )
+
+    # 验证 API Key
+    if api_key != API_KEY:
+        raise HTTPException(
+            status_code=401,
+            detail={
+                "error_code": "INVALID_API_KEY",
+                "message": "Invalid API Key.",
+            },
+        )
+
+    return api_key
 
 
 def get_app_state(request: Request) -> "AppState":

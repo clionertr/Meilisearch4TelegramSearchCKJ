@@ -7,7 +7,7 @@ WebSocket 路由
 import asyncio
 import json
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 
@@ -20,20 +20,63 @@ logger = setup_logger()
 router = APIRouter()
 
 
+def get_client_ip(websocket: WebSocket) -> str:
+    """
+    获取客户端真实 IP 地址
+
+    支持代理服务器场景，按优先级检查：
+    1. X-Forwarded-For 头（第一个 IP）
+    2. X-Real-IP 头
+    3. 直接连接的客户端 IP
+    """
+    # 检查 X-Forwarded-For（代理转发的真实 IP）
+    x_forwarded_for = websocket.headers.get("x-forwarded-for")
+    if x_forwarded_for:
+        # X-Forwarded-For 可能包含多个 IP，取第一个（真实客户端 IP）
+        return x_forwarded_for.split(",")[0].strip()
+
+    # 检查 X-Real-IP（Nginx 等反向代理常用）
+    x_real_ip = websocket.headers.get("x-real-ip")
+    if x_real_ip:
+        return x_real_ip.strip()
+
+    # 回退到直接连接的客户端 IP
+    if websocket.client:
+        return websocket.client.host
+
+    return "unknown"
+
+
 class ConnectionManager:
     """WebSocket 连接管理器"""
 
     def __init__(self):
         self.active_connections: list[WebSocket] = []
 
-    async def connect(self, websocket: WebSocket):
+    async def connect(self, websocket: WebSocket) -> str:
+        """
+        接受 WebSocket 连接
+
+        Returns:
+            客户端 IP 地址
+        """
         await websocket.accept()
         self.active_connections.append(websocket)
-        logger.info(f"WebSocket connected, total connections: {len(self.active_connections)}")
+        client_ip = get_client_ip(websocket)
+        logger.info(
+            f"WebSocket connected from {client_ip}, "
+            f"total connections: {len(self.active_connections)}"
+        )
+        return client_ip
 
-    def disconnect(self, websocket: WebSocket):
+    def disconnect(self, websocket: WebSocket, client_ip: Optional[str] = None):
+        """断开 WebSocket 连接"""
         self.active_connections.remove(websocket)
-        logger.info(f"WebSocket disconnected, remaining connections: {len(self.active_connections)}")
+        ip_info = f" from {client_ip}" if client_ip else ""
+        logger.info(
+            f"WebSocket disconnected{ip_info}, "
+            f"remaining connections: {len(self.active_connections)}"
+        )
 
     async def send_personal_message(self, message: Dict[str, Any], websocket: WebSocket):
         await websocket.send_json(message)
@@ -59,7 +102,7 @@ async def websocket_status(websocket: WebSocket):
     - 定期状态更新（每 5 秒）
     - 下载进度事件
     """
-    await manager.connect(websocket)
+    client_ip = await manager.connect(websocket)
 
     # 从 app 获取状态（需要特殊处理，WebSocket 没有 Request）
     app_state: AppState = websocket.app.state.app_state
@@ -68,11 +111,14 @@ async def websocket_status(websocket: WebSocket):
     progress_queue = app_state.progress_registry.subscribe()
 
     try:
-        # 发送欢迎消息
+        # 发送欢迎消息（包含客户端 IP 信息）
         await websocket.send_json(
             {
                 "type": "connected",
-                "data": {"message": "WebSocket connected successfully"},
+                "data": {
+                    "message": "WebSocket connected successfully",
+                    "client_ip": client_ip,
+                },
                 "timestamp": datetime.utcnow().isoformat(),
             }
         )
@@ -141,4 +187,4 @@ async def websocket_status(websocket: WebSocket):
     finally:
         # 取消订阅
         app_state.progress_registry.unsubscribe(progress_queue)
-        manager.disconnect(websocket)
+        manager.disconnect(websocket, client_ip)

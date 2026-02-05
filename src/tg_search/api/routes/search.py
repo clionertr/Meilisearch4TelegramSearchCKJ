@@ -4,10 +4,12 @@
 提供消息搜索和统计接口
 """
 
+import re
 from datetime import datetime
-from typing import List, Optional
+from enum import Enum
+from typing import List, Literal, Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from tg_search.api.deps import MeiliSearchAsync, get_meili_async
 from tg_search.api.models import (
@@ -18,6 +20,63 @@ from tg_search.api.models import (
     SearchStats,
     UserInfo,
 )
+
+
+class ChatType(str, Enum):
+    """聊天类型枚举"""
+
+    PRIVATE = "private"
+    GROUP = "group"
+    CHANNEL = "channel"
+
+
+class MeiliFilterBuilder:
+    """
+    MeiliSearch 过滤器安全构建器
+
+    防止 filter 注入攻击，只允许预定义的字段和安全的值
+    """
+
+    # 允许的过滤字段白名单
+    ALLOWED_FIELDS = {"chat.id", "chat.type", "date", "from_user.id"}
+
+    # chat.type 允许的值
+    ALLOWED_CHAT_TYPES = {"private", "group", "channel"}
+
+    def __init__(self):
+        self._conditions: List[str] = []
+
+    def add_chat_id(self, chat_id: int) -> "MeiliFilterBuilder":
+        """添加聊天 ID 过滤"""
+        # 整数类型已通过 Pydantic 验证，直接使用
+        self._conditions.append(f"chat.id = {chat_id}")
+        return self
+
+    def add_chat_type(self, chat_type: ChatType) -> "MeiliFilterBuilder":
+        """添加聊天类型过滤"""
+        # 使用枚举保证值安全
+        self._conditions.append(f'chat.type = "{chat_type.value}"')
+        return self
+
+    def add_date_from(self, date_from: datetime) -> "MeiliFilterBuilder":
+        """添加开始日期过滤"""
+        # datetime 已通过 Pydantic 验证，格式化为 ISO8601
+        iso_date = date_from.isoformat()
+        self._conditions.append(f'date >= "{iso_date}"')
+        return self
+
+    def add_date_to(self, date_to: datetime) -> "MeiliFilterBuilder":
+        """添加结束日期过滤"""
+        iso_date = date_to.isoformat()
+        self._conditions.append(f'date <= "{iso_date}"')
+        return self
+
+    def build(self) -> Optional[str]:
+        """构建最终的过滤字符串"""
+        if not self._conditions:
+            return None
+        return " AND ".join(self._conditions)
+
 
 router = APIRouter()
 
@@ -69,9 +128,9 @@ def _parse_message(hit: dict) -> MessageModel:
 async def search_messages(
     q: str = Query(..., min_length=1, max_length=500, description="搜索关键词"),
     chat_id: Optional[int] = Query(None, description="限定聊天 ID"),
-    chat_type: Optional[str] = Query(None, description="聊天类型: private/group/channel"),
-    date_from: Optional[str] = Query(None, description="开始日期 (ISO8601)"),
-    date_to: Optional[str] = Query(None, description="结束日期 (ISO8601)"),
+    chat_type: Optional[ChatType] = Query(None, description="聊天类型: private/group/channel"),
+    date_from: Optional[datetime] = Query(None, description="开始日期 (ISO8601)"),
+    date_to: Optional[datetime] = Query(None, description="结束日期 (ISO8601)"),
     limit: int = Query(20, ge=1, le=100, description="返回数量"),
     offset: int = Query(0, ge=0, description="偏移量"),
     meili: MeiliSearchAsync = Depends(get_meili_async),
@@ -80,23 +139,33 @@ async def search_messages(
     搜索消息
 
     支持按聊天 ID、聊天类型、日期范围过滤
+
+    日期参数格式：
+    - ISO8601 格式，如 2024-01-15T10:30:00
+    - 带时区，如 2024-01-15T10:30:00+08:00
+    - 仅日期，如 2024-01-15（会解析为当天 00:00:00）
+
+    聊天类型：
+    - private: 私聊
+    - group: 群组
+    - channel: 频道
     """
-    # 构建过滤条件
-    filters: List[str] = []
+    # 使用安全的过滤器构建器（防止注入攻击）
+    builder = MeiliFilterBuilder()
 
     if chat_id is not None:
-        filters.append(f"chat.id = {chat_id}")
+        builder.add_chat_id(chat_id)
 
-    if chat_type:
-        filters.append(f'chat.type = "{chat_type}"')
+    if chat_type is not None:
+        builder.add_chat_type(chat_type)
 
-    if date_from:
-        filters.append(f'date >= "{date_from}"')
+    if date_from is not None:
+        builder.add_date_from(date_from)
 
-    if date_to:
-        filters.append(f'date <= "{date_to}"')
+    if date_to is not None:
+        builder.add_date_to(date_to)
 
-    filter_str = " AND ".join(filters) if filters else None
+    filter_str = builder.build()
 
     # 执行搜索
     search_params = {

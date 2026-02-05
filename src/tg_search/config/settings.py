@@ -1,5 +1,17 @@
 import ast
 import os
+from pathlib import Path
+
+# 加载 .env 文件
+try:
+    from dotenv import load_dotenv
+
+    # 尝试从项目根目录加载 .env
+    env_path = Path(__file__).resolve().parents[3] / ".env"
+    if env_path.exists():
+        load_dotenv(env_path)
+except ImportError:
+    pass  # python-dotenv 未安装时跳过
 
 
 class ConfigurationError(Exception):
@@ -109,6 +121,13 @@ RESULTS_PER_PAGE = int(os.getenv("RESULTS_PER_PAGE", 5))
 ## 时区设置
 # 控制meilisearch中的消息的时间显示
 TIME_ZONE = os.getenv("TIME_ZONE", "Asia/Shanghai")
+
+## API 认证设置
+# API Key 用于保护 REST API 端点
+# 如果不设置，API 将不需要认证（不推荐在生产环境使用）
+API_KEY = os.getenv("API_KEY", None)
+# API Key 请求头名称
+API_KEY_HEADER = os.getenv("API_KEY_HEADER", "X-API-Key")
 
 ## 机器人设置
 # 这里计算了一些Telegram的表情符号的情感分数，计算后会加到消息的reactions_scores字段中

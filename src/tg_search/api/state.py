@@ -48,14 +48,22 @@ class ProgressRegistry:
     管理下载进度并支持 WebSocket 订阅推送
     """
 
+    # 每个订阅者队列的最大容量（防止内存泄漏）
+    QUEUE_MAX_SIZE = 100
+
     def __init__(self):
         self._subscribers: Set[asyncio.Queue] = set()
         self._progress: Dict[int, ProgressInfo] = {}
         self._lock = asyncio.Lock()
 
     def subscribe(self) -> asyncio.Queue:
-        """订阅进度更新"""
-        queue: asyncio.Queue = asyncio.Queue()
+        """
+        订阅进度更新
+
+        Returns:
+            有界队列，最大容量为 QUEUE_MAX_SIZE
+        """
+        queue: asyncio.Queue = asyncio.Queue(maxsize=self.QUEUE_MAX_SIZE)
         self._subscribers.add(queue)
         return queue
 
@@ -64,10 +72,23 @@ class ProgressRegistry:
         self._subscribers.discard(queue)
 
     async def publish(self, event: Dict[str, Any]) -> None:
-        """发布事件到所有订阅者"""
+        """
+        发布事件到所有订阅者
+
+        使用 put_nowait 避免阻塞，如果队列已满则丢弃旧消息
+        """
         for queue in self._subscribers.copy():
             try:
-                await queue.put(event)
+                # 如果队列已满，先丢弃最旧的消息
+                if queue.full():
+                    try:
+                        queue.get_nowait()
+                    except asyncio.QueueEmpty:
+                        pass
+                queue.put_nowait(event)
+            except asyncio.QueueFull:
+                # 极端情况下的竞态条件处理
+                pass
             except Exception:
                 # 队列可能已关闭
                 self._subscribers.discard(queue)
