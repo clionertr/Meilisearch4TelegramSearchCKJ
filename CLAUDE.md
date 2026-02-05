@@ -105,10 +105,22 @@ Meilisearch4TelegramSearchCKJ/
 
 ## 快速命令
 
+> 现在项目使用uv，同时更新了依赖为最新，请注意查阅context7
+
+```bash
+# 激活环境变量(环境变量中设置了MEILI、API)
+cd /home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/.venv
+source .venv/bin/activate
+
+# 启动主进程，注意位置，必须与main.py
+cd /home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/Meilisearch4TelegramSearchCKJ/src
+uv run main.
+```
+
 ```bash
 # 安装依赖
-pip install -r requirements.txt
-pip install -e .
+uv pip install -r requirements.txt
+uv pip install -e .
 
 # 本地运行
 cd Meilisearch4TelegramSearchCKJ/src && python main.py
