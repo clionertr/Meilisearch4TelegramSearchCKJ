@@ -82,7 +82,7 @@ def sample_documents():
 @pytest.fixture
 def mock_logger():
     """Mock Logger"""
-    with patch("Meilisearch4TelegramSearchCKJ.src.models.meilisearch_handler.logger") as mock:
+    with patch("tg_search.core.meilisearch.logger") as mock:
         yield mock
 
 

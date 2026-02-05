@@ -21,8 +21,8 @@ from tenacity import (
     wait_exponential,
 )
 
-from Meilisearch4TelegramSearchCKJ.src.config.env import INDEX_CONFIG
-from Meilisearch4TelegramSearchCKJ.src.models.logger import setup_logger
+from tg_search.config.settings import INDEX_CONFIG
+from tg_search.core.logger import setup_logger
 
 logger = setup_logger()
 

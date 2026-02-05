@@ -7,16 +7,8 @@ WORKDIR /app
 # 将当前目录下的所有文件复制到容器的 /app 目录
 COPY . /app
 
-# 安装可编辑模式的包，注意这里可能需要先安装 setuptools
-RUN pip install setuptools
-RUN pip install -e .
+# 安装项目（使用 pyproject.toml）
+RUN pip install --no-cache-dir .
 
-# 安装项目依赖
-RUN pip install -r requirements.txt
-
-# 切换到工作目录
-WORKDIR /app/Meilisearch4TelegramSearchCKJ/src
-
-
-# 运行你的 main.py 脚本
-CMD ["python", "main.py"]
+# 使用模块方式运行（支持 python -m tg_search）
+CMD ["python", "-m", "tg_search"]

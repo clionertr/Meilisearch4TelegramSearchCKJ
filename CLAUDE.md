@@ -2,7 +2,7 @@
 
 > 基于 Telethon + MeiliSearch 的 Telegram 中文/日文/韩文 (CJK) 消息搜索解决方案
 
-**生成时间**: 2026-02-05T10:48:48+0800
+**生成时间**: 2026-02-05
 
 ---
 
@@ -57,10 +57,12 @@ graph TB
 
 | 类别 | 技术 |
 |------|------|
-| 语言 | Python 3.12 |
+| 语言 | Python 3.10+ |
 | Telegram 库 | Telethon 1.38+ |
 | 搜索引擎 | MeiliSearch 0.33+ |
 | 日志 | coloredlogs |
+| 构建工具 | hatchling (PEP 621) |
+| 包管理 | uv |
 | 容器化 | Docker / Docker Compose |
 
 ---
@@ -70,19 +72,34 @@ graph TB
 ```
 Meilisearch4TelegramSearchCKJ/
 ├── CLAUDE.md                    # 本文档
+├── pyproject.toml               # 项目配置 (PEP 621)
 ├── Dockerfile                   # Docker 构建文件
 ├── docker-compose.yml           # Docker Compose 配置
-├── requirements.txt             # Python 依赖
-├── setup.py                     # 包安装配置
-└── Meilisearch4TelegramSearchCKJ/
-    ├── src/                     # 源代码
-    │   ├── main.py              # 主入口 (CLI 模式)
-    │   ├── app.py               # Flask 健康检查入口
-    │   ├── config/              # 配置模块
-    │   ├── models/              # 核心业务逻辑
-    │   ├── utils/               # 工具函数
-    │   └── session/             # Telethon 会话文件
-    └── tests/                   # 测试文件
+├── src/
+│   └── tg_search/               # 主包
+│       ├── __init__.py
+│       ├── __main__.py          # CLI 入口 (python -m tg_search)
+│       ├── main.py              # 主入口
+│       ├── app.py               # Flask 健康检查入口
+│       ├── config/              # 配置模块
+│       │   ├── __init__.py
+│       │   └── settings.py      # 环境变量配置
+│       ├── core/                # 核心业务逻辑
+│       │   ├── __init__.py
+│       │   ├── bot.py           # Bot 处理器
+│       │   ├── telegram.py      # Telegram 客户端
+│       │   ├── meilisearch.py   # MeiliSearch 客户端
+│       │   └── logger.py        # 日志配置
+│       ├── utils/               # 工具函数
+│       │   ├── __init__.py
+│       │   ├── formatters.py    # 格式化工具
+│       │   ├── permissions.py   # 权限检查
+│       │   └── message_tracker.py # 消息追踪
+│       └── session/             # Telethon 会话文件
+└── tests/                       # 测试文件
+    ├── conftest.py
+    ├── test_meilisearch_handler.py
+    └── test_utils.py
 ```
 
 ---
@@ -91,45 +108,41 @@ Meilisearch4TelegramSearchCKJ/
 
 | 模块 | 路径 | 职责 |
 |------|------|------|
-| **config** | `src/config/` | 环境变量配置管理 |
-| **models** | `src/models/` | 核心业务处理器 |
-| **utils** | `src/utils/` | 通用工具函数 |
-| **tests** | `tests/` | 单元测试与工具脚本 |
-
-详见各模块的 `CLAUDE.md`:
-- [src/config/CLAUDE.md](./Meilisearch4TelegramSearchCKJ/src/config/CLAUDE.md)
-- [src/models/CLAUDE.md](./Meilisearch4TelegramSearchCKJ/src/models/CLAUDE.md)
-- [src/utils/CLAUDE.md](./Meilisearch4TelegramSearchCKJ/src/utils/CLAUDE.md)
+| **config** | `src/tg_search/config/` | 环境变量配置管理 |
+| **core** | `src/tg_search/core/` | 核心业务处理器 |
+| **utils** | `src/tg_search/utils/` | 通用工具函数 |
+| **tests** | `tests/` | 单元测试 |
 
 ---
 
 ## 快速命令
 
-> 现在项目使用uv，同时更新了依赖为最新，请注意查阅context7
-
 ```bash
-# 激活环境变量(环境变量中设置了MEILI、API)
-cd /home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/.venv
+# 激活环境变量
+cd /home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ
 source .venv/bin/activate
 
-# 启动主进程，注意位置，必须与main.py
-cd /home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/Meilisearch4TelegramSearchCKJ/src
-uv run main.
-```
+# 安装依赖（使用 uv）
+uv sync
 
-```bash
-# 安装依赖
-uv pip install -r requirements.txt
-uv pip install -e .
+# 安装开发依赖
+uv sync --extra dev
 
-# 本地运行
-cd Meilisearch4TelegramSearchCKJ/src && python main.py
+# 本地运行（方式 1：模块方式）
+python -m tg_search
+
+# 本地运行（方式 2：命令行入口）
+tg-search
 
 # Docker 运行
 docker-compose up -d
 
 # 运行测试
-pytest Meilisearch4TelegramSearchCKJ/tests/
+pytest tests/
+
+# 代码检查
+ruff check src/
+ruff format src/
 ```
 
 ---
@@ -164,6 +177,15 @@ pytest Meilisearch4TelegramSearchCKJ/tests/
 - 使用类型注解
 - 异步函数使用 `async/await`
 - 日志使用 `setup_logger()` 获取 logger
+- 使用 ruff 进行代码格式化和检查
+
+### 导入规范
+```python
+# 正确的导入方式
+from tg_search.config.settings import APP_ID, APP_HASH
+from tg_search.core.meilisearch import MeiliSearchClient
+from tg_search.utils.formatters import sizeof_fmt
+```
 
 ### 消息序列化格式
 ```python

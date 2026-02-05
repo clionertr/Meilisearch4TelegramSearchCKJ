@@ -1,20 +1,4 @@
-/Meilisearch4TelegramSearchCKJ/src/session/user_bot_session.session
-/Meilisearch4TelegramSearchCKJ/src/session/user_bot_session.session-journal
-/Meilisearch4TelegramSearchCKJ/src/session/bot.session
-/Meilisearch4TelegramSearchCKJ/src/models/bot.session
-/Meilisearch4TelegramSearchCKJ/src/models/bot.session-journal
-/Meilisearch4TelegramSearchCKJ/src/models/log_file.log
-/Meilisearch4TelegramSearchCKJ/src/log_file.log
-/Meilisearch4TelegramSearchCKJ.egg-info
-/Meilisearch4TelegramSearchCKJ/__pycache__
-.gitignore
-.idea
-/Meilisearch4TelegramSearchCKJ/src/config.ini
-.ace-tool/
-*.pyc
-log_file.log
-
-# Python编译缓存
+# Python 编译缓存
 __pycache__/
 *.pyc
 *.pyo
@@ -52,9 +36,26 @@ coverage.xml
 *.cover
 .pytest_cache/
 
-# IDE配置文件
+# IDE 配置文件
 .vscode/
 .idea/
 
 # 环境变量
 .env
+
+# 日志文件
+log_file.log
+*.log
+
+# Telethon 会话文件
+src/tg_search/session/*.session
+src/tg_search/session/*.session-journal
+
+# 配置文件
+src/tg_search/config/config.ini
+
+# AI 工具缓存
+.ace-tool/
+
+# uv 锁文件 (可选保留)
+# uv.lock

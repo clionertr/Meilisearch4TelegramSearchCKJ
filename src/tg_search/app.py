@@ -3,9 +3,9 @@ import importlib
 import os
 from concurrent.futures import ThreadPoolExecutor
 
-from Meilisearch4TelegramSearchCKJ.src.config.env import validate_config
-from Meilisearch4TelegramSearchCKJ.src.main import run
-from Meilisearch4TelegramSearchCKJ.src.models.bot_handler import BotHandler
+from tg_search.config.settings import validate_config
+from tg_search.core.bot import BotHandler
+from tg_search.main import run
 
 nest_asyncio = importlib.import_module("nest_asyncio")
 flask = importlib.import_module("flask")

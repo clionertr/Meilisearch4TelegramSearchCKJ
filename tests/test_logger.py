@@ -1,4 +1,4 @@
-from Meilisearch4TelegramSearchCKJ.src.models.logger import setup_logger
+from tg_search.core.logger import setup_logger
 
 logger = setup_logger()
 logger.debug('This is a debug message.')

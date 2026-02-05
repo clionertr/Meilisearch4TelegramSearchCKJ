@@ -35,7 +35,7 @@ from telethon.errors import (
 from telethon.sessions import StringSession
 from telethon.tl.types import Channel, Chat, Message, ReactionCount, ReactionCustomEmoji, ReactionEmoji, User
 
-from Meilisearch4TelegramSearchCKJ.src.config.env import (
+from tg_search.config.settings import (
     APP_HASH,
     APP_ID,
     BATCH_MSG_UNM,
@@ -48,12 +48,12 @@ from Meilisearch4TelegramSearchCKJ.src.config.env import (
     WHITE_LIST,
     IPv6,
 )
-from Meilisearch4TelegramSearchCKJ.src.models.logger import setup_logger
-from Meilisearch4TelegramSearchCKJ.src.utils.is_in_white_or_black_list import is_allowed
-from Meilisearch4TelegramSearchCKJ.src.utils.record_lastest_msg_id import (
+from tg_search.core.logger import setup_logger
+from tg_search.utils.message_tracker import (
     read_config_from_meili,
     update_latest_msg_config4_meili,
 )
+from tg_search.utils.permissions import is_allowed
 
 tz = pytz.timezone(TIME_ZONE)
 logger = setup_logger()

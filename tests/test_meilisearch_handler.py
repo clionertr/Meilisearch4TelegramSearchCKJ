@@ -14,7 +14,7 @@ import requests.exceptions
 
 os.environ["SKIP_CONFIG_VALIDATION"] = "true"
 
-from Meilisearch4TelegramSearchCKJ.src.models.meilisearch_handler import (
+from tg_search.core.meilisearch import (
     MeiliSearchAPIError,
     MeiliSearchClient,
     MeiliSearchConnectionError,
@@ -28,7 +28,7 @@ class TestMeiliSearchClientInit:
     def test_init_success(self, mock_meilisearch_client):
         """测试成功初始化"""
         with patch(
-            "Meilisearch4TelegramSearchCKJ.src.models.meilisearch_handler.Client", return_value=mock_meilisearch_client
+            "tg_search.core.meilisearch.Client", return_value=mock_meilisearch_client
         ):
             client = MeiliSearchClient("http://localhost:7700", "test_key", auto_create_index=False)
             assert client.host == "http://localhost:7700"
@@ -36,14 +36,14 @@ class TestMeiliSearchClientInit:
 
     def test_init_connection_error(self):
         """测试初始化时连接错误"""
-        with patch("Meilisearch4TelegramSearchCKJ.src.models.meilisearch_handler.Client") as mock_client:
+        with patch("tg_search.core.meilisearch.Client") as mock_client:
             mock_client.side_effect = ConnectionError("Connection refused")
             with pytest.raises(MeiliSearchConnectionError):
                 MeiliSearchClient("http://localhost:7700", "test_key", auto_create_index=False)
 
     def test_init_timeout_error(self):
         """测试初始化时超时错误"""
-        with patch("Meilisearch4TelegramSearchCKJ.src.models.meilisearch_handler.Client") as mock_client:
+        with patch("tg_search.core.meilisearch.Client") as mock_client:
             mock_client.side_effect = requests.exceptions.Timeout("Request timed out")
             with pytest.raises(MeiliSearchTimeoutError):
                 MeiliSearchClient("http://localhost:7700", "test_key", auto_create_index=False)
@@ -56,7 +56,7 @@ class TestMeiliSearchClientCRUD:
     def meili_client(self, mock_meilisearch_client):
         """创建测试用客户端"""
         with patch(
-            "Meilisearch4TelegramSearchCKJ.src.models.meilisearch_handler.Client", return_value=mock_meilisearch_client
+            "tg_search.core.meilisearch.Client", return_value=mock_meilisearch_client
         ):
             return MeiliSearchClient("http://localhost:7700", "test_key", auto_create_index=False)
 
@@ -133,7 +133,7 @@ class TestMeiliSearchExceptionHandling:
     def meili_client(self, mock_meilisearch_client):
         """创建测试用客户端"""
         with patch(
-            "Meilisearch4TelegramSearchCKJ.src.models.meilisearch_handler.Client", return_value=mock_meilisearch_client
+            "tg_search.core.meilisearch.Client", return_value=mock_meilisearch_client
         ):
             return MeiliSearchClient("http://localhost:7700", "test_key", auto_create_index=False)
 

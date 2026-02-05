@@ -1,6 +1,6 @@
 import configparser
 
-from Meilisearch4TelegramSearchCKJ.src.models.meilisearch_handler import MeiliSearchClient
+from tg_search.core.meilisearch import MeiliSearchClient
 
 
 def read_config(filename="config.ini"):

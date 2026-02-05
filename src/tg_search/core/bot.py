@@ -8,7 +8,7 @@ from telethon import Button, TelegramClient, events
 from telethon.tl.functions.bots import SetBotCommandsRequest
 from telethon.tl.types import BotCommand, BotCommandScopeDefault
 
-from Meilisearch4TelegramSearchCKJ.src.config.env import (
+from tg_search.config.settings import (
     APP_HASH,
     APP_ID,
     CACHE_EXPIRE_SECONDS,
@@ -22,10 +22,10 @@ from Meilisearch4TelegramSearchCKJ.src.config.env import (
     TOKEN,
     IPv6,
 )
-from Meilisearch4TelegramSearchCKJ.src.models.logger import setup_logger
-from Meilisearch4TelegramSearchCKJ.src.models.meilisearch_handler import MeiliSearchClient
-from Meilisearch4TelegramSearchCKJ.src.utils.fmt_size import sizeof_fmt
-from Meilisearch4TelegramSearchCKJ.src.utils.record_lastest_msg_id import read_config_from_meili
+from tg_search.core.logger import setup_logger
+from tg_search.core.meilisearch import MeiliSearchClient
+from tg_search.utils.formatters import sizeof_fmt
+from tg_search.utils.message_tracker import read_config_from_meili
 
 MAX_RESULTS = MAX_PAGE * RESULTS_PER_PAGE
 

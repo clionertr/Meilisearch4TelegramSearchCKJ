@@ -1,9 +1,9 @@
 import asyncio
 
-from Meilisearch4TelegramSearchCKJ.src.config.env import MEILI_HOST, MEILI_PASS
-from Meilisearch4TelegramSearchCKJ.src.models.logger import setup_logger
-from Meilisearch4TelegramSearchCKJ.src.models.meilisearch_handler import MeiliSearchClient
-from Meilisearch4TelegramSearchCKJ.src.models.telegram_client_handler import TelegramUserBot
+from tg_search.config.settings import MEILI_HOST, MEILI_PASS
+from tg_search.core.logger import setup_logger
+from tg_search.core.meilisearch import MeiliSearchClient
+from tg_search.core.telegram import TelegramUserBot
 
 meili = MeiliSearchClient(MEILI_HOST, MEILI_PASS)
 logger = setup_logger()

@@ -3,18 +3,18 @@ import os
 from collections.abc import Awaitable
 from typing import cast
 
-from Meilisearch4TelegramSearchCKJ.src.config.env import (
+from tg_search.config.settings import (
     BLACK_LIST,
     MEILI_HOST,
     MEILI_PASS,
     WHITE_LIST,
     validate_config,
 )
-from Meilisearch4TelegramSearchCKJ.src.models.bot_handler import BotHandler
-from Meilisearch4TelegramSearchCKJ.src.models.logger import setup_logger
-from Meilisearch4TelegramSearchCKJ.src.models.meilisearch_handler import MeiliSearchClient
-from Meilisearch4TelegramSearchCKJ.src.models.telegram_client_handler import TelegramUserBot
-from Meilisearch4TelegramSearchCKJ.src.utils.record_lastest_msg_id import (
+from tg_search.core.bot import BotHandler
+from tg_search.core.logger import setup_logger
+from tg_search.core.meilisearch import MeiliSearchClient
+from tg_search.core.telegram import TelegramUserBot
+from tg_search.utils.message_tracker import (
     get_latest_msg_id4_meili,
     read_config_from_meili,
 )

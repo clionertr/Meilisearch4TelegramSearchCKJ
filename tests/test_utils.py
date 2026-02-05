@@ -10,8 +10,8 @@ import pytest
 # 确保环境变量在导入前设置
 os.environ["SKIP_CONFIG_VALIDATION"] = "true"
 
-from Meilisearch4TelegramSearchCKJ.src.utils.fmt_size import sizeof_fmt
-from Meilisearch4TelegramSearchCKJ.src.utils.is_in_white_or_black_list import is_allowed
+from tg_search.utils.formatters import sizeof_fmt
+from tg_search.utils.permissions import is_allowed
 
 
 class TestIsAllowed:
@@ -146,11 +146,11 @@ class TestConfigValidation:
         """测试跳过验证的环境变量"""
         # 在 conftest.py 中已设置 SKIP_CONFIG_VALIDATION=true
         # 验证导入不会失败
-        from Meilisearch4TelegramSearchCKJ.src.config.env import APP_ID
+        from tg_search.config.settings import APP_ID
         assert APP_ID is not None
 
     def test_configuration_error_class(self):
         """测试 ConfigurationError 异常类"""
-        from Meilisearch4TelegramSearchCKJ.src.config.env import ConfigurationError
+        from tg_search.config.settings import ConfigurationError
         error = ConfigurationError("Test error")
         assert str(error) == "Test error"

@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "meilisearch-tg-search"
-version = "0.1.0"
+version = "0.2.0"
 description = "Telegram CJK message search powered by MeiliSearch"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -12,13 +12,11 @@ license = {text = "MIT"}
 authors = [{name = "clionertr"}]
 
 dependencies = [
-    "setuptools",
-    "configparser",
-    "coloredlogs",
-    "Telethon",
-    "meilisearch",
-    "pytz",
-    "tenacity",
+    "telethon>=1.38.0",
+    "meilisearch>=0.33.0",
+    "coloredlogs>=15.0",
+    "pytz>=2024.1",
+    "tenacity>=8.2.0",
     "requests",
 ]
 
@@ -27,25 +25,25 @@ dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
     "pytest-cov>=4.1",
+    "mypy>=1.8",
     "ruff>=0.2",
+    "httpx>=0.26",
 ]
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["Meilisearch4TelegramSearchCKJ*"]
+[project.scripts]
+tg-search = "tg_search.__main__:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tg_search"]
 
 [tool.pytest.ini_options]
-testpaths = ["Meilisearch4TelegramSearchCKJ/tests"]
+testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 asyncio_mode = "auto"
 filterwarnings = [
     "ignore::DeprecationWarning",
-]
-env = [
-    "SKIP_CONFIG_VALIDATION=true",
-    "ENABLE_TRACEMALLOC=false",
 ]
 
 [tool.ruff]
@@ -61,8 +59,8 @@ select = [
 ]
 ignore = [
     "E501",  # line too long (handled by formatter)
-    "E722",  # bare except (有时需要捕获所有异常)
-    "F401",  # unused import (在 __init__.py 中可能需要)
+    "E722",  # bare except
+    "F401",  # unused import (in __init__.py)
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -75,7 +73,7 @@ indent-style = "space"
 skip-magic-trailing-comma = false
 
 [tool.coverage.run]
-source = ["Meilisearch4TelegramSearchCKJ/src"]
+source = ["src/tg_search"]
 omit = ["*/tests/*", "*/__pycache__/*"]
 
 [tool.coverage.report]
@@ -84,3 +82,8 @@ exclude_lines = [
     "if __name__ == .__main__.:",
     "raise NotImplementedError",
 ]
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_ignores = true
