@@ -50,6 +50,8 @@ log_file.log
 # Telethon 会话文件
 src/tg_search/session/*.session
 src/tg_search/session/*.session-journal
+session/*.session
+session/*.session-journal
 
 # 配置文件
 src/tg_search/config/config.ini
@@ -59,3 +61,4 @@ src/tg_search/config/config.ini
 
 # uv 锁文件 (可选保留)
 # uv.lock
+
