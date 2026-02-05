@@ -5,8 +5,8 @@ MeiliSearch 客户端封装
 - 细化的异常处理（区分连接/超时/API错误）
 - 基于 tenacity 的重试机制
 """
-import time
-from typing import Dict, List, Optional
+
+from typing import Dict, List, NoReturn, Optional
 
 import meilisearch.errors
 import requests.exceptions
@@ -29,13 +29,16 @@ logger = setup_logger()
 
 # ============ 自定义异常 ============
 
+
 class MeiliSearchConnectionError(Exception):
     """MeiliSearch 连接错误"""
+
     pass
 
 
 class MeiliSearchTimeoutError(Exception):
     """MeiliSearch 超时错误"""
+
     pass
 
 
@@ -60,7 +63,7 @@ RETRYABLE_EXCEPTIONS = (
 )
 
 
-def _handle_meilisearch_exception(e: Exception, operation: str, index_name: Optional[str] = None) -> None:
+def _handle_meilisearch_exception(e: Exception, operation: str, index_name: Optional[str] = None) -> NoReturn:
     """
     统一处理 MeiliSearch 异常并转换为自定义异常
 
@@ -88,18 +91,16 @@ def _handle_meilisearch_exception(e: Exception, operation: str, index_name: Opti
 
     # MeiliSearch API 错误
     if isinstance(e, meilisearch.errors.MeilisearchApiError):
-        status_code = getattr(e, 'status_code', None)
-        error_code = getattr(e, 'code', None)
+        status_code = getattr(e, "status_code", None)
+        error_code = getattr(e, "code", None)
         logger.error(f"[{operation}] API error{context}: {str(e)} (status={status_code}, code={error_code})")
         raise MeiliSearchAPIError(
-            f"MeiliSearch API 错误: {str(e)}",
-            status_code=status_code,
-            error_code=error_code
+            f"MeiliSearch API 错误: {str(e)}", status_code=status_code, error_code=error_code
         ) from e
 
     # 其他未知错误
     logger.error(f"[{operation}] Unexpected error{context}: {type(e).__name__}: {str(e)}")
-    raise
+    raise e
 
 
 class MeiliSearchClient:
@@ -133,7 +134,7 @@ class MeiliSearchClient:
         if auto_create_index:
             logger.info(self.create_index())
 
-    def create_index(self, index_name: str = 'telegram', primary_key: Optional[str] = "id") -> TaskInfo:
+    def create_index(self, index_name: str = "telegram", primary_key: Optional[str] = "id") -> TaskInfo:
         """
         创建索引
 
@@ -150,17 +151,17 @@ class MeiliSearchClient:
             MeiliSearchTimeoutError: 超时错误
         """
         try:
-            result = self.client.create_index(index_name, {'primaryKey': primary_key})
+            result = self.client.create_index(index_name, {"primaryKey": primary_key})
             self.client.index(index_name).update_settings(INDEX_CONFIG)
             logger.info(f"Successfully send created index TaskInfo '{index_name}'")
             return result
         except meilisearch.errors.MeilisearchApiError as e:
             # 索引已存在不视为错误（检查错误码或错误消息）
-            error_code = getattr(e, 'code', '')
-            if 'index_already_exists' in str(e).lower() or error_code == 'index_already_exists':
+            error_code = getattr(e, "code", "")
+            if "index_already_exists" in str(e).lower() or error_code == "index_already_exists":
                 logger.info(f"Index '{index_name}' already exists, updating settings")
-                self.client.index(index_name).update_settings(INDEX_CONFIG)
-                return None
+                settings_task = self.client.index(index_name).update_settings(INDEX_CONFIG)
+                return settings_task
             _handle_meilisearch_exception(e, "create_index", index_name)
         except Exception as e:
             _handle_meilisearch_exception(e, "create_index", index_name)
@@ -172,7 +173,7 @@ class MeiliSearchClient:
         before_sleep=before_sleep_log(logger, 25),  # NOTICE level
         reraise=True,
     )
-    def add_documents(self, documents: List[Dict], index_name: str = 'telegram') -> TaskInfo:
+    def add_documents(self, documents: List[Dict], index_name: str = "telegram") -> TaskInfo:
         """
         添加文档（带重试机制）
 
@@ -200,7 +201,7 @@ class MeiliSearchClient:
         except Exception as e:
             _handle_meilisearch_exception(e, "add_documents", index_name)
 
-    def search(self, query: str | None, index_name: str = 'telegram', **kwargs) -> Dict:
+    def search(self, query: str | None, index_name: str = "telegram", **kwargs) -> Dict:
         """
         搜索文档
 
@@ -276,7 +277,7 @@ class MeiliSearchClient:
         except Exception as e:
             _handle_meilisearch_exception(e, "get_index_stats", index_name)
 
-    def update_documents(self, documents: List[Dict], index_name: str = 'telegram') -> TaskInfo:
+    def update_documents(self, documents: List[Dict], index_name: str = "telegram") -> TaskInfo:
         """
         更新文档（带重试机制）
 
@@ -289,7 +290,7 @@ class MeiliSearchClient:
         """
         return self.add_documents(documents, index_name)
 
-    def delete_documents(self, document_ids: List[str], index_name: str = 'telegram') -> TaskInfo:
+    def delete_documents(self, document_ids: List[str], index_name: str = "telegram") -> TaskInfo:
         """
         删除文档
 

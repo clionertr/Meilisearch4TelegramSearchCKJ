@@ -3,6 +3,7 @@ MeiliSearch Handler 单元测试
 
 覆盖 CRUD 操作和异常处理。
 """
+
 # 确保环境变量在导入前设置
 import os
 from unittest.mock import MagicMock, patch
@@ -26,7 +27,9 @@ class TestMeiliSearchClientInit:
 
     def test_init_success(self, mock_meilisearch_client):
         """测试成功初始化"""
-        with patch("Meilisearch4TelegramSearchCKJ.src.models.meilisearch_handler.Client", return_value=mock_meilisearch_client):
+        with patch(
+            "Meilisearch4TelegramSearchCKJ.src.models.meilisearch_handler.Client", return_value=mock_meilisearch_client
+        ):
             client = MeiliSearchClient("http://localhost:7700", "test_key", auto_create_index=False)
             assert client.host == "http://localhost:7700"
             assert client.client is not None
@@ -52,12 +55,14 @@ class TestMeiliSearchClientCRUD:
     @pytest.fixture
     def meili_client(self, mock_meilisearch_client):
         """创建测试用客户端"""
-        with patch("Meilisearch4TelegramSearchCKJ.src.models.meilisearch_handler.Client", return_value=mock_meilisearch_client):
+        with patch(
+            "Meilisearch4TelegramSearchCKJ.src.models.meilisearch_handler.Client", return_value=mock_meilisearch_client
+        ):
             return MeiliSearchClient("http://localhost:7700", "test_key", auto_create_index=False)
 
     def test_create_index(self, meili_client, mock_meilisearch_client):
         """测试创建索引"""
-        result = meili_client.create_index("test_index")
+        meili_client.create_index("test_index")
         mock_meilisearch_client.create_index.assert_called_once()
 
     def test_create_index_already_exists(self, meili_client, mock_meilisearch_client):
@@ -75,12 +80,12 @@ class TestMeiliSearchClientCRUD:
 
     def test_add_documents(self, meili_client, sample_documents, mock_meilisearch_client):
         """测试添加文档"""
-        result = meili_client.add_documents(sample_documents)
+        meili_client.add_documents(sample_documents)
         mock_meilisearch_client.index.return_value.add_documents.assert_called_once_with(sample_documents)
 
     def test_add_documents_empty_list(self, meili_client, mock_meilisearch_client):
         """测试添加空文档列表"""
-        result = meili_client.add_documents([])
+        meili_client.add_documents([])
         mock_meilisearch_client.index.return_value.add_documents.assert_called_once_with([])
 
     def test_search(self, meili_client, mock_meilisearch_client):
@@ -96,28 +101,28 @@ class TestMeiliSearchClientCRUD:
 
     def test_search_empty_query(self, meili_client, mock_meilisearch_client):
         """测试空查询"""
-        result = meili_client.search(None)
+        meili_client.search(None)
         mock_meilisearch_client.index.return_value.search.assert_called_once()
 
     def test_delete_index(self, meili_client, mock_meilisearch_client):
         """测试删除索引"""
-        result = meili_client.delete_index("test_index")
+        meili_client.delete_index("test_index")
         mock_meilisearch_client.delete_index.assert_called_once_with("test_index")
 
     def test_get_index_stats(self, meili_client, mock_meilisearch_client):
         """测试获取索引统计"""
-        result = meili_client.get_index_stats("test_index")
+        meili_client.get_index_stats("test_index")
         mock_meilisearch_client.index.return_value.get_stats.assert_called_once()
 
     def test_update_documents(self, meili_client, sample_documents, mock_meilisearch_client):
         """测试更新文档（内部调用 add_documents）"""
-        result = meili_client.update_documents(sample_documents)
+        meili_client.update_documents(sample_documents)
         mock_meilisearch_client.index.return_value.add_documents.assert_called_once_with(sample_documents)
 
     def test_delete_documents(self, meili_client, mock_meilisearch_client):
         """测试删除文档"""
         doc_ids = ["123-1", "123-2"]
-        result = meili_client.delete_documents(doc_ids)
+        meili_client.delete_documents(doc_ids)
         mock_meilisearch_client.index.return_value.delete_documents.assert_called_once_with(doc_ids)
 
 
@@ -127,7 +132,9 @@ class TestMeiliSearchExceptionHandling:
     @pytest.fixture
     def meili_client(self, mock_meilisearch_client):
         """创建测试用客户端"""
-        with patch("Meilisearch4TelegramSearchCKJ.src.models.meilisearch_handler.Client", return_value=mock_meilisearch_client):
+        with patch(
+            "Meilisearch4TelegramSearchCKJ.src.models.meilisearch_handler.Client", return_value=mock_meilisearch_client
+        ):
             return MeiliSearchClient("http://localhost:7700", "test_key", auto_create_index=False)
 
     def test_add_documents_connection_error(self, meili_client, sample_documents, mock_meilisearch_client):

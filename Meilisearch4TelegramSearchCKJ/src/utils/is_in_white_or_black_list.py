@@ -1,14 +1,24 @@
 import logging
+from collections.abc import Sequence
 
 
-def is_allowed(chat_id: int, sync_white_list=None, sync_black_list=None) -> bool:
+def is_allowed(
+    chat_id: int,
+    sync_white_list: Sequence[int] | None = None,
+    sync_black_list: Sequence[int] | None = None,
+) -> bool:
     """
     检查是否允许访问
     """
-    sync_white_list = sync_white_list
-    sync_black_list = sync_black_list
+    white_list = sync_white_list or ()
+    black_list = sync_black_list or ()
 
-    if (sync_white_list and chat_id not in sync_white_list) or (chat_id in sync_black_list):
+    # 黑名单优先级更高：即使在白名单中，也会被拒绝
+    if chat_id in black_list:
+        return False
+
+    # 白名单非空时，仅允许白名单内的 chat_id
+    if white_list and chat_id not in white_list:
         return False
 
     return True

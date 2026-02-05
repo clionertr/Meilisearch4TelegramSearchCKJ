@@ -61,8 +61,9 @@ def is_allowed(chat_id: int, white_list=None, black_list=None) -> bool
 ```
 
 逻辑:
-1. 白名单非空时，仅允许白名单内的 ID
-2. 白名单为空时，禁止黑名单内的 ID
+1. 黑名单优先级更高：在黑名单内的 ID 永远拒绝
+2. 白名单非空时，仅允许白名单内的 ID
+3. 白名单为空时，允许所有不在黑名单内的 ID
 
 **装饰器版本**:
 ```python

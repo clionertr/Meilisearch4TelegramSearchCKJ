@@ -1,6 +1,8 @@
 import ast
 import asyncio
 import gc
+from collections.abc import Awaitable
+from typing import Any, cast
 
 from telethon import Button, TelegramClient, events
 from telethon.tl.functions.bots import SetBotCommandsRequest
@@ -32,6 +34,7 @@ MAX_RESULTS = MAX_PAGE * RESULTS_PER_PAGE
 # 1. 加速未缓存时的搜索速度
 # 3. 优化代码逻辑和结构
 
+
 def set_permission(func):
     """装饰器：检查用户是否在白名单中"""
 
@@ -40,7 +43,7 @@ def set_permission(func):
         if not OWNER_IDS or user_id in OWNER_IDS:
             await func(self, event, *args, **kwargs)
         else:
-            await event.respond('你没有权限使用此指令。')
+            await event.respond("你没有权限使用此指令。")
             self.logger.info(f"User {user_id} tried to use command {event.text}, but does not have permission.")
 
     return wrapper
@@ -49,53 +52,69 @@ def set_permission(func):
 class BotHandler:
     def __init__(self, main):
         self.logger = setup_logger()
-        self.bot_client = TelegramClient('session/bot', APP_ID, APP_HASH, use_ipv6=IPv6, proxy=PROXY,
-                                         auto_reconnect=True,
-                                         connection_retries=5)
+        proxy: Any = PROXY
+        self.bot_client = TelegramClient(
+            "session/bot",
+            APP_ID,
+            APP_HASH,
+            use_ipv6=IPv6,
+            proxy=proxy,
+            auto_reconnect=True,
+            connection_retries=5,
+        )
         self.meili = MeiliSearchClient(MEILI_HOST, MEILI_PASS)
         self.search_results_cache = {}
         self.main = main
         self.download_task = None
 
     async def initialize(self):
-        await self.bot_client.start(bot_token=TOKEN)
+        await cast(Awaitable[Any], self.bot_client.start(bot_token=TOKEN))
         await self.set_commands_list()
         await self.auto_start_download_and_listening()
-        self.bot_client.on(events.NewMessage(pattern=r'^/(start|help)$'))(self.start_handler)
-        self.bot_client.on(events.NewMessage(pattern=r'^/(start_client)$'))(
-            lambda event: self.start_download_and_listening(event))
-        self.bot_client.on(events.NewMessage(pattern=r'^/search (.+)'))(self.search_command_handler)
-        self.bot_client.on(events.NewMessage(pattern=r'^/set_black_list2meili (.+)'))(self.set_black_list2meili)
-        self.bot_client.on(events.NewMessage(pattern=r'^/set_white_list2meili (.+)'))(self.set_white_list2meili)
-        self.bot_client.on(events.NewMessage(pattern=r'^/cc$'))(self.clean)
-        self.bot_client.on(events.NewMessage(pattern=r'^/about$'))(self.about_handler)
-        self.bot_client.on(events.NewMessage(pattern=r'^/ping$'))(self.ping_handler)
-        self.bot_client.on(events.NewMessage(func=lambda e: e.is_private and not e.text.startswith('/')))(
-            self.message_handler)
-        self.bot_client.on(events.CallbackQuery)(self.callback_query_handler)
-        self.bot_client.on(events.NewMessage(pattern=r'^/(stop_client)$'))(self.stop_download_and_listening)
+        self.bot_client.on(events.NewMessage(pattern=r"^/(start|help)$"))(self.start_handler)
+        self.bot_client.on(events.NewMessage(pattern=r"^/(start_client)$"))(
+            lambda event: self.start_download_and_listening(event)
+        )
+        self.bot_client.on(events.NewMessage(pattern=r"^/search (.+)"))(self.search_command_handler)
+        self.bot_client.on(events.NewMessage(pattern=r"^/set_black_list2meili (.+)"))(self.set_black_list2meili)
+        self.bot_client.on(events.NewMessage(pattern=r"^/set_white_list2meili (.+)"))(self.set_white_list2meili)
+        self.bot_client.on(events.NewMessage(pattern=r"^/cc$"))(self.clean)
+        self.bot_client.on(events.NewMessage(pattern=r"^/about$"))(self.about_handler)
+        self.bot_client.on(events.NewMessage(pattern=r"^/ping$"))(self.ping_handler)
+        self.bot_client.on(events.NewMessage(func=lambda e: e.is_private and not e.text.startswith("/")))(
+            self.message_handler
+        )
+        callback_query_event: Any = events.CallbackQuery
+        self.bot_client.on(callback_query_event)(self.callback_query_handler)
+        self.bot_client.on(events.NewMessage(pattern=r"^/(stop_client)$"))(self.stop_download_and_listening)
 
     async def set_commands_list(self):
         commands = [
-            BotCommand(command='start_client', description='启动消息监听与下载历史消息'),
-            BotCommand(command='stop_client', description='停止消息监听与下载'),
-            BotCommand(command='set_white_list2meili', description='配置Meili白名单，参数为列表'),
-            BotCommand(command='set_black_list2meili', description='配置Meili黑名单，参数为列表'),
-            BotCommand(command='cc', description='清除搜索历史消息缓存'),
-            BotCommand(command='search', description='关键词搜索（空格分隔多个词）'),
-            BotCommand(command='ping', description='检查搜索服务状态'),
-            BotCommand(command='about', description='项目信息'),
+            BotCommand(command="start_client", description="启动消息监听与下载历史消息"),
+            BotCommand(command="stop_client", description="停止消息监听与下载"),
+            BotCommand(command="set_white_list2meili", description="配置Meili白名单，参数为列表"),
+            BotCommand(command="set_black_list2meili", description="配置Meili黑名单，参数为列表"),
+            BotCommand(command="cc", description="清除搜索历史消息缓存"),
+            BotCommand(command="search", description="关键词搜索（空格分隔多个词）"),
+            BotCommand(command="ping", description="检查搜索服务状态"),
+            BotCommand(command="about", description="项目信息"),
         ]
 
-        await self.bot_client(SetBotCommandsRequest(
-            scope=BotCommandScopeDefault(),
-            lang_code='',  # 空字符串表示默认语言
-            commands=commands))
+        await cast(
+            Awaitable[Any],
+            self.bot_client(
+                SetBotCommandsRequest(
+                    scope=BotCommandScopeDefault(),
+                    lang_code="",  # 空字符串表示默认语言
+                    commands=commands,
+                )
+            ),
+        )
 
     async def run(self):
         await self.initialize()
         self.logger.log(25, "Bot started")
-        await self.bot_client.run_until_disconnected()
+        await cast(Awaitable[Any], self.bot_client.run_until_disconnected())
 
     @set_permission
     async def stop_download_and_listening(self, event):
@@ -107,7 +126,7 @@ class BotHandler:
 
     @set_permission
     async def start_download_and_listening(self, event):
-        neo_msg = await event.reply("开始下载历史消息,监听历史消息...")
+        await event.reply("开始下载历史消息,监听历史消息...")
         self.logger.info("Downloading and listening messages for dialogs")
         if self.download_task is None or self.download_task.done():
             self.download_task = asyncio.create_task(self.main())
@@ -122,9 +141,11 @@ class BotHandler:
 
     async def search_handler(self, event, query):
         try:
-            results = await self.get_search_results(query,
-                                                    limit=MAX_RESULTS) if not SEARCH_CACHE else await self.get_search_results(
-                query)
+            results = (
+                await self.get_search_results(query, limit=MAX_RESULTS)
+                if not SEARCH_CACHE
+                else await self.get_search_results(query)
+            )
             if results:
                 if SEARCH_CACHE:
                     self.search_results_cache[query] = results
@@ -139,10 +160,10 @@ class BotHandler:
             await event.reply(f"Search error: {e}")
             self.logger.error(f"Search error: {e}")
 
-    async def get_search_results(self, query, limit=10, offset=0, index_name='telegram'):
+    async def get_search_results(self, query, limit=10, offset=0, index_name="telegram"):
         try:
             results = self.meili.search(query, index_name, limit=limit, offset=offset)
-            return results['hits'] if results['hits'] else None
+            return results["hits"] if results["hits"] else None
         except Exception as e:
             self.logger.error(f"MeiliSearch query error: {e}")
             return None
@@ -180,7 +201,7 @@ class BotHandler:
         try:
             query = ast.literal_eval(event.pattern_match.group(1))
             config = read_config_from_meili(self.meili)
-            config['WHITE_LIST'] = query
+            config["WHITE_LIST"] = query
             self.meili.add_documents([config], "config")
             await event.reply(f"白名单设置为: {query}")
         except Exception as e:
@@ -194,7 +215,7 @@ class BotHandler:
         try:
             query = ast.literal_eval(event.pattern_match.group(1))
             config = read_config_from_meili(self.meili)
-            config['BLACK_LIST'] = query
+            config["BLACK_LIST"] = query
             self.meili.add_documents([config], "config")
             await event.reply(f"黑名单设置为: {query}")
         except Exception as e:
@@ -219,7 +240,8 @@ class BotHandler:
 
     async def about_handler(self, event):
         await event.reply(
-            "本项目基于 MeiliSearch 和 Telethon 构建，用于搜索保存的 Telegram 消息历史记录。解决了 Telegram 中文搜索功能的不足，提供了更强大的搜索功能。\n   \n    本项目的github地址为：[Meilisearch4TelegramSearchCKJ](https://github.com/clionertr/Meilisearch4TelegramSearchCKJ)，如果觉得好用可以点个star\n\n    得益于telethon的优秀代码，相比使用pyrogram，本项目更加稳定，同时减少大量负载\n\n    项目由[SearchGram](https://github.com/tgbot-collection/SearchGram)重构而来，感谢原作者的贡献❤️\n\n    同时感谢Claude3.5s和GeminiExp的帮助\n\n    从这次的编程中，我学到了很多，也希望大家能够喜欢这个项目😘")
+            "本项目基于 MeiliSearch 和 Telethon 构建，用于搜索保存的 Telegram 消息历史记录。解决了 Telegram 中文搜索功能的不足，提供了更强大的搜索功能。\n   \n    本项目的github地址为：[Meilisearch4TelegramSearchCKJ](https://github.com/clionertr/Meilisearch4TelegramSearchCKJ)，如果觉得好用可以点个star\n\n    得益于telethon的优秀代码，相比使用pyrogram，本项目更加稳定，同时减少大量负载\n\n    项目由[SearchGram](https://github.com/tgbot-collection/SearchGram)重构而来，感谢原作者的贡献❤️\n\n    同时感谢Claude3.5s和GeminiExp的帮助\n\n    从这次的编程中，我学到了很多，也希望大家能够喜欢这个项目😘"
+        )
 
     @set_permission
     async def ping_handler(self, event):
@@ -237,24 +259,23 @@ class BotHandler:
         await self.search_handler(event, event.raw_text)
 
     def format_search_result(self, hit):
-        if len(hit['text']) > 360:
-            text = hit['text'][:360] + "..."
+        if len(hit["text"]) > 360:
+            text = hit["text"][:360] + "..."
         else:
-            text = hit['text']
+            text = hit["text"]
 
-        chat_type = hit['chat']['type']
-        if chat_type == 'private':
+        chat_type = hit["chat"]["type"]
+        if chat_type == "private":
             chat_title = f"Private: {hit['chat']['username']}"
             url = f"tg://openmessage?user_id={hit['id'].split('-')[0]}&message_id={hit['id'].split('-')[1]}"
-        elif chat_type == 'channel':
+        elif chat_type == "channel":
             chat_title = f"Channel: {hit['chat']['title']}"
             url = f"https://t.me/c/{hit['id'].split('-')[0]}/{hit['id'].split('-')[1]}"
         else:
             chat_title = f"Group: {hit['chat']['title']}"
             url = f"https://t.me/c/{hit['id'].split('-')[0]}/{hit['id'].split('-')[1]}"
 
-        chat_username = hit['chat'].get('username', 'N/A')
-        date = hit['date'].split('T')[0]
+        date = hit["date"].split("T")[0]
         return f"- **{chat_title}**  ({date})\n{text}\n  [🔗Jump]({url})\n" + "—" * 18 + "\n"
 
     async def send_results_page(self, event, hits, page_number, query):
@@ -273,8 +294,9 @@ class BotHandler:
         if end_index < len(hits):
             buttons.append(Button.inline("下一页", data=f"page_{query}_{page_number + 1}"))
 
-        await self.bot_client.send_message(event.chat_id, f"搜索结果 (第 {page_number + 1} 页):\n{response}",
-                                           buttons=buttons if buttons else None)
+        await self.bot_client.send_message(
+            event.chat_id, f"搜索结果 (第 {page_number + 1} 页):\n{response}", buttons=buttons if buttons else None
+        )
 
     async def edit_results_page(self, event, hits, page_number, query):
         start_index = page_number * RESULTS_PER_PAGE
@@ -295,16 +317,18 @@ class BotHandler:
         await event.edit(f"搜索结果 (第 {page_number + 1} 页):\n{response}", buttons=buttons if buttons else None)
 
     async def callback_query_handler(self, event):
-        data = event.data.decode('utf-8')
-        if data.startswith('page_'):
-            parts = data.split('_')
+        data = event.data.decode("utf-8")
+        if data.startswith("page_"):
+            parts = data.split("_")
             query = parts[1]
             page_number = int(parts[2])
             try:
                 # TODO  加速未缓存时的搜索速度
-                results = await self.get_search_results(query,
-                                                        limit=MAX_RESULTS) if not SEARCH_CACHE else self.search_results_cache.get(
-                    query)
+                results = (
+                    await self.get_search_results(query, limit=MAX_RESULTS)
+                    if not SEARCH_CACHE
+                    else self.search_results_cache.get(query)
+                )
                 await event.edit(f"正在加载第 {page_number + 1} 页...")
                 await self.edit_results_page(event, results, page_number, query)
             except Exception as e:

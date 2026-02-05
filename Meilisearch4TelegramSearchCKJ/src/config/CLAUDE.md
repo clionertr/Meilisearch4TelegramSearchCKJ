@@ -44,6 +44,12 @@ BLACK_LIST: List[int]  # 黑名单 ID 列表
 OWNER_IDS: List[int]   # Bot 管理员 ID
 ```
 
+规则:
+
+1. 黑名单优先级更高：在黑名单内的 ID 永远拒绝
+2. 白名单非空时，仅允许白名单内的 ID
+3. 白名单为空时，允许所有不在黑名单内的 ID
+
 #### 性能配置
 ```python
 BATCH_MSG_UNM: int           # 批量上传数量 (默认 200)

@@ -1,11 +1,23 @@
+import asyncio
+import importlib
+import os
 from concurrent.futures import ThreadPoolExecutor
 
-import nest_asyncio
-from flask import Flask
+from Meilisearch4TelegramSearchCKJ.src.config.env import validate_config
+from Meilisearch4TelegramSearchCKJ.src.main import run
+from Meilisearch4TelegramSearchCKJ.src.models.bot_handler import BotHandler
 
-from Meilisearch4TelegramSearchCKJ.src.main import *
+nest_asyncio = importlib.import_module("nest_asyncio")
+flask = importlib.import_module("flask")
+Flask = flask.Flask
 
 app = Flask(__name__)
+
+
+def _maybe_validate_config() -> None:
+    if os.getenv("SKIP_CONFIG_VALIDATION", "").lower() in ("true", "1", "yes"):
+        return
+    validate_config()
 
 
 def run_async_code():
@@ -23,11 +35,12 @@ def run_async_code():
             await bot_handler.run()
         except Exception as e:
             print(f"Error running bot: {str(e)}")
+
     # 运行异步任务
     loop.run_until_complete(async_bot_task())
 
 
-@app.route('/')
+@app.route("/")
 def health_check():
     """健康检查端点"""
     return {"status": "healthy"}, 200
@@ -42,6 +55,7 @@ def start_background_tasks():
 
 
 if __name__ == "__main__":
+    _maybe_validate_config()
     # 启动后台任务
     start_background_tasks()
 

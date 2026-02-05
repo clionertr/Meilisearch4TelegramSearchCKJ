@@ -6,10 +6,13 @@ Telegram 客户端封装
 - 细化的异常处理（区分网络/权限/限流错误）
 - 内存使用监控
 """
+
 import asyncio
 import gc
 import os
 import tracemalloc
+from collections.abc import Awaitable
+from typing import Any, cast
 
 import pytz
 from telethon import TelegramClient, events
@@ -63,13 +66,16 @@ if _ENABLE_TRACEMALLOC:
 
 # ============ 自定义异常 ============
 
+
 class TelegramNetworkError(Exception):
     """Telegram 网络错误（可重试）"""
+
     pass
 
 
 class TelegramPermissionError(Exception):
     """Telegram 权限错误（不可重试，需跳过）"""
+
     pass
 
 
@@ -103,7 +109,7 @@ NETWORK_ERRORS = (
 )
 
 
-async def calculate_reaction_score(reactions: dict) -> float | None:
+async def calculate_reaction_score(reactions: dict | None) -> float | None:
     total_score = 0.0
     if reactions:
         for reaction, count in reactions.items():
@@ -125,20 +131,17 @@ async def serialize_chat(chat):
     elif isinstance(chat, User):
         chat_type = "private"
     return {
-        'id': chat.id,
-        'type': chat_type,
-        'title': chat.title if hasattr(chat, 'title') else None,
-        'username': chat.username if hasattr(chat, 'username') else None
+        "id": chat.id,
+        "type": chat_type,
+        "title": getattr(chat, "title", None),
+        "username": getattr(chat, "username", None),
     }
 
 
 async def serialize_sender(sender):
     if not sender:
         return None
-    return {
-        'id': sender.id,
-        'username': sender.username if hasattr(sender, 'username') else None
-    }
+    return {"id": sender.id, "username": getattr(sender, "username", None)}
 
 
 async def serialize_reactions(message: Message):
@@ -173,7 +176,7 @@ async def serialize_reactions(message: Message):
     return reactions_dict if reactions_dict else None
 
 
-async def serialize_message(message: Message, not_edited: bool = True) -> dict | None:
+async def serialize_message(message: Any, not_edited: bool = True) -> dict | None:
     """
     序列化 Telegram 消息为字典
 
@@ -185,20 +188,29 @@ async def serialize_message(message: Message, not_edited: bool = True) -> dict |
         序列化后的消息字典，失败返回 None
     """
     try:
-        chat_future = message.get_chat()
-        sender_future = message.get_sender()
+        chat_future = cast(Awaitable[Any], message.get_chat())
+        sender_future = cast(Awaitable[Any], message.get_sender())
         chat, sender = await asyncio.gather(chat_future, sender_future)
+
+        chat_id = getattr(chat, "id", None)
+        msg_id = getattr(message, "id", None)
+        msg_date = getattr(message, "date", None)
+        if chat_id is None or msg_id is None or msg_date is None:
+            return None
+
         reactions = await serialize_reactions(message)
+        edit_date = getattr(message, "edit_date", None)
+        edit_ts = int(edit_date.timestamp()) if edit_date else 0
+        text = getattr(message, "text", None) or getattr(message, "caption", None)
         return {
-            'id': f"{chat.id}-{message.id}" if not_edited else f"{chat.id}-{message.id}-{int(message.edit_date.timestamp())}",
-            'chat': await serialize_chat(chat),
-            'date': message.date.astimezone(tz).isoformat(),
-            'text': message.text if hasattr(message, 'message') else message.caption if hasattr(message,
-                                                                                                'caption') else None,
-            'from_user': await serialize_sender(sender),
-            'reactions': await serialize_reactions(message),
-            'reactions_scores': await calculate_reaction_score(reactions),
-            'text_len': len(message.text or '')
+            "id": f"{chat_id}-{msg_id}" if not_edited else f"{chat_id}-{msg_id}-{edit_ts}",
+            "chat": await serialize_chat(chat),
+            "date": msg_date.astimezone(tz).isoformat(),
+            "text": text,
+            "from_user": await serialize_sender(sender),
+            "reactions": reactions,
+            "reactions_scores": await calculate_reaction_score(reactions),
+            "text_len": len(text or ""),
         }
     except NETWORK_ERRORS as e:
         logger.warning(f"Network error serializing message {message.id}: {type(e).__name__}: {str(e)}")
@@ -223,7 +235,7 @@ class TelegramUserBot:
         if SESSION_STRING:
             self.session = StringSession(SESSION_STRING)
         else:
-            self.session = 'session/user_bot_session'
+            self.session = "session/user_bot_session"
 
         self.meili = meili_client
         config = read_config_from_meili(self.meili)
@@ -244,8 +256,7 @@ class TelegramUserBot:
             auto_reconnect=True,
             retry_delay=2,
             use_ipv6=IPv6,
-            proxy=PROXY
-
+            proxy=cast(Any, PROXY),
         )
 
         # 消息缓存，用于优化性能
@@ -254,7 +265,7 @@ class TelegramUserBot:
     async def start(self):
         """启动客户端"""
         try:
-            await self.client.start()
+            await cast(Awaitable[Any], self.client.start())
             logger.info("Bot started successfully")
             self.register_handlers()
         except FloodWaitError as e:
@@ -276,7 +287,7 @@ class TelegramUserBot:
     def register_handlers(self):
         """注册消息处理器"""
 
-        @self.client.on(events.NewMessage)
+        @self.client.on(cast(Any, events.NewMessage))
         async def handle_new_message(event):
             peer_id = event.chat_id
             try:
@@ -294,7 +305,7 @@ class TelegramUserBot:
             except Exception as e:
                 logger.error(f"Error processing message: {type(e).__name__}: {str(e)}")
 
-        @self.client.on(events.MessageEdited)
+        @self.client.on(cast(Any, events.MessageEdited))
         async def handle_edit_message(event):
             peer_id = event.chat_id
             try:
@@ -312,12 +323,15 @@ class TelegramUserBot:
             except Exception as e:
                 logger.error(f"Error processing message edit: {type(e).__name__}: {str(e)}")
 
-    async def _process_message(self, message: Message, not_edited: bool = True):
+    async def _process_message(self, message: Any, not_edited: bool = True):
         """处理新消息"""
         try:
             # 消息处理逻辑
-            if message.text:
-                logger.info(f"Received message: {message.text[:100] if message.text else message.caption}")
+            text = getattr(message, "text", None)
+            caption = getattr(message, "caption", None)
+            if text or caption:
+                preview = (text or caption or "")[:100]
+                logger.info(f"Received message: {preview}")
                 # 缓存消息
                 await self._cache_message(message, not_edited)
         except NETWORK_ERRORS as e:
@@ -325,7 +339,7 @@ class TelegramUserBot:
         except Exception as e:
             logger.error(f"Error in message processing for {message.id}: {type(e).__name__}: {str(e)}")
 
-    async def _cache_message(self, message: Message, not_edited: bool = True):
+    async def _cache_message(self, message: Any, not_edited: bool = True):
         """缓存消息到 MeiliSearch"""
         try:
             serialized = await serialize_message(message, not_edited)
@@ -338,8 +352,17 @@ class TelegramUserBot:
             logger.error(f"Error caching message {message.id}: {type(e).__name__}: {str(e)}")
 
     # @check_is_allowed()
-    async def download_history(self, peer, limit=None, batch_size=BATCH_MSG_UNM, offset_id=0, offset_date=None,
-                               latest_msg_config=None, meili=None, dialog_id=None):
+    async def download_history(
+        self,
+        peer,
+        limit=None,
+        batch_size=BATCH_MSG_UNM,
+        offset_id=0,
+        offset_date=None,
+        latest_msg_config=None,
+        meili=None,
+        dialog_id=None,
+    ):
         """
         下载历史消息
         :param meili:
@@ -352,23 +375,31 @@ class TelegramUserBot:
         """
         try:
             messages = []
+            last_seen_marker = None
             total_messages = 0
 
             async for message in self.client.iter_messages(
-                    peer,
-                    offset_id=offset_id,
-                    offset_date=offset_date,
-                    limit=limit,
-                    reverse=True,
-                    #wait_time=1.4  # 防止请求过快
+                peer,
+                offset_id=offset_id,
+                offset_date=offset_date,
+                limit=cast(Any, limit),
+                reverse=True,
+                # wait_time=1.4  # 防止请求过快
             ):
-                messages.append(await serialize_message(message))
+                # 用于记录增量位置：即使序列化失败，也应推进 offset，避免下次重复下载
+                if dialog_id is not None:
+                    last_seen_marker = {"id": f"{dialog_id}-{message.id}"}
+
+                serialized = await serialize_message(message)
+                if serialized is not None:
+                    messages.append(serialized)
 
                 total_messages += 1
 
                 # 批量处理
                 if len(messages) >= batch_size:
-                    update_latest_msg_config4_meili(dialog_id, messages[-1], latest_msg_config, meili)
+                    if last_seen_marker is not None and latest_msg_config is not None and meili is not None:
+                        update_latest_msg_config4_meili(dialog_id, last_seen_marker, latest_msg_config, meili)
                     await self._process_message_batch(messages)
                     messages = []
 
@@ -380,11 +411,14 @@ class TelegramUserBot:
 
             # 处理剩余消息
             if messages:
-                update_latest_msg_config4_meili(dialog_id, messages[-1], latest_msg_config, meili)
+                if last_seen_marker is not None and latest_msg_config is not None and meili is not None:
+                    update_latest_msg_config4_meili(dialog_id, last_seen_marker, latest_msg_config, meili)
                 await self._process_message_batch(messages)
                 messages = []
                 gc.collect()
                 logger.log(25, f"Download completed for {peer.id}")
+            elif last_seen_marker is not None and latest_msg_config is not None and meili is not None:
+                update_latest_msg_config4_meili(dialog_id, last_seen_marker, latest_msg_config, meili)
 
         except FloodWaitError as e:
             logger.warning(f"Rate limited, need to wait {e.seconds} seconds")
@@ -419,7 +453,7 @@ class TelegramUserBot:
         """清理资源"""
         try:
             # 断开连接
-            await self.client.disconnect()
+            await cast(Awaitable[Any], self.client.disconnect())
 
             # 强制垃圾回收
             gc.collect()
@@ -434,6 +468,6 @@ class TelegramUserBot:
     def get_memory_usage():
         """获取内存使用情况"""
         current, peak = tracemalloc.get_traced_memory()
-        logger.debug(f"Current memory usage: {current / 10 ** 6}MB")
-        logger.debug(f"Peak memory usage: {peak / 10 ** 6}MB")
+        logger.debug(f"Current memory usage: {current / 10**6}MB")
+        logger.debug(f"Peak memory usage: {peak / 10**6}MB")
         return current, peak
