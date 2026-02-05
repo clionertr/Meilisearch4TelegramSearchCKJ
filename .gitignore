@@ -10,3 +10,4 @@
 .gitignore
 .idea
 /Meilisearch4TelegramSearchCKJ/src/config.ini
+.ace-tool/
