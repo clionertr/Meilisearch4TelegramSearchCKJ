@@ -23,10 +23,11 @@
 | 文件 | 职责 | 测试类 |
 |------|------|--------|
 | `conftest.py` | pytest 配置和公共 fixtures | - |
+| `test_api.py` | FastAPI 端点测试 | 7 个测试类 (20 个测试) |
 | `test_meilisearch_handler.py` | MeiliSearch 客户端测试 | 4 个测试类 |
 | `test_utils.py` | 工具函数测试 | 3 个测试类 |
 | `test_logger.py` | 日志配置测试 | - |
-| `test_tg_client.py` | Telegram 客户端测试 | - |
+| `test_tg_client.py` | Telegram 客户端测试 (集成) | - |
 | `test_configparser.py` | 配置解析测试 | - |
 | `test_meilisearch.py` | MeiliSearch 集成测试 | - |
 

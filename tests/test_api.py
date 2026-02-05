@@ -1,0 +1,316 @@
+"""
+API 测试模块
+
+使用 pytest + httpx 测试 FastAPI 端点
+"""
+
+# 设置测试环境变量
+import os
+from contextlib import contextmanager
+from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+
+os.environ["SKIP_CONFIG_VALIDATION"] = "true"
+os.environ["MEILI_HOST"] = "http://localhost:7700"
+os.environ["MEILI_MASTER_KEY"] = "test_key"
+os.environ["APP_ID"] = "12345"
+os.environ["APP_HASH"] = "test_hash"
+os.environ["BOT_TOKEN"] = "test_token"
+
+
+@pytest.fixture
+def mock_app_state():
+    """创建模拟的 AppState"""
+    from tg_search.api.state import AppState
+
+    state = AppState()
+    state.start_time = datetime.utcnow()
+    state.api_only = True
+    return state
+
+
+@pytest.fixture
+def mock_meili_client():
+    """Mock MeiliSearch 客户端"""
+    mock = MagicMock()
+    mock.search.return_value = {
+        "hits": [
+            {
+                "id": "123-456",
+                "chat": {"id": 123, "type": "group", "title": "Test Group"},
+                "date": "2026-01-01T00:00:00+08:00",
+                "text": "Hello World",
+                "from_user": {"id": 789, "username": "testuser"},
+                "reactions": {"👍": 5},
+                "reactions_scores": 5.0,
+                "text_len": 11,
+            }
+        ],
+        "processingTimeMs": 10,
+        "estimatedTotalHits": 1,
+    }
+    mock.get_index_stats.return_value = MagicMock(
+        number_of_documents=1000,
+        is_indexing=False,
+    )
+    return mock
+
+
+@pytest.fixture
+def test_client(mock_app_state, mock_meili_client):
+    """创建带有正确模拟状态的测试客户端"""
+    with patch("tg_search.api.app.MeiliSearchClient", return_value=mock_meili_client):
+        from tg_search.api.app import build_app
+
+        app = build_app()
+
+        # 使用 TestClient 的 lifespan
+        with TestClient(app) as client:
+            # lifespan 会被执行，app_state 会被创建
+            # 替换 meili_client 为 mock
+            app.state.app_state.meili_client = mock_meili_client
+            yield client
+
+
+class TestHealthCheck:
+    """健康检查端点测试"""
+
+    def test_health_check(self, test_client):
+        """测试健康检查端点"""
+        response = test_client.get("/health")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "ok"
+        assert "timestamp" in data
+
+    def test_root_endpoint(self, test_client):
+        """测试根端点"""
+        response = test_client.get("/")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["name"] == "Telegram Search API"
+        assert data["version"] == "0.2.0"
+        assert data["docs"] == "/docs"
+
+
+class TestSearchAPI:
+    """搜索 API 测试"""
+
+    def test_search_messages(self, test_client):
+        """测试消息搜索"""
+        response = test_client.get("/api/v1/search?q=hello")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert "data" in data
+
+    def test_search_with_filters(self, test_client):
+        """测试带过滤条件的搜索"""
+        response = test_client.get(
+            "/api/v1/search",
+            params={
+                "q": "test",
+                "chat_type": "group",
+                "limit": 10,
+                "offset": 0,
+            },
+        )
+        assert response.status_code == 200
+
+    def test_search_stats(self, test_client):
+        """测试搜索统计"""
+        response = test_client.get("/api/v1/search/stats")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+
+
+class TestConfigAPI:
+    """配置 API 测试"""
+
+    def test_get_config(self, test_client):
+        """测试获取配置"""
+        response = test_client.get("/api/v1/config")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert "data" in data
+        assert "white_list" in data["data"]
+        assert "black_list" in data["data"]
+
+    def test_add_to_whitelist(self, test_client):
+        """测试添加白名单"""
+        response = test_client.post(
+            "/api/v1/config/whitelist",
+            json={"ids": [123456, 789012]},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+
+    def test_add_to_blacklist(self, test_client):
+        """测试添加黑名单"""
+        response = test_client.post(
+            "/api/v1/config/blacklist",
+            json={"ids": [999999]},
+        )
+        assert response.status_code == 200
+
+
+class TestStatusAPI:
+    """状态 API 测试"""
+
+    def test_get_system_status(self, test_client):
+        """测试获取系统状态"""
+        response = test_client.get("/api/v1/status")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert "uptime_seconds" in data["data"]
+        assert "meili_connected" in data["data"]
+
+    def test_get_dialogs(self, test_client):
+        """测试获取对话列表"""
+        response = test_client.get("/api/v1/status/dialogs")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert "dialogs" in data["data"]
+
+    def test_get_download_progress(self, test_client):
+        """测试获取下载进度"""
+        response = test_client.get("/api/v1/status/progress")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+
+
+class TestControlAPI:
+    """控制 API 测试"""
+
+    def test_get_client_status(self, test_client):
+        """测试获取客户端状态"""
+        response = test_client.get("/api/v1/client/status")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert "is_running" in data["data"]
+
+    def test_stop_client_when_not_running(self, test_client):
+        """测试停止未运行的客户端"""
+        response = test_client.post("/api/v1/client/stop")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["data"]["status"] == "already_stopped"
+
+
+class TestModels:
+    """Pydantic 模型测试"""
+
+    def test_api_response_model(self):
+        """测试 ApiResponse 模型"""
+        from tg_search.api.models import ApiResponse
+
+        response = ApiResponse(data={"test": "value"}, message="Success")
+        assert response.success is True
+        assert response.data == {"test": "value"}
+        assert response.message == "Success"
+
+    def test_error_response_model(self):
+        """测试 ErrorResponse 模型"""
+        from tg_search.api.models import ErrorResponse
+
+        response = ErrorResponse(
+            error_code="TEST_ERROR",
+            message="Test error message",
+        )
+        assert response.success is False
+        assert response.error_code == "TEST_ERROR"
+
+    def test_search_request_validation(self):
+        """测试 SearchRequest 验证"""
+        from tg_search.api.models import SearchRequest
+
+        # 有效请求
+        request = SearchRequest(query="test", limit=10)
+        assert request.query == "test"
+        assert request.limit == 10
+
+        # 空查询应该失败
+        with pytest.raises(Exception):
+            SearchRequest(query="", limit=10)
+
+    def test_message_model(self):
+        """测试 MessageModel"""
+        from tg_search.api.models import ChatInfo, MessageModel, UserInfo
+
+        msg = MessageModel(
+            id="123-456",
+            chat=ChatInfo(id=123, type="group", title="Test"),
+            date=datetime.utcnow(),
+            text="Hello",
+            from_user=UserInfo(id=789, username="user"),
+        )
+        assert msg.id == "123-456"
+        assert msg.chat.type == "group"
+
+
+class TestProgressRegistry:
+    """进度注册表测试"""
+
+    @pytest.mark.asyncio
+    async def test_update_progress(self):
+        """测试更新进度"""
+        from tg_search.api.state import ProgressRegistry
+
+        registry = ProgressRegistry()
+        await registry.update_progress(
+            dialog_id=123,
+            dialog_title="Test Dialog",
+            current=50,
+            total=100,
+        )
+
+        progress = registry.get_progress(123)
+        assert progress is not None
+        assert progress.current == 50
+        assert progress.total == 100
+        assert progress.percentage == 50.0
+
+    @pytest.mark.asyncio
+    async def test_subscribe_and_publish(self):
+        """测试订阅和发布"""
+        import asyncio
+
+        from tg_search.api.state import ProgressRegistry
+
+        registry = ProgressRegistry()
+        queue = registry.subscribe()
+
+        # 发布事件
+        await registry.publish({"type": "test", "data": "value"})
+
+        # 接收事件
+        event = await asyncio.wait_for(queue.get(), timeout=1.0)
+        assert event["type"] == "test"
+
+        # 取消订阅
+        registry.unsubscribe(queue)
+        assert queue not in registry._subscribers
+
+    @pytest.mark.asyncio
+    async def test_complete_progress(self):
+        """测试完成进度"""
+        from tg_search.api.state import ProgressRegistry
+
+        registry = ProgressRegistry()
+        await registry.update_progress(123, "Test", 50, 100)
+        await registry.complete_progress(123)
+
+        progress = registry.get_progress(123)
+        assert progress.status == "completed"
+        assert progress.current == progress.total
