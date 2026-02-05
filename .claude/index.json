@@ -1,0 +1,210 @@
+{
+  "version": "1.0.0",
+  "generated_at": "2026-02-05T18:19:02+08:00",
+  "project_name": "Meilisearch4TelegramSearchCKJ",
+  "project_description": "基于 Telethon + MeiliSearch 的 Telegram 中文/日文/韩文 (CJK) 消息搜索解决方案",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/clionertr/Meilisearch4TelegramSearchCKJ"
+  },
+  "statistics": {
+    "total_files_estimated": 27,
+    "scanned_files": 27,
+    "python_files": 27,
+    "config_files": 3,
+    "docker_files": 2,
+    "markdown_files": 3,
+    "coverage_percentage": 100,
+    "truncated": false
+  },
+  "modules": [
+    {
+      "name": "config",
+      "path": "src/tg_search/config",
+      "type": "configuration",
+      "entry_points": ["settings.py"],
+      "files": ["__init__.py", "settings.py"],
+      "description": "环境变量配置管理，包含所有必填和可选配置项的验证与加载",
+      "dependencies": ["ast", "os"],
+      "key_exports": [
+        "APP_ID",
+        "APP_HASH",
+        "TOKEN",
+        "MEILI_HOST",
+        "MEILI_PASS",
+        "WHITE_LIST",
+        "BLACK_LIST",
+        "OWNER_IDS",
+        "validate_config",
+        "ConfigurationError"
+      ]
+    },
+    {
+      "name": "core",
+      "path": "src/tg_search/core",
+      "type": "business_logic",
+      "entry_points": ["bot.py", "telegram.py", "meilisearch.py"],
+      "files": ["__init__.py", "bot.py", "telegram.py", "meilisearch.py", "logger.py"],
+      "description": "核心业务逻辑层，包含 Bot 处理、Telegram 客户端、MeiliSearch 客户端和日志配置",
+      "dependencies": [
+        "telethon",
+        "meilisearch",
+        "coloredlogs",
+        "tenacity",
+        "pytz"
+      ],
+      "key_classes": [
+        "BotHandler",
+        "TelegramUserBot",
+        "MeiliSearchClient"
+      ],
+      "interfaces": [
+        {
+          "class": "BotHandler",
+          "commands": [
+            "/start",
+            "/help",
+            "/start_client",
+            "/stop_client",
+            "/search",
+            "/set_white_list2meili",
+            "/set_black_list2meili",
+            "/cc",
+            "/about",
+            "/ping"
+          ]
+        },
+        {
+          "class": "TelegramUserBot",
+          "methods": [
+            "start",
+            "download_history",
+            "cleanup",
+            "register_handlers"
+          ]
+        },
+        {
+          "class": "MeiliSearchClient",
+          "methods": [
+            "create_index",
+            "add_documents",
+            "search",
+            "delete_documents",
+            "get_index_stats"
+          ]
+        }
+      ],
+      "error_handling": [
+        "TelegramNetworkError",
+        "TelegramPermissionError",
+        "TelegramRateLimitError",
+        "MeiliSearchConnectionError",
+        "MeiliSearchTimeoutError",
+        "MeiliSearchAPIError"
+      ]
+    },
+    {
+      "name": "utils",
+      "path": "src/tg_search/utils",
+      "type": "utilities",
+      "files": [
+        "__init__.py",
+        "formatters.py",
+        "permissions.py",
+        "message_tracker.py",
+        "memory.py",
+        "bridge.py"
+      ],
+      "description": "工具函数模块，提供格式化、权限检查、消息追踪和内存监控",
+      "dependencies": ["configparser", "tracemalloc"],
+      "key_functions": [
+        "sizeof_fmt",
+        "is_allowed",
+        "read_config_from_meili",
+        "write_config2_meili",
+        "get_latest_msg_id4_meili",
+        "update_latest_msg_config4_meili",
+        "get_memory_usage"
+      ]
+    },
+    {
+      "name": "tests",
+      "path": "tests",
+      "type": "testing",
+      "files": [
+        "conftest.py",
+        "test_meilisearch_handler.py",
+        "test_utils.py",
+        "test_configparser.py",
+        "test_logger.py",
+        "test_tg_client.py",
+        "test_meilisearch.py",
+        "get_session_file.py",
+        "get_str_session.py",
+        "delete_all_contain_keyword.py"
+      ],
+      "description": "测试套件，包含单元测试、集成测试和测试工具脚本",
+      "test_framework": "pytest",
+      "test_coverage": [
+        "MeiliSearchClient CRUD operations",
+        "Exception handling",
+        "Permissions",
+        "Formatters",
+        "Configuration validation"
+      ],
+      "fixtures": [
+        "mock_meilisearch_client",
+        "mock_index",
+        "sample_documents",
+        "mock_logger",
+        "mock_telegram_client"
+      ]
+    }
+  ],
+  "entry_points": {
+    "cli": "tg_search.__main__:main",
+    "module": "python -m tg_search",
+    "flask_app": "tg_search.app:app"
+  },
+  "data_models": {
+    "message_schema": {
+      "id": "string (format: chat_id-msg_id or chat_id-msg_id-edit_ts)",
+      "chat": "object (id, type, title, username)",
+      "date": "string (ISO-8601 timestamp)",
+      "text": "string (message content or caption)",
+      "from_user": "object (id, username)",
+      "reactions": "object (emoji: count) or null",
+      "reactions_scores": "float or null",
+      "text_len": "integer"
+    },
+    "config_schema": {
+      "id": "integer (always 0 for singleton)",
+      "WHITE_LIST": "array of integers",
+      "BLACK_LIST": "array of integers",
+      "chat_id": "integer (latest message id per chat)"
+    }
+  },
+  "ignored_patterns": [
+    "__pycache__/**",
+    "*.pyc",
+    "*.pyo",
+    "*.pyd",
+    ".venv/**",
+    "venv/**",
+    "build/**",
+    "dist/**",
+    "*.egg-info/**",
+    ".pytest_cache/**",
+    "htmlcov/**",
+    ".coverage",
+    ".vscode/**",
+    ".idea/**",
+    ".env",
+    "*.log",
+    "session/*.session",
+    "session/*.session-journal",
+    ".ace-tool/**"
+  ],
+  "gaps": [],
+  "next_steps": []
+}
