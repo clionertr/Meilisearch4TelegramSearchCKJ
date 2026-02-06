@@ -62,3 +62,4 @@ src/tg_search/config/config.ini
 # uv 锁文件 (可选保留)
 # uv.lock
 
+webui-example/
