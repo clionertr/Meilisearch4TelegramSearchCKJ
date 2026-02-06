@@ -10,6 +10,7 @@
 
 提供全面的测试覆盖，包括：
 - **单元测试**: MeiliSearch 客户端、工具函数、权限检查
+- **API 测试**: FastAPI 端点测试（使用 TestClient）
 - **Mock 测试**: Telegram 客户端、异步操作
 - **异常测试**: 网络错误、超时、API 错误
 - **重试机制测试**: tenacity 重试验证
@@ -23,7 +24,8 @@
 | 文件 | 职责 | 测试类 |
 |------|------|--------|
 | `conftest.py` | pytest 配置和公共 fixtures | - |
-| `test_api.py` | FastAPI 端点测试 | 7 个测试类 (20 个测试) |
+| `test_api.py` | FastAPI 端点测试 | 7 个测试类 (20+ 测试) |
+| `test_api_integration.py` | API 集成测试 | - |
 | `test_meilisearch_handler.py` | MeiliSearch 客户端测试 | 4 个测试类 |
 | `test_utils.py` | 工具函数测试 | 3 个测试类 |
 | `test_logger.py` | 日志配置测试 | - |
@@ -65,7 +67,51 @@ def mock_logger():
 @pytest.fixture
 def mock_telegram_client():
     """Mock Telegram Client"""
+
+@pytest.fixture
+def mock_app_state():
+    """Mock AppState（API 测试用）"""
+
+@pytest.fixture
+def test_client():
+    """FastAPI TestClient（带 Mock 状态）"""
 ```
+
+### test_api.py
+
+#### TestHealthCheck
+- [x] 测试健康检查端点
+- [x] 测试根端点
+
+#### TestSearchAPI
+- [x] 测试消息搜索
+- [x] 测试带过滤条件的搜索
+- [x] 测试搜索统计
+
+#### TestConfigAPI
+- [x] 测试获取配置
+- [x] 测试添加白名单
+- [x] 测试添加黑名单
+
+#### TestStatusAPI
+- [x] 测试获取系统状态
+- [x] 测试获取对话列表
+- [x] 测试获取下载进度
+
+#### TestControlAPI
+- [x] 测试获取客户端状态
+- [x] 测试停止未运行的客户端
+
+#### TestModels
+- [x] 测试 ApiResponse 模型
+- [x] 测试 ErrorResponse 模型
+- [x] 测试 SearchRequest 验证
+- [x] 测试 MessageModel
+
+#### TestProgressRegistry
+- [x] 测试更新进度
+- [x] 测试订阅和发布
+- [x] 测试完成进度
 
 ### test_meilisearch_handler.py
 
@@ -137,6 +183,9 @@ pytest tests/
 # 运行特定文件
 pytest tests/test_meilisearch_handler.py
 
+# 运行 API 测试
+pytest tests/test_api.py
+
 # 运行特定测试类
 pytest tests/test_utils.py::TestIsAllowed
 
@@ -199,6 +248,20 @@ mock.disconnect = AsyncMock()
 mock.iter_messages = AsyncMock(return_value=iter([]))
 ```
 
+### API Mock
+
+```python
+# test_api.py 中的 test_client fixture
+@pytest.fixture
+def test_client(mock_app_state, mock_meili_client):
+    with patch("tg_search.api.app.MeiliSearchClient", return_value=mock_meili_client):
+        from tg_search.api.app import build_app
+        app = build_app()
+        with TestClient(app) as client:
+            app.state.app_state.meili_client = mock_meili_client
+            yield client
+```
+
 ### 环境变量 Mock
 
 ```python
@@ -247,6 +310,54 @@ def test_add_documents_timeout_error(self, meili_client, sample_documents, mock_
     assert mock_meilisearch_client.index.return_value.add_documents.call_count == 3
 ```
 
+### 测试 API 端点
+
+```python
+class TestSearchAPI:
+    def test_search_messages(self, test_client):
+        """测试消息搜索"""
+        response = test_client.get("/api/v1/search?q=hello")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert "data" in data
+
+    def test_search_with_filters(self, test_client):
+        """测试带过滤条件的搜索"""
+        response = test_client.get(
+            "/api/v1/search",
+            params={
+                "q": "test",
+                "chat_type": "group",
+                "limit": 10,
+            },
+        )
+        assert response.status_code == 200
+```
+
+### 测试 ProgressRegistry
+
+```python
+class TestProgressRegistry:
+    @pytest.mark.asyncio
+    async def test_update_progress(self):
+        """测试更新进度"""
+        from tg_search.api.state import ProgressRegistry
+
+        registry = ProgressRegistry()
+        await registry.update_progress(
+            dialog_id=123,
+            dialog_title="Test Dialog",
+            current=50,
+            total=100,
+        )
+
+        progress = registry.get_progress(123)
+        assert progress is not None
+        assert progress.current == 50
+        assert progress.percentage == 50.0
+```
+
 ---
 
 ## 测试数据
@@ -271,7 +382,7 @@ def test_add_documents_timeout_error(self, meili_client, sample_documents, mock_
         "date": "2024-01-01T12:01:00+08:00",
         "text": "你好世界",
         "from_user": {"id": 456, "username": "testuser"},
-        "reactions": {"👍": 5},
+        "reactions": {"!": 5},
         "reactions_scores": 5.0,
         "text_len": 4,
     },
@@ -367,9 +478,26 @@ async def test_async_function():
 3. 使用 fixtures（在 `conftest.py` 中定义）
 4. 运行 `pytest tests/` 验证
 
+### Q6: 如何测试 API 端点？
+
+**A:** 使用 `test_client` fixture：
+```python
+def test_my_endpoint(self, test_client):
+    response = test_client.get("/api/v1/my-endpoint")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["success"] is True
+```
+
 ---
 
 ## 变更记录 (Changelog)
+
+### 2026-02-06
+- 更新文档，添加 API 测试说明
+- 新增 test_api.py 测试覆盖列表
+- 新增 mock_app_state 和 test_client fixtures
+- 添加 ProgressRegistry 测试说明
 
 ### 2026-02-05
 - 创建测试模块文档

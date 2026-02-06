@@ -1,6 +1,6 @@
 {
-  "version": "1.0.0",
-  "generated_at": "2026-02-05T18:19:02+08:00",
+  "version": "1.1.0",
+  "generated_at": "2026-02-06T13:48:06+08:00",
   "project_name": "Meilisearch4TelegramSearchCKJ",
   "project_description": "基于 Telethon + MeiliSearch 的 Telegram 中文/日文/韩文 (CJK) 消息搜索解决方案",
   "repository": {
@@ -8,12 +8,12 @@
     "url": "https://github.com/clionertr/Meilisearch4TelegramSearchCKJ"
   },
   "statistics": {
-    "total_files_estimated": 27,
-    "scanned_files": 27,
-    "python_files": 27,
+    "total_files_estimated": 42,
+    "scanned_files": 42,
+    "python_files": 42,
     "config_files": 3,
     "docker_files": 2,
-    "markdown_files": 3,
+    "markdown_files": 7,
     "coverage_percentage": 100,
     "truncated": false
   },
@@ -35,6 +35,7 @@
         "WHITE_LIST",
         "BLACK_LIST",
         "OWNER_IDS",
+        "API_KEY",
         "validate_config",
         "ConfigurationError"
       ]
@@ -128,6 +129,103 @@
       ]
     },
     {
+      "name": "api",
+      "path": "src/tg_search/api",
+      "type": "web_api",
+      "entry_points": ["app.py"],
+      "files": [
+        "__init__.py",
+        "app.py",
+        "models.py",
+        "deps.py",
+        "state.py",
+        "auth_store.py",
+        "routes/__init__.py",
+        "routes/auth.py",
+        "routes/search.py",
+        "routes/status.py",
+        "routes/config.py",
+        "routes/control.py",
+        "routes/ws.py"
+      ],
+      "description": "FastAPI REST API 与 WebSocket 模块，提供 Web 管理界面后端",
+      "dependencies": [
+        "fastapi",
+        "uvicorn",
+        "pydantic",
+        "websockets",
+        "anyio"
+      ],
+      "key_classes": [
+        "AppState",
+        "AuthStore",
+        "ProgressRegistry",
+        "MeiliFilterBuilder"
+      ],
+      "interfaces": [
+        {
+          "prefix": "/api/v1/auth",
+          "endpoints": [
+            "POST /send-code",
+            "POST /signin",
+            "GET /me",
+            "POST /logout"
+          ]
+        },
+        {
+          "prefix": "/api/v1/search",
+          "endpoints": [
+            "GET /",
+            "GET /stats"
+          ]
+        },
+        {
+          "prefix": "/api/v1/status",
+          "endpoints": [
+            "GET /",
+            "GET /dialogs",
+            "GET /progress"
+          ]
+        },
+        {
+          "prefix": "/api/v1/config",
+          "endpoints": [
+            "GET /",
+            "POST /whitelist",
+            "POST /blacklist"
+          ]
+        },
+        {
+          "prefix": "/api/v1/client",
+          "endpoints": [
+            "GET /status",
+            "POST /start",
+            "POST /stop"
+          ]
+        },
+        {
+          "prefix": "/api/v1/ws",
+          "endpoints": [
+            "WS /progress"
+          ]
+        }
+      ],
+      "pydantic_models": [
+        "ApiResponse",
+        "ErrorResponse",
+        "PaginatedResponse",
+        "MessageModel",
+        "SearchRequest",
+        "SearchResult",
+        "SystemStatus",
+        "DialogInfo",
+        "ConfigModel",
+        "SendCodeRequest",
+        "SignInRequest",
+        "AuthUserInfo"
+      ]
+    },
+    {
       "name": "tests",
       "path": "tests",
       "type": "testing",
@@ -139,32 +237,45 @@
         "test_logger.py",
         "test_tg_client.py",
         "test_meilisearch.py",
+        "test_api.py",
+        "test_api_integration.py",
         "get_session_file.py",
         "get_str_session.py",
         "delete_all_contain_keyword.py"
       ],
-      "description": "测试套件，包含单元测试、集成测试和测试工具脚本",
+      "description": "测试套件，包含单元测试、API测试、集成测试和测试工具脚本",
       "test_framework": "pytest",
       "test_coverage": [
         "MeiliSearchClient CRUD operations",
         "Exception handling",
         "Permissions",
         "Formatters",
-        "Configuration validation"
+        "Configuration validation",
+        "FastAPI endpoints",
+        "Pydantic models",
+        "ProgressRegistry"
       ],
       "fixtures": [
         "mock_meilisearch_client",
         "mock_index",
         "sample_documents",
         "mock_logger",
-        "mock_telegram_client"
+        "mock_telegram_client",
+        "mock_app_state",
+        "test_client"
       ]
     }
   ],
   "entry_points": {
     "cli": "tg_search.__main__:main",
     "module": "python -m tg_search",
+    "api": "tg_search.api.app:app",
     "flask_app": "tg_search.app:app"
+  },
+  "run_modes": {
+    "all": "python -m tg_search (default: API + Bot)",
+    "api-only": "python -m tg_search --mode api-only",
+    "bot-only": "python -m tg_search --mode bot-only"
   },
   "data_models": {
     "message_schema": {
@@ -203,7 +314,8 @@
     "*.log",
     "session/*.session",
     "session/*.session-journal",
-    ".ace-tool/**"
+    ".ace-tool/**",
+    "webui-example/**"
   ],
   "gaps": [],
   "next_steps": []
