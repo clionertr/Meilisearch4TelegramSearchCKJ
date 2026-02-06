@@ -1,6 +1,6 @@
 # 重构清单 - Meilisearch4TelegramSearchCKJ
 
-> 生成时间: 2026-02-05
+> 生成时间: 2026-02-05 (P0 计划更新: 2026-02-06)
 > 目标: 修复现有问题 + 添加 API 层 + WebUI + 包结构规范化
 
 ---
@@ -403,19 +403,128 @@ WS   /api/v1/ws/status
 ### Phase 4: WebUI 开发 (预计 5-7 天)
 
 > 目标: React 管理后台
+>
+> **当前状态**: `webui-example/` 已有高质量视觉原型，但与后端 API 完全断开
 
-| 序号 | 任务 | 说明 |
-|------|------|------|
-| 4.1 | 初始化 React + Vite 项目 | `frontend/` |
-| 4.2 | 配置 TailwindCSS | 样式框架 |
-| 4.3 | 实现搜索页面 | 搜索框 + 结果列表 + 分页 |
-| 4.4 | 实现配置页面 | 黑白名单管理 |
-| 4.5 | 实现状态页面 | 服务状态 + 下载进度 |
-| 4.6 | WebSocket 实时更新 | 状态页面实时刷新 |
-| 4.7 | Docker 多阶段构建 | 前后端一体镜像 |
-| 4.8 | 更新 docker-compose | 前后端 + MeiliSearch |
+#### 4.0 需求评估分析
 
-**检查点**: WebUI 可访问，功能与 Bot 一致
+##### 🔀 交叉验证结果
+
+**一致观点（强信号）**：
+1. 所有 8 个前端页面均为静态原型，无实际 API 调用
+2. 认证机制完全缺失 - 后端无 Auth API，前端 Login 页面无功能
+3. WebSocket 集成就绪 - 后端 `/api/v1/ws/status` 已实现，前端需接入
+4. 组件化需求迫切 - 存在大量重复的卡片、列表、表单代码
+5. 配置持久化缺失 - `/api/config` 仅内存修改，重启丢失
+
+**分歧点（需权衡）**：
+
+| 议题 | Codex 观点 | Gemini 观点 | 建议 |
+|------|-----------|-------------|------|
+| 认证方案 | API Key → 短期 token 交换 | 新增 /api/auth/* 接口 | ✅ 采用 Bearer Token（不透明随机字符串）|
+| 状态管理 | TanStack Query + Zustand | TanStack Query + WebSocket Context | ✅ TanStack Query + Zustand + WebSocket Hook |
+| Storage API | 新增统计/清理接口 | 基于现有 status 扩展 | 采用 Codex：需独立存储管理端点 |
+
+##### 📊 功能差距清单（按优先级）
+
+| 优先级 | 功能 | 前端工作 | 后端工作 |
+|-------|------|---------|---------|
+| P0 | Telegram 登录认证 | 多步验证 UI（手机号→验证码→2FA） | 新增 /api/v1/auth/send-code, /signin, /me |
+| P0 | Search 页面功能化 | 接入 /api/v1/search，渲染高亮 | 返回 _formatted 高亮字段 |
+| P0 | WebSocket 状态推送 | 集成实时进度更新 | 补齐 WS 鉴权（query token） |
+| P1 | Dashboard 真实数据 | 接入对话列表 + 活动流 | 新增 /api/v1/activity/recent |
+| P1 | 同步聊天管理 | 接入白/黑名单配置 | 补齐配置持久化到 MeiliSearch |
+| P1 | Storage 统计/清理 | 接入存储管理 | 新增 /api/v1/storage/stats, /cleanup |
+| P2 | AI 配置持久化 | 表单绑定 + 测试连接 | 新增 /api/v1/ai/config, /test |
+| P2 | 国际化支持 | i18n 框架集成 | - |
+
+##### 🔌 需要新增的后端 API
+
+| 端点 | 方法 | 功能 | 优先级 |
+|------|------|------|-------|
+| /api/v1/auth/send-code | POST | 发送 Telegram 验证码 | P0 | ✅ 进行中 |
+| /api/v1/auth/signin | POST | 验证登录（支持2FA） | P0 | ✅ 进行中 |
+| /api/v1/auth/me | GET | 获取当前用户信息 | P0 | ✅ 进行中 |
+| /api/v1/auth/logout | POST | 撤销 Token | P0 | ✅ 进行中 |
+| /api/v1/dialogs | GET | 获取全部对话列表（可选同步） | P1 |
+| /api/v1/dialogs/{id}/sync | POST | 启动/暂停单个对话同步 | P1 |
+| /api/v1/storage/stats | GET | 存储使用统计 | P1 |
+| /api/v1/storage/cleanup | POST | 执行清理操作 | P1 |
+| /api/v1/ai/config | GET/PUT | AI 配置读写 | P2 |
+| /api/v1/ai/test | POST | 测试 AI 连接 | P2 |
+| /api/v1/activity/recent | GET | 最近活动聚合 | P2 |
+
+##### 🧩 需要新增的前端组件
+
+| 组件 | 用途 | 复用页面 |
+|------|------|---------|
+| MessageCard | 搜索结果/消息展示 | Search, Dashboard |
+| ChatItem | 聊天列表项 | SyncedChats, SelectChats, Dashboard |
+| StatusBadge | 状态标签 | SyncedChats, Dashboard |
+| FormSection | 配置表单容器 | Settings, AIConfig, Storage |
+| DatePicker | 日期选择器 | Search 过滤 |
+| LoadingState | 加载骨架屏 | 所有页面 |
+| ErrorState | 错误提示 + 重试 | 所有页面 |
+| ProgressBar | 同步进度条 | SyncedChats, Dashboard |
+
+##### ⚠️ 风险与缓解措施
+
+| 风险 | 缓解措施 |
+|------|---------|
+| API Key 泄露 | 使用 HTTP-only Cookie 或 API Key → Token 交换 |
+| WebSocket 无鉴权 | 添加 query parameter token 验证 |
+| Telegram 2FA/FloodWait | 前端友好提示 + 后端重试机制 |
+| 配置丢失 | 持久化到 MeiliSearch config 索引 |
+
+---
+
+#### 4.1 渐进式集成方案（推荐）
+
+> **P0 实施计划详情**: 参见 [.claude/plan/phase4_p0_webui.md](.claude/plan/phase4_p0_webui.md)
+>
+> **确认的技术方案**:
+> - 认证: Bearer Token (不透明随机字符串, `secrets.token_urlsafe(32)`)
+> - 后端存储: 内存 (`auth_store.py`)
+> - 前端状态: Zustand + TanStack Query
+> - WebSocket 鉴权: query token (`?token=xxx`)
+
+**第一周：认证基础**
+
+| 序号 | 任务 | 涉及文件 |
+|------|------|----------|
+| 4.1.1 | 后端新增 Auth API | `src/tg_search/api/routes/auth.py` |
+| 4.1.2 | 前端 Login 多步验证流程 | `webui-example/src/pages/Login.tsx` |
+| 4.1.3 | 引入 TanStack Query | `webui-example/src/lib/api.ts` |
+| 4.1.4 | 认证状态管理 (Zustand) | `webui-example/src/stores/auth.ts` |
+
+**第二周：核心功能**
+
+| 序号 | 任务 | 涉及文件 |
+|------|------|----------|
+| 4.2.1 | Search 页面接入 API | `webui-example/src/pages/Search.tsx` |
+| 4.2.2 | WebSocket Hook 封装 | `webui-example/src/hooks/useWebSocket.ts` |
+| 4.2.3 | 抽取 MessageCard 组件 | `webui-example/src/components/MessageCard.tsx` |
+| 4.2.4 | 抽取 ChatItem 组件 | `webui-example/src/components/ChatItem.tsx` |
+
+**第三周：管理功能**
+
+| 序号 | 任务 | 涉及文件 |
+|------|------|----------|
+| 4.3.1 | Dashboard 接入真实数据 | `webui-example/src/pages/Dashboard.tsx` |
+| 4.3.2 | SyncedChats 功能化 | `webui-example/src/pages/SyncedChats.tsx` |
+| 4.3.3 | 后端 Storage API | `src/tg_search/api/routes/storage.py` |
+| 4.3.4 | 配置持久化到 MeiliSearch | `src/tg_search/core/meilisearch.py` |
+
+**第四周：完善优化**
+
+| 序号 | 任务 | 涉及文件 |
+|------|------|----------|
+| 4.4.1 | AI 配置页面功能化 | `webui-example/src/pages/AIConfig.tsx` |
+| 4.4.2 | 抽取通用组件 (LoadingState, ErrorState) | `webui-example/src/components/` |
+| 4.4.3 | Docker 多阶段构建 | `Dockerfile`, `docker-compose.yml` |
+| 4.4.4 | 端到端测试 | `tests/test_api.py` |
+
+**检查点**: WebUI 可访问，功能与 Bot 一致，认证流程完整
 
 ---
 
