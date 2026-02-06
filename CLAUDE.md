@@ -10,8 +10,9 @@
 
 ### 2026-02-06 13:48:06
 - 新增 **api** 模块文档（FastAPI REST API + WebSocket）
-- 更新模块结构图，添加 API 层
-- 更新项目统计：42 个 Python 文件（新增 15 个 API 相关文件）
+- 新增 **webui-example** 模块文档（React + TypeScript 前端）
+- 更新模块结构图，添加 API 层和 WebUI 层
+- 更新项目统计：42 个 Python 文件 + 23 个 TypeScript 文件
 - 更新测试覆盖：新增 test_api.py、test_api_integration.py
 - 更新入口点：新增 API 模式（all/api-only/bot-only）
 
@@ -111,6 +112,7 @@ graph TD
     B --> E["utils"];
     B --> G["api"];
     A --> F["tests"];
+    A --> H["webui-example"];
 
     C --> C1["settings.py<br/>配置管理"];
     D --> D1["bot.py<br/>Bot处理器"];
@@ -125,12 +127,17 @@ graph TD
     G --> G2["routes/<br/>API路由"];
     G --> G3["models.py<br/>Pydantic模型"];
     G --> G4["auth_store.py<br/>认证存储"];
+    H --> H1["pages/<br/>页面组件"];
+    H --> H2["src/api/<br/>API层"];
+    H --> H3["src/store/<br/>状态管理"];
+    H --> H4["src/hooks/<br/>React Hooks"];
 
     click C "./src/tg_search/config/CLAUDE.md" "查看 config 模块文档"
     click D "./src/tg_search/core/CLAUDE.md" "查看 core 模块文档"
     click E "./src/tg_search/utils/CLAUDE.md" "查看 utils 模块文档"
     click G "./src/tg_search/api/CLAUDE.md" "查看 api 模块文档"
     click F "./tests/CLAUDE.md" "查看 tests 模块文档"
+    click H "./webui-example/CLAUDE.md" "查看 webui-example 模块文档"
 ```
 
 ---
@@ -144,6 +151,7 @@ graph TD
 | **utils** | `src/tg_search/utils/` | 通用工具函数（格式化/权限/追踪） | [查看文档](./src/tg_search/utils/CLAUDE.md) |
 | **api** | `src/tg_search/api/` | FastAPI REST API 与 WebSocket | [查看文档](./src/tg_search/api/CLAUDE.md) |
 | **tests** | `tests/` | 单元测试与集成测试 | [查看文档](./tests/CLAUDE.md) |
+| **webui-example** | `webui-example/` | React + TypeScript 前端界面 | [查看文档](./webui-example/CLAUDE.md) |
 
 ---
 

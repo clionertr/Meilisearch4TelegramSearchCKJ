@@ -8,12 +8,13 @@
     "url": "https://github.com/clionertr/Meilisearch4TelegramSearchCKJ"
   },
   "statistics": {
-    "total_files_estimated": 42,
-    "scanned_files": 42,
+    "total_files_estimated": 65,
+    "scanned_files": 65,
     "python_files": 42,
+    "typescript_files": 23,
     "config_files": 3,
     "docker_files": 2,
-    "markdown_files": 7,
+    "markdown_files": 8,
     "coverage_percentage": 100,
     "truncated": false
   },
@@ -264,6 +265,82 @@
         "mock_app_state",
         "test_client"
       ]
+    },
+    {
+      "name": "webui-example",
+      "path": "webui-example",
+      "type": "frontend",
+      "entry_points": ["index.tsx", "App.tsx"],
+      "files": [
+        "index.tsx",
+        "App.tsx",
+        "types.ts",
+        "vite.config.ts",
+        "package.json",
+        "components/BottomNav.tsx",
+        "components/DonutChart.tsx",
+        "pages/Login.tsx",
+        "pages/Dashboard.tsx",
+        "pages/Search.tsx",
+        "pages/Settings.tsx",
+        "pages/Storage.tsx",
+        "pages/SyncedChats.tsx",
+        "pages/SelectChats.tsx",
+        "pages/AIConfig.tsx",
+        "services/geminiService.ts",
+        "src/api/client.ts",
+        "src/api/auth.ts",
+        "src/api/search.ts",
+        "src/store/authStore.ts",
+        "src/store/statusStore.ts",
+        "src/hooks/useAuth.ts",
+        "src/hooks/useSearch.ts",
+        "src/hooks/useWebSocket.ts",
+        "src/components/common/ProtectedRoute.tsx",
+        "src/components/common/Highlight.tsx"
+      ],
+      "description": "React + TypeScript 前端界面，提供移动优先的 Telegram 消息搜索体验",
+      "dependencies": [
+        "react",
+        "react-dom",
+        "react-router-dom",
+        "@tanstack/react-query",
+        "zustand",
+        "axios",
+        "react-use-websocket",
+        "@google/genai",
+        "vite"
+      ],
+      "key_components": [
+        "App",
+        "ProtectedRoute",
+        "BottomNav",
+        "Highlight"
+      ],
+      "pages": [
+        "Login",
+        "Dashboard",
+        "Search",
+        "Settings",
+        "Storage",
+        "SyncedChats",
+        "SelectChats",
+        "AIConfig"
+      ],
+      "stores": [
+        "authStore (zustand + persist)",
+        "statusStore (zustand)"
+      ],
+      "api_modules": [
+        "client.ts (axios instance + interceptors)",
+        "auth.ts (sendCode, signIn, me, logout)",
+        "search.ts (search)"
+      ],
+      "hooks": [
+        "useAuth",
+        "useSearch",
+        "useWebSocket (useStatusWebSocket)"
+      ]
     }
   ],
   "entry_points": {
@@ -315,7 +392,7 @@
     "session/*.session",
     "session/*.session-journal",
     ".ace-tool/**",
-    "webui-example/**"
+    "webui-example/node_modules/**"
   ],
   "gaps": [],
   "next_steps": []
