@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 
 from tg_search.api.deps import get_app_state
 from tg_search.api.state import AppState
+from tg_search.config.settings import API_KEY
 from tg_search.core.logger import setup_logger
 
 logger = setup_logger()
@@ -97,15 +98,41 @@ async def websocket_status(websocket: WebSocket):
     """
     WebSocket 状态推送端点
 
+    认证方式：query parameter `token`
+    示例：ws://localhost:8000/api/v1/ws/status?token=xxx
+
     客户端连接后会收到：
     - 连接成功消息
     - 定期状态更新（每 5 秒）
     - 下载进度事件
     """
-    client_ip = await manager.connect(websocket)
-
     # 从 app 获取状态（需要特殊处理，WebSocket 没有 Request）
     app_state: AppState = websocket.app.state.app_state
+
+    # Token 验证（如果 API_KEY 已配置）
+    if API_KEY is not None:
+        token = websocket.query_params.get("token")
+
+        if not token:
+            await websocket.close(code=4401, reason="Token required")
+            logger.warning("WebSocket connection rejected: missing token")
+            return
+
+        # 验证 token
+        if app_state.auth_store is not None:
+            auth_token = await app_state.auth_store.validate_token(token)
+            if auth_token is None:
+                await websocket.close(code=4401, reason="Invalid or expired token")
+                logger.warning("WebSocket connection rejected: invalid token")
+                return
+        else:
+            # AuthStore 未初始化，拒绝连接
+            await websocket.close(code=4503, reason="Auth service unavailable")
+            logger.error("WebSocket connection rejected: AuthStore not initialized")
+            return
+
+    # 接受连接
+    client_ip = await manager.connect(websocket)
 
     # 订阅进度更新
     progress_queue = app_state.progress_registry.subscribe()

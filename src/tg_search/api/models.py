@@ -77,6 +77,9 @@ class MessageModel(BaseModel):
     reactions: Dict[str, int] = Field(default_factory=dict)
     reactions_scores: float = 0.0
     text_len: int = 0
+    # 高亮字段（来自 MeiliSearch _formatted）
+    formatted: Optional[Dict[str, Any]] = Field(default=None, description="MeiliSearch _formatted 原始对象")
+    formatted_text: Optional[str] = Field(default=None, description="高亮后的文本（带 HTML 标签）")
 
 
 # ============ 搜索相关 ============
@@ -207,3 +210,61 @@ class ProgressEvent(BaseModel):
     total: int
     percentage: float
     status: str  # 'downloading' | 'completed' | 'failed'
+
+
+# ============ 认证相关 ============
+
+
+class AuthUserInfo(BaseModel):
+    """认证用户信息"""
+
+    id: int
+    username: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+
+
+class SendCodeRequest(BaseModel):
+    """发送验证码请求"""
+
+    phone_number: str = Field(..., description="手机号（国际格式，如 +8613800138000）")
+    force_sms: bool = Field(default=False, description="强制使用短信发送")
+
+
+class SendCodeResponse(BaseModel):
+    """发送验证码响应"""
+
+    auth_session_id: str = Field(..., description="认证会话 ID")
+    expires_in: int = Field(..., description="会话过期时间（秒）")
+    phone_number_masked: str = Field(..., description="脱敏后的手机号")
+
+
+class SignInRequest(BaseModel):
+    """登录请求"""
+
+    auth_session_id: str = Field(..., description="认证会话 ID")
+    phone_number: str = Field(..., description="手机号")
+    code: str = Field(..., description="验证码")
+    password: Optional[str] = Field(default=None, description="两步验证密码（如果启用）")
+
+
+class SignInResponse(BaseModel):
+    """登录响应"""
+
+    token: str = Field(..., description="Bearer Token")
+    token_type: str = Field(default="Bearer", description="Token 类型")
+    expires_in: int = Field(..., description="Token 过期时间（秒）")
+    user: AuthUserInfo = Field(..., description="用户信息")
+
+
+class MeResponse(BaseModel):
+    """当前用户信息响应"""
+
+    user: AuthUserInfo = Field(..., description="用户信息")
+    token_expires_at: datetime = Field(..., description="Token 过期时间")
+
+
+class LogoutResponse(BaseModel):
+    """登出响应"""
+
+    revoked: bool = Field(..., description="是否成功撤销")

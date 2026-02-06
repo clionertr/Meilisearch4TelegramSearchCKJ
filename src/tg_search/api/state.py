@@ -7,7 +7,10 @@
 import asyncio
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, Optional, Set
+from typing import TYPE_CHECKING, Any, Dict, Optional, Set
+
+if TYPE_CHECKING:
+    from tg_search.api.auth_store import AuthStore
 
 
 @dataclass
@@ -184,6 +187,8 @@ class AppState:
         self.bot_task: Optional[asyncio.Task] = None
         self.progress_registry: ProgressRegistry = ProgressRegistry()
         self.api_only: bool = False
+        # 认证存储（在 lifespan 中初始化）
+        self.auth_store: Optional["AuthStore"] = None
 
     @property
     def uptime_seconds(self) -> float:

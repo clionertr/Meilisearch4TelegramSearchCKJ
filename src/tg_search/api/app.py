@@ -17,6 +17,7 @@ from fastapi.responses import JSONResponse
 from tg_search.api.models import ErrorResponse
 from tg_search.api.routes import api_router
 from tg_search.api.state import AppState
+from tg_search.api.auth_store import AuthStore
 from tg_search.core.logger import setup_logger
 from tg_search.core.meilisearch import (
     MeiliSearchAPIError,
@@ -42,6 +43,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # 创建应用状态
     app_state = AppState()
     app_state.start_time = datetime.utcnow()
+
+    # 初始化 AuthStore
+    app_state.auth_store = AuthStore()
+    await app_state.auth_store.start_cleanup_task()
+    logger.info("AuthStore initialized")
 
     # 初始化 MeiliSearch 客户端
     try:
@@ -82,6 +88,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     yield
 
     # 清理资源
+    if app_state.auth_store is not None:
+        await app_state.auth_store.stop_cleanup_task()
+        logger.info("AuthStore cleanup task stopped")
+
     if app_state.bot_task is not None and not app_state.bot_task.done():
         app_state.bot_task.cancel()
         try:

@@ -4,16 +4,18 @@
 提供 FastAPI 依赖注入函数
 """
 
+from dataclasses import dataclass
 from functools import partial
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Literal, Optional
 
 import anyio
-from fastapi import Depends, HTTPException, Request
+from fastapi import Depends, Header, HTTPException, Request
 from fastapi.security import APIKeyHeader
 
 from tg_search.config.settings import API_KEY, API_KEY_HEADER
 
 if TYPE_CHECKING:
+    from tg_search.api.auth_store import AuthStore, AuthToken
     from tg_search.api.state import AppState, ProgressRegistry
     from tg_search.core.meilisearch import MeiliSearchClient
 
@@ -130,3 +132,132 @@ def get_meili_async(
 ) -> MeiliSearchAsync:
     """获取异步 MeiliSearch 包装器"""
     return MeiliSearchAsync(meili_client)
+
+
+# ============ AuthStore 依赖 ============
+
+
+def get_auth_store(request: Request) -> "AuthStore":
+    """获取 AuthStore"""
+    app_state = get_app_state(request)
+    if app_state.auth_store is None:
+        raise HTTPException(status_code=503, detail="AuthStore not initialized")
+    return app_state.auth_store
+
+
+def parse_bearer_token(authorization: Optional[str]) -> Optional[str]:
+    """
+    从 Authorization header 解析 Bearer token
+
+    Args:
+        authorization: Authorization header 值
+
+    Returns:
+        解析出的 token 或 None
+    """
+    if authorization is None:
+        return None
+    parts = authorization.split()
+    if len(parts) != 2 or parts[0].lower() != "bearer":
+        return None
+    return parts[1]
+
+
+async def verify_bearer_token(
+    request: Request,
+    authorization: Optional[str] = Header(None, alias="Authorization"),
+) -> "AuthToken":
+    """
+    验证 Bearer Token（仅限 Bearer Token，不接受 API Key）
+
+    用于需要用户登录的端点（如 /auth/me, /auth/logout）
+
+    Returns:
+        AuthToken 对象
+
+    Raises:
+        HTTPException: 401 认证失败
+    """
+    from tg_search.api.auth_store import AuthToken
+
+    token = parse_bearer_token(authorization)
+
+    if token is None:
+        raise HTTPException(
+            status_code=401,
+            detail={
+                "error_code": "TOKEN_MISSING",
+                "message": "Bearer token required. Please provide it in the 'Authorization' header.",
+            },
+        )
+
+    auth_store = get_auth_store(request)
+    auth_token = await auth_store.validate_token(token)
+
+    if auth_token is None:
+        raise HTTPException(
+            status_code=401,
+            detail={
+                "error_code": "TOKEN_INVALID",
+                "message": "Invalid or expired token.",
+            },
+        )
+
+    return auth_token
+
+
+# ============ 双通道鉴权 ============
+
+
+@dataclass
+class AuthContext:
+    """认证上下文"""
+
+    auth_type: Literal["api_key", "bearer", "none"]
+    user: Optional["AuthToken"] = None
+
+
+async def verify_api_key_or_bearer_token(
+    request: Request,
+    api_key: Optional[str] = Depends(api_key_header),
+    authorization: Optional[str] = Header(None, alias="Authorization"),
+) -> AuthContext:
+    """
+    双通道鉴权：API Key 或 Bearer Token 任意通过
+
+    优先级：
+    1. 如果未配置 API_KEY，直接通过（开发模式）
+    2. 如果提供了有效的 Bearer Token，通过
+    3. 如果提供了有效的 API Key，通过
+    4. 否则返回 401
+
+    Returns:
+        AuthContext 包含认证类型和用户信息
+
+    Raises:
+        HTTPException: 401 认证失败
+    """
+    # 开发模式：未配置 API_KEY 则跳过认证
+    if API_KEY is None:
+        return AuthContext(auth_type="none")
+
+    # 尝试 Bearer Token 认证
+    token = parse_bearer_token(authorization)
+    if token is not None:
+        auth_store = get_auth_store(request)
+        auth_token = await auth_store.validate_token(token)
+        if auth_token is not None:
+            return AuthContext(auth_type="bearer", user=auth_token)
+
+    # 尝试 API Key 认证
+    if api_key is not None and api_key == API_KEY:
+        return AuthContext(auth_type="api_key")
+
+    # 都失败了，返回 401
+    raise HTTPException(
+        status_code=401,
+        detail={
+            "error_code": "UNAUTHORIZED",
+            "message": "Valid API Key or Bearer token required.",
+        },
+    )

@@ -107,6 +107,12 @@ def _parse_message(hit: dict) -> MessageModel:
     except (ValueError, AttributeError):
         date = datetime.utcnow()
 
+    # 提取 _formatted 高亮字段
+    formatted = hit.get("_formatted")
+    formatted_text = None
+    if formatted:
+        formatted_text = formatted.get("text")
+
     return MessageModel(
         id=hit.get("id", ""),
         chat=chat,
@@ -116,6 +122,8 @@ def _parse_message(hit: dict) -> MessageModel:
         reactions=hit.get("reactions") or {},
         reactions_scores=hit.get("reactions_scores") or 0.0,
         text_len=hit.get("text_len") or len(hit.get("text", "")),
+        formatted=formatted,
+        formatted_text=formatted_text,
     )
 
 
