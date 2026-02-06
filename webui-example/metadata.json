@@ -1,0 +1,5 @@
+{
+  "name": "TeleMemory",
+  "description": "A local-first memory index for your chats, featuring AI summaries, semantic search, and storage management.",
+  "requestFramePermissions": []
+}
