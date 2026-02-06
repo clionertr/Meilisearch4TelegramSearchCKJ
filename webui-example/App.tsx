@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { HashRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { HashRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import BottomNav from './components/BottomNav';
 import Dashboard from './pages/Dashboard';
@@ -13,6 +13,7 @@ import AIConfig from './pages/AIConfig';
 import { ProtectedRoute } from './src/components/common/ProtectedRoute';
 import { useStatusWebSocket } from './src/hooks/useWebSocket';
 import { useStatusStore } from './src/store/statusStore';
+import { AUTH_EXPIRED_EVENT } from './src/api/client';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -27,12 +28,25 @@ const AppContent: React.FC = () => {
   const { lastMessage } = useStatusWebSocket();
   const updateTask = useStatusStore((state) => state.updateTask);
   const location = useLocation();
+  const navigate = useNavigate();
 
+  // Handle WebSocket status updates
   useEffect(() => {
     if (lastMessage && (lastMessage as any).task_id) {
       updateTask(lastMessage as any);
     }
   }, [lastMessage, updateTask]);
+
+  // Listen for auth expiration event (from API client)
+  useEffect(() => {
+    const handleAuthExpired = () => {
+      navigate('/login');
+    };
+    window.addEventListener(AUTH_EXPIRED_EVENT, handleAuthExpired);
+    return () => {
+      window.removeEventListener(AUTH_EXPIRED_EVENT, handleAuthExpired);
+    };
+  }, [navigate]);
 
   const showBottomNav = location.pathname !== '/login';
 

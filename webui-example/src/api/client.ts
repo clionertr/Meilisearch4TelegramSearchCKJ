@@ -8,6 +8,13 @@ export const api = axios.create({
   timeout: 30000,
 });
 
+// Custom event for auth expiration (allows App.tsx to handle navigation)
+export const AUTH_EXPIRED_EVENT = 'auth:expired';
+
+export const dispatchAuthExpired = () => {
+  window.dispatchEvent(new CustomEvent(AUTH_EXPIRED_EVENT));
+};
+
 // Request interceptor: add Bearer Token from Zustand store
 api.interceptors.request.use((config) => {
   const token = useAuthStore.getState().token;
@@ -17,13 +24,14 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Response interceptor: handle 401 redirect to login
+// Response interceptor: handle 401 by dispatching event (decoupled from router)
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
       useAuthStore.getState().logout();
-      window.location.href = '/#/login';
+      // Dispatch event instead of direct navigation (SPA-friendly)
+      dispatchAuthExpired();
     }
     return Promise.reject(error);
   }
