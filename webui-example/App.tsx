@@ -12,7 +12,7 @@ import Storage from './pages/Storage';
 import AIConfig from './pages/AIConfig';
 import { ProtectedRoute } from './src/components/common/ProtectedRoute';
 import { useStatusWebSocket } from './src/hooks/useWebSocket';
-import { useStatusStore } from './src/store/statusStore';
+import { ProgressData, useStatusStore } from './src/store/statusStore';
 import { AUTH_EXPIRED_EVENT } from './src/api/client';
 
 const queryClient = new QueryClient({
@@ -32,8 +32,9 @@ const AppContent: React.FC = () => {
 
   // Handle WebSocket status updates
   useEffect(() => {
-    if (lastMessage && (lastMessage as any).task_id) {
-      updateTask(lastMessage as any);
+    const message = lastMessage as { type?: string; data?: ProgressData } | null;
+    if (message?.type === 'progress' && message.data?.dialog_id) {
+      updateTask(message.data);
     }
   }, [lastMessage, updateTask]);
 

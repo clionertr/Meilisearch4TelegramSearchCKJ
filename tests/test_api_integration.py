@@ -15,6 +15,11 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
+# Integration tests must not run by default in CI/unit-test environments.
+# Enable explicitly via: RUN_INTEGRATION_TESTS=true
+if os.getenv("RUN_INTEGRATION_TESTS", "").lower() not in ("1", "true", "yes"):
+    pytest.skip("Integration tests are disabled. Set RUN_INTEGRATION_TESTS=true to enable.", allow_module_level=True)
+
 # 设置环境变量用于真实环境测试
 # 注意：需要确保 MEILI_HOST 和 MEILI_MASTER_KEY 已正确配置
 os.environ.setdefault("SKIP_CONFIG_VALIDATION", "false")

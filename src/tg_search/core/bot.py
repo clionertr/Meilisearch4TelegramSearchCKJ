@@ -162,7 +162,7 @@ class BotHandler:
 
     async def get_search_results(self, query, limit=10, offset=0, index_name="telegram"):
         try:
-            results = self.meili.search(query, index_name, limit=limit, offset=offset)
+            results = await asyncio.to_thread(self.meili.search, query, index_name, limit=limit, offset=offset)
             return results["hits"] if results["hits"] else None
         except Exception as e:
             self.logger.error(f"MeiliSearch query error: {e}")
@@ -202,7 +202,7 @@ class BotHandler:
             query = ast.literal_eval(event.pattern_match.group(1))
             config = read_config_from_meili(self.meili)
             config["WHITE_LIST"] = query
-            self.meili.add_documents([config], "config")
+            await asyncio.to_thread(self.meili.add_documents, [config], "config")
             await event.reply(f"白名单设置为: {query}")
         except Exception as e:
             await event.reply(f"Error: {e}")
@@ -216,7 +216,7 @@ class BotHandler:
             query = ast.literal_eval(event.pattern_match.group(1))
             config = read_config_from_meili(self.meili)
             config["BLACK_LIST"] = query
-            self.meili.add_documents([config], "config")
+            await asyncio.to_thread(self.meili.add_documents, [config], "config")
             await event.reply(f"黑名单设置为: {query}")
         except Exception as e:
             await event.reply(f"Error: {e}")
@@ -246,7 +246,7 @@ class BotHandler:
     @set_permission
     async def ping_handler(self, event):
         text = "Pong!\n"
-        stats = self.meili.client.get_all_stats()
+        stats = await asyncio.to_thread(self.meili.client.get_all_stats)
         size = stats["databaseSize"]
         last_update = stats["lastUpdate"]
         for uid, index in stats["indexes"].items():

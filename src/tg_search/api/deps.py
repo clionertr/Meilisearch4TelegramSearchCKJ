@@ -4,11 +4,12 @@
 提供 FastAPI 依赖注入函数
 """
 
+import asyncio
+import os
 from dataclasses import dataclass
 from functools import partial
 from typing import TYPE_CHECKING, Any, Literal, Optional
 
-import anyio
 from fastapi import Depends, Header, HTTPException, Request
 from fastapi.security import APIKeyHeader
 
@@ -64,22 +65,22 @@ async def verify_api_key(api_key: Optional[str] = Depends(api_key_header)) -> Op
     return api_key
 
 
-def get_app_state(request: Request) -> "AppState":
+async def get_app_state(request: Request) -> "AppState":
     """获取应用状态"""
     return request.app.state.app_state
 
 
-def get_meili_client(request: Request) -> "MeiliSearchClient":
+async def get_meili_client(request: Request) -> "MeiliSearchClient":
     """获取 MeiliSearch 客户端"""
-    app_state = get_app_state(request)
+    app_state = await get_app_state(request)
     if app_state.meili_client is None:
         raise HTTPException(status_code=503, detail="MeiliSearch client not initialized")
     return app_state.meili_client
 
 
-def get_progress_registry(request: Request) -> "ProgressRegistry":
+async def get_progress_registry(request: Request) -> "ProgressRegistry":
     """获取进度注册表"""
-    app_state = get_app_state(request)
+    app_state = await get_app_state(request)
     return app_state.progress_registry
 
 
@@ -97,7 +98,12 @@ async def run_sync_in_thread(func: Any, *args: Any, **kwargs: Any) -> Any:
     Returns:
         函数执行结果
     """
-    return await anyio.to_thread.run_sync(partial(func, *args, **kwargs))
+    # Escape hatch for unit tests / constrained environments.
+    # When enabled, sync calls will run in the event loop thread (may block in production).
+    if os.getenv("DISABLE_THREAD_OFFLOAD", "").lower() in ("1", "true", "yes"):
+        return func(*args, **kwargs)
+
+    return await asyncio.to_thread(partial(func, *args, **kwargs))
 
 
 class MeiliSearchAsync:
@@ -127,7 +133,7 @@ class MeiliSearchAsync:
         return await run_sync_in_thread(self._client.delete_documents, document_ids, index_name)
 
 
-def get_meili_async(
+async def get_meili_async(
     meili_client: "MeiliSearchClient" = Depends(get_meili_client),
 ) -> MeiliSearchAsync:
     """获取异步 MeiliSearch 包装器"""
@@ -137,9 +143,9 @@ def get_meili_async(
 # ============ AuthStore 依赖 ============
 
 
-def get_auth_store(request: Request) -> "AuthStore":
+async def get_auth_store(request: Request) -> "AuthStore":
     """获取 AuthStore"""
-    app_state = get_app_state(request)
+    app_state = await get_app_state(request)
     if app_state.auth_store is None:
         raise HTTPException(status_code=503, detail="AuthStore not initialized")
     return app_state.auth_store
@@ -191,7 +197,7 @@ async def verify_bearer_token(
             },
         )
 
-    auth_store = get_auth_store(request)
+    auth_store = await get_auth_store(request)
     auth_token = await auth_store.validate_token(token)
 
     if auth_token is None:
@@ -244,7 +250,7 @@ async def verify_api_key_or_bearer_token(
     # 尝试 Bearer Token 认证
     token = parse_bearer_token(authorization)
     if token is not None:
-        auth_store = get_auth_store(request)
+        auth_store = await get_auth_store(request)
         auth_token = await auth_store.validate_token(token)
         if auth_token is not None:
             return AuthContext(auth_type="bearer", user=auth_token)

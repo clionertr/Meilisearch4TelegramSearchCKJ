@@ -60,6 +60,8 @@ RETRYABLE_EXCEPTIONS = (
     TimeoutError,
     requests.exceptions.ConnectionError,
     requests.exceptions.Timeout,
+    # MeiliSearch Python SDK wraps requests failures into CommunicationError
+    meilisearch.errors.MeilisearchCommunicationError,
 )
 
 
@@ -83,6 +85,11 @@ def _handle_meilisearch_exception(e: Exception, operation: str, index_name: Opti
     if isinstance(e, (TimeoutError, requests.exceptions.Timeout, requests.exceptions.ReadTimeout)):
         logger.error(f"[{operation}] Timeout error{context}: {str(e)}")
         raise MeiliSearchTimeoutError(f"MeiliSearch 请求超时: {str(e)}") from e
+
+    # SDK 通信错误（通常是连接/网络类错误的包装）
+    if isinstance(e, meilisearch.errors.MeilisearchCommunicationError):
+        logger.error(f"[{operation}] Communication error{context}: {str(e)}")
+        raise MeiliSearchConnectionError(f"无法连接到 MeiliSearch: {str(e)}") from e
 
     # 连接错误
     if isinstance(e, (ConnectionError, requests.exceptions.ConnectionError, OSError)):
@@ -124,6 +131,9 @@ class MeiliSearchClient:
         except meilisearch.errors.MeilisearchApiError as e:
             logger.error(f"Failed to connect to MeiliSearch: {str(e)}")
             raise MeiliSearchAPIError(f"API 错误: {str(e)}") from e
+        except meilisearch.errors.MeilisearchCommunicationError as e:
+            logger.error(f"Failed to connect to MeiliSearch: {str(e)}")
+            raise MeiliSearchConnectionError(f"无法连接到 MeiliSearch: {str(e)}") from e
         except (ConnectionError, requests.exceptions.ConnectionError) as e:
             logger.error(f"Failed to connect to MeiliSearch: {str(e)}")
             raise MeiliSearchConnectionError(f"无法连接到 MeiliSearch: {str(e)}") from e
@@ -220,10 +230,14 @@ class MeiliSearchClient:
         """
         try:
             index = self.client.index(index_name)
-            result = index.search(query, kwargs)
+            # MeiliSearch uses empty query for "match all"; allow callers to pass None.
+            q = query or ""
+            result = index.search(q, kwargs)
             logger.info(f"Search performed in index '{index_name}' with query '{query}'")
             return result
         except meilisearch.errors.MeilisearchApiError as e:
+            _handle_meilisearch_exception(e, "search", index_name)
+        except meilisearch.errors.MeilisearchCommunicationError as e:
             _handle_meilisearch_exception(e, "search", index_name)
         except Exception as e:
             _handle_meilisearch_exception(e, "search", index_name)

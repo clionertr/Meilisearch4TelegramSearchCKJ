@@ -11,6 +11,11 @@ import pytest
 # 在导入项目模块前设置测试环境变量
 os.environ["SKIP_CONFIG_VALIDATION"] = "true"
 os.environ["ENABLE_TRACEMALLOC"] = "false"
+# Ensure API app lifespan doesn't try to autostart Telegram background tasks during unit tests.
+os.environ.setdefault("API_ONLY", "true")
+os.environ.setdefault("DISABLE_BOT_AUTOSTART", "true")
+os.environ.setdefault("DISABLE_AUTH_CLEANUP_TASK", "true")
+os.environ.setdefault("DISABLE_THREAD_OFFLOAD", "true")
 
 # 设置必填的环境变量（测试用假值）
 os.environ.setdefault("APP_ID", "12345678")

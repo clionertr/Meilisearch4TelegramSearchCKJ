@@ -2,7 +2,7 @@
 
 > WebUI 前端 - React + TypeScript + Vite 构建的 Telegram 消息搜索界面
 
-**生成时间**: 2026-02-06
+**生成时间**: 2026-02-06（最近同步: 2026-02-17）
 
 [返回根目录](../CLAUDE.md)
 
@@ -302,7 +302,7 @@ interface SearchResult {
 
 - 连接地址: `ws://host/api/v1/ws/status?token=xxx`
 - 自动重连 (3 秒间隔)
-- 消息格式: `{ task_id, status, progress, message }`
+- 消息格式: `{ type: "progress", data: { dialog_id, dialog_title, current, total, percentage, status } }`
 
 ---
 
@@ -314,7 +314,7 @@ interface SearchResult {
 |----------|----------|------|
 | `src/api/auth.ts` | `api/routes/auth.py` | 认证接口 |
 | `src/api/search.ts` | `api/routes/search.py` | 搜索接口 |
-| `src/hooks/useWebSocket.ts` | `api/routes/websocket.py` | 实时状态 |
+| `src/hooks/useWebSocket.ts` | `api/routes/ws.py` | 实时状态 |
 
 ---
 

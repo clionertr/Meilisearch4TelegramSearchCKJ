@@ -2,11 +2,18 @@
 
 > 基于 Telethon + MeiliSearch 的 Telegram 中文/日文/韩文 (CJK) 消息搜索解决方案
 
-**生成时间**: 2026-02-06
+**生成时间**: 2026-02-06（最近同步: 2026-02-17）
 
 ---
 
 ## 变更记录 (Changelog)
+
+### 2026-02-17
+- 同步重构进度：Phase 1-3 已完成，Phase 4 P0 已完成（主链路打通）
+- 修复 WebUI 搜索字段契约，前端对齐后端 `SearchResult`（`total_hits/chat/from_user/formatted_text`）
+- 修复 WebUI WebSocket 事件契约，前端按 `type=progress` + `data.dialog_id` 消费
+- 清理 Search 页重复防抖逻辑，统一为 300ms
+- 删除已冗余的阶段性计划文档 `.claude/plan/phase4_p0_webui.md`
 
 ### 2026-02-06 13:48:06
 - 新增 **api** 模块文档（FastAPI REST API + WebSocket）
@@ -356,7 +363,7 @@ ruff format src/
 
 | 路径 | 说明 |
 |------|------|
-| `/api/v1/ws/progress` | 实时下载进度推送 |
+| `/api/v1/ws/status` | 实时下载进度推送 |
 
 ### API 文档
 

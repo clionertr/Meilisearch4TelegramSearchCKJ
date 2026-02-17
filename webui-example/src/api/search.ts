@@ -7,20 +7,31 @@ export interface SearchRequest {
   chat_id?: number;
 }
 
-export interface SearchResult {
+interface ChatInfo {
   id: number;
-  chat_id: number;
-  chat_title: string;
-  sender_name: string;
+  type: string;
+  title?: string | null;
+  username?: string | null;
+}
+
+interface UserInfo {
+  id: number;
+  username?: string | null;
+}
+
+export interface SearchResult {
+  id: string;
+  chat: ChatInfo;
+  from_user?: UserInfo | null;
   text: string;
-  formatted_text: string;
+  formatted_text?: string | null;
   date: string;
-  message_id: number;
 }
 
 export interface SearchResponse {
   hits: SearchResult[];
-  total: number;
+  query: string;
+  total_hits: number;
   limit: number;
   offset: number;
   processing_time_ms: number;

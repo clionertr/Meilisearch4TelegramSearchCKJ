@@ -1,16 +1,21 @@
 import { create } from 'zustand';
 
-export interface ProgressEvent {
-  task_id: number;
+export interface ProgressData {
+  dialog_id: number;
+  dialog_title: string;
+  current: number;
+  total: number;
+  percentage: number;
   status: string;
-  progress: number;
-  message?: string;
+  started_at?: string;
+  updated_at?: string;
+  error?: string;
 }
 
 interface StatusState {
-  tasks: Record<number, ProgressEvent>;
+  tasks: Record<number, ProgressData>;
   overallStatus: 'idle' | 'syncing' | 'error';
-  updateTask: (event: ProgressEvent) => void;
+  updateTask: (event: ProgressData) => void;
   setOverallStatus: (status: 'idle' | 'syncing' | 'error') => void;
 }
 
@@ -18,7 +23,12 @@ export const useStatusStore = create<StatusState>((set) => ({
   tasks: {},
   overallStatus: 'idle',
   updateTask: (event) => set((state) => ({
-    tasks: { ...state.tasks, [event.task_id]: event }
+    tasks: { ...state.tasks, [event.dialog_id]: event },
+    overallStatus: event.status === 'failed'
+      ? 'error'
+      : event.status === 'downloading'
+        ? 'syncing'
+        : state.overallStatus,
   })),
   setOverallStatus: (status) => set({ overallStatus: status }),
 }));

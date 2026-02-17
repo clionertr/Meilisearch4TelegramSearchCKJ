@@ -12,15 +12,7 @@ const Search: React.FC = () => {
     useEffect(() => {
         const timer = setTimeout(() => {
             setDebouncedQuery(query);
-        }, 3000); // 300ms as requested in task description, wait, user said 300ms
-        return () => clearTimeout(timer);
-    }, [query]);
-
-    // Correction: the task said 300ms
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            setDebouncedQuery(query);
-        }, 300); 
+        }, 300);
         return () => clearTimeout(timer);
     }, [query]);
 
@@ -36,8 +28,8 @@ const Search: React.FC = () => {
         queryFn: ({ pageParam = 0 }) => 
             searchApi.search({ q: debouncedQuery, offset: pageParam, limit: 20 }),
         getNextPageParam: (lastPage) => {
-            const { offset, limit, total } = lastPage.data.data;
-            return offset + limit < total ? offset + limit : undefined;
+            const { offset, limit, total_hits } = lastPage.data.data;
+            return offset + limit < total_hits ? offset + limit : undefined;
         },
         enabled: debouncedQuery.length > 0,
         initialPageParam: 0,
@@ -47,7 +39,7 @@ const Search: React.FC = () => {
         return data?.pages.flatMap(page => page.data.data.hits) || [];
     }, [data]);
 
-    const totalResults = data?.pages[0]?.data.data.total || 0;
+    const totalResults = data?.pages[0]?.data.data.total_hits || 0;
 
     return (
         <div className="flex flex-col h-screen relative bg-background-light dark:bg-background-dark overflow-hidden">
@@ -121,22 +113,26 @@ const Search: React.FC = () => {
                         <div className="flex items-start gap-3 mb-3">
                             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-indigo-600 flex items-center justify-center shrink-0 shadow-lg shadow-indigo-500/20">
                                 <span className="text-white font-bold text-sm">
-                                    {result.chat_title.substring(0, 2).toUpperCase()}
+                                    {(result.chat.title || result.chat.username || 'NA').substring(0, 2).toUpperCase()}
                                 </span>
                             </div>
                             <div className="flex-1 min-w-0">
                                 <div className="flex justify-between items-start">
-                                    <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate">{result.chat_title}</h3>
+                                    <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate">
+                                        {result.chat.title || result.chat.username || `Chat ${result.chat.id}`}
+                                    </h3>
                                     <span className="text-xs text-slate-400 whitespace-nowrap">
                                         {new Date(result.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                     </span>
                                 </div>
-                                <p className="text-xs text-primary truncate">Sender: {result.sender_name}</p>
+                                <p className="text-xs text-primary truncate">
+                                    Sender: {result.from_user?.username || `User ${result.from_user?.id ?? 'Unknown'}`}
+                                </p>
                             </div>
                         </div>
                         <div className="relative pl-4 border-l-2 border-slate-200 dark:border-[#233f48] space-y-2.5">
                             <div className="text-sm text-slate-800 dark:text-slate-200 bg-primary/10 dark:bg-primary/5 -ml-4 pl-4 pr-2 py-2 rounded-r-lg border-l-2 border-primary">
-                                <Highlight html={result.formatted_text} />
+                                <Highlight html={result.formatted_text || result.text} />
                             </div>
                         </div>
                     </div>

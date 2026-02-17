@@ -6,15 +6,16 @@ API 测试模块
 
 # 设置测试环境变量
 import os
-from contextlib import contextmanager
 from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from dataclasses import dataclass
+from unittest.mock import patch
 
+import httpx
 import pytest
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
 
 os.environ["SKIP_CONFIG_VALIDATION"] = "true"
+os.environ["API_ONLY"] = "true"
+os.environ["DISABLE_BOT_AUTOSTART"] = "true"
 os.environ["MEILI_HOST"] = "http://localhost:7700"
 os.environ["MEILI_MASTER_KEY"] = "test_key"
 os.environ["APP_ID"] = "12345"
@@ -33,63 +34,95 @@ def mock_app_state():
     return state
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def mock_meili_client():
     """Mock MeiliSearch 客户端"""
-    mock = MagicMock()
-    mock.search.return_value = {
-        "hits": [
-            {
-                "id": "123-456",
-                "chat": {"id": 123, "type": "group", "title": "Test Group"},
-                "date": "2026-01-01T00:00:00+08:00",
-                "text": "Hello World",
-                "from_user": {"id": 789, "username": "testuser"},
-                "reactions": {"👍": 5},
-                "reactions_scores": 5.0,
-                "text_len": 11,
+    # Avoid MagicMock here: FastAPI runs MeiliSearch calls in a worker thread,
+    # and MagicMock can behave poorly across threads in some environments.
+
+    @dataclass
+    class FakeIndexStats:
+        number_of_documents: int = 1000
+        is_indexing: bool = False
+
+    class FakeMeiliClient:
+        def search(self, query, index_name="telegram", **kwargs):
+            return {
+                "hits": [
+                    {
+                        "id": "123-456",
+                        "chat": {"id": 123, "type": "group", "title": "Test Group"},
+                        "date": "2026-01-01T00:00:00+08:00",
+                        "text": "Hello World",
+                        "from_user": {"id": 789, "username": "testuser"},
+                        "reactions": {"👍": 5},
+                        "reactions_scores": 5.0,
+                        "text_len": 11,
+                    }
+                ],
+                "processingTimeMs": 10,
+                "estimatedTotalHits": 1,
             }
-        ],
-        "processingTimeMs": 10,
-        "estimatedTotalHits": 1,
-    }
-    mock.get_index_stats.return_value = MagicMock(
-        number_of_documents=1000,
-        is_indexing=False,
-    )
-    return mock
+
+        def get_index_stats(self, index_name="telegram"):
+            return FakeIndexStats()
+
+    return FakeMeiliClient()
 
 
-@pytest.fixture
-def test_client(mock_app_state, mock_meili_client):
-    """创建带有正确模拟状态的测试客户端"""
+@pytest.fixture(autouse=True)
+def _reset_config_lists():
+    """
+    Reset mutable settings between tests.
+
+    The API config endpoints mutate module-level lists (WHITE_LIST/BLACK_LIST/etc).
+    Without resetting, tests become order-dependent.
+    """
+    from tg_search.config import settings
+
+    white_list = settings.WHITE_LIST.copy()
+    black_list = settings.BLACK_LIST.copy()
+    owner_ids = settings.OWNER_IDS.copy()
+    yield
+    settings.WHITE_LIST[:] = white_list
+    settings.BLACK_LIST[:] = black_list
+    settings.OWNER_IDS[:] = owner_ids
+
+
+@pytest.fixture(scope="module")
+async def test_client(mock_meili_client):
+    """
+    创建带有正确模拟状态的测试客户端。
+
+    Note: starlette/fastapi TestClient 在某些受限环境里会卡死（线程/portal相关），
+    这里用 httpx.AsyncClient + ASGITransport 并显式运行 FastAPI lifespan。
+    """
     with patch("tg_search.api.app.MeiliSearchClient", return_value=mock_meili_client):
-        from tg_search.api.app import build_app
+        from tg_search.api.app import build_app, lifespan
 
         app = build_app()
-
-        # 使用 TestClient 的 lifespan
-        with TestClient(app) as client:
-            # lifespan 会被执行，app_state 会被创建
-            # 替换 meili_client 为 mock
-            app.state.app_state.meili_client = mock_meili_client
-            yield client
+        async with lifespan(app):
+            transport = httpx.ASGITransport(app=app, raise_app_exceptions=True)
+            async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+                # lifespan 会被执行，app_state 会被创建；确保 meili_client 为 mock
+                app.state.app_state.meili_client = mock_meili_client
+                yield client
 
 
 class TestHealthCheck:
     """健康检查端点测试"""
 
-    def test_health_check(self, test_client):
+    async def test_health_check(self, test_client):
         """测试健康检查端点"""
-        response = test_client.get("/health")
+        response = await test_client.get("/health")
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "ok"
         assert "timestamp" in data
 
-    def test_root_endpoint(self, test_client):
+    async def test_root_endpoint(self, test_client):
         """测试根端点"""
-        response = test_client.get("/")
+        response = await test_client.get("/")
         assert response.status_code == 200
         data = response.json()
         assert data["name"] == "Telegram Search API"
@@ -100,17 +133,17 @@ class TestHealthCheck:
 class TestSearchAPI:
     """搜索 API 测试"""
 
-    def test_search_messages(self, test_client):
+    async def test_search_messages(self, test_client):
         """测试消息搜索"""
-        response = test_client.get("/api/v1/search?q=hello")
+        response = await test_client.get("/api/v1/search?q=hello")
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
         assert "data" in data
 
-    def test_search_with_filters(self, test_client):
+    async def test_search_with_filters(self, test_client):
         """测试带过滤条件的搜索"""
-        response = test_client.get(
+        response = await test_client.get(
             "/api/v1/search",
             params={
                 "q": "test",
@@ -121,9 +154,9 @@ class TestSearchAPI:
         )
         assert response.status_code == 200
 
-    def test_search_stats(self, test_client):
+    async def test_search_stats(self, test_client):
         """测试搜索统计"""
-        response = test_client.get("/api/v1/search/stats")
+        response = await test_client.get("/api/v1/search/stats")
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
@@ -132,9 +165,9 @@ class TestSearchAPI:
 class TestConfigAPI:
     """配置 API 测试"""
 
-    def test_get_config(self, test_client):
+    async def test_get_config(self, test_client):
         """测试获取配置"""
-        response = test_client.get("/api/v1/config")
+        response = await test_client.get("/api/v1/config")
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
@@ -142,9 +175,9 @@ class TestConfigAPI:
         assert "white_list" in data["data"]
         assert "black_list" in data["data"]
 
-    def test_add_to_whitelist(self, test_client):
+    async def test_add_to_whitelist(self, test_client):
         """测试添加白名单"""
-        response = test_client.post(
+        response = await test_client.post(
             "/api/v1/config/whitelist",
             json={"ids": [123456, 789012]},
         )
@@ -152,9 +185,9 @@ class TestConfigAPI:
         data = response.json()
         assert data["success"] is True
 
-    def test_add_to_blacklist(self, test_client):
+    async def test_add_to_blacklist(self, test_client):
         """测试添加黑名单"""
-        response = test_client.post(
+        response = await test_client.post(
             "/api/v1/config/blacklist",
             json={"ids": [999999]},
         )
@@ -164,26 +197,26 @@ class TestConfigAPI:
 class TestStatusAPI:
     """状态 API 测试"""
 
-    def test_get_system_status(self, test_client):
+    async def test_get_system_status(self, test_client):
         """测试获取系统状态"""
-        response = test_client.get("/api/v1/status")
+        response = await test_client.get("/api/v1/status")
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
         assert "uptime_seconds" in data["data"]
         assert "meili_connected" in data["data"]
 
-    def test_get_dialogs(self, test_client):
+    async def test_get_dialogs(self, test_client):
         """测试获取对话列表"""
-        response = test_client.get("/api/v1/status/dialogs")
+        response = await test_client.get("/api/v1/status/dialogs")
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
         assert "dialogs" in data["data"]
 
-    def test_get_download_progress(self, test_client):
+    async def test_get_download_progress(self, test_client):
         """测试获取下载进度"""
-        response = test_client.get("/api/v1/status/progress")
+        response = await test_client.get("/api/v1/status/progress")
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
@@ -192,17 +225,17 @@ class TestStatusAPI:
 class TestControlAPI:
     """控制 API 测试"""
 
-    def test_get_client_status(self, test_client):
+    async def test_get_client_status(self, test_client):
         """测试获取客户端状态"""
-        response = test_client.get("/api/v1/client/status")
+        response = await test_client.get("/api/v1/client/status")
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
         assert "is_running" in data["data"]
 
-    def test_stop_client_when_not_running(self, test_client):
+    async def test_stop_client_when_not_running(self, test_client):
         """测试停止未运行的客户端"""
-        response = test_client.post("/api/v1/client/stop")
+        response = await test_client.post("/api/v1/client/stop")
         assert response.status_code == 200
         data = response.json()
         assert data["data"]["status"] == "already_stopped"

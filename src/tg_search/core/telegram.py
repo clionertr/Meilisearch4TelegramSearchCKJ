@@ -344,7 +344,7 @@ class TelegramUserBot:
         try:
             serialized = await serialize_message(message, not_edited)
             if serialized:
-                result = self.meili.add_documents([serialized])
+                result = await asyncio.to_thread(self.meili.add_documents, [serialized])
                 logger.info(result)
         except NETWORK_ERRORS as e:
             logger.warning(f"Network error caching message {message.id}: {type(e).__name__}")
@@ -399,7 +399,7 @@ class TelegramUserBot:
                 # 批量处理
                 if len(messages) >= batch_size:
                     if last_seen_marker is not None and latest_msg_config is not None and meili is not None:
-                        update_latest_msg_config4_meili(dialog_id, last_seen_marker, latest_msg_config, meili)
+                        await update_latest_msg_config4_meili(dialog_id, last_seen_marker, latest_msg_config, meili)
                     await self._process_message_batch(messages)
                     messages = []
 
@@ -412,13 +412,13 @@ class TelegramUserBot:
             # 处理剩余消息
             if messages:
                 if last_seen_marker is not None and latest_msg_config is not None and meili is not None:
-                    update_latest_msg_config4_meili(dialog_id, last_seen_marker, latest_msg_config, meili)
+                    await update_latest_msg_config4_meili(dialog_id, last_seen_marker, latest_msg_config, meili)
                 await self._process_message_batch(messages)
                 messages = []
                 gc.collect()
                 logger.log(25, f"Download completed for {peer.id}")
             elif last_seen_marker is not None and latest_msg_config is not None and meili is not None:
-                update_latest_msg_config4_meili(dialog_id, last_seen_marker, latest_msg_config, meili)
+                await update_latest_msg_config4_meili(dialog_id, last_seen_marker, latest_msg_config, meili)
 
         except FloodWaitError as e:
             logger.warning(f"Rate limited, need to wait {e.seconds} seconds")
@@ -442,7 +442,7 @@ class TelegramUserBot:
             return
 
         try:
-            self.meili.add_documents(valid_messages)
+            await asyncio.to_thread(self.meili.add_documents, valid_messages)
             logger.info(f"Processing batch of {len(valid_messages)} messages")
         except NETWORK_ERRORS as e:
             logger.warning(f"Network error processing batch: {type(e).__name__}")

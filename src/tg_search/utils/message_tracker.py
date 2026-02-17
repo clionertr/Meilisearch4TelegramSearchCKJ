@@ -63,6 +63,9 @@ def get_latest_msg_id4_meili(config, chat_id: int):
         return 0
 
 
-def update_latest_msg_config4_meili(dialog_id, message, config, meili):
+async def update_latest_msg_config4_meili(dialog_id, message, config, meili):
     config[str(dialog_id)] = int(message["id"].split("-")[1])
-    write_config2_meili(meili, config)
+    # This function is called from async download loops; avoid blocking the event loop.
+    import asyncio
+
+    await asyncio.to_thread(write_config2_meili, meili, config)

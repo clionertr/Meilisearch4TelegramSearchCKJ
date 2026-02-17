@@ -46,14 +46,19 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     # 初始化 AuthStore
     app_state.auth_store = AuthStore()
-    await app_state.auth_store.start_cleanup_task()
-    logger.info("AuthStore initialized")
+    disable_auth_cleanup = os.getenv("DISABLE_AUTH_CLEANUP_TASK", "").lower() in ("1", "true", "yes")
+    running_under_pytest = os.getenv("PYTEST_CURRENT_TEST") is not None
+    if not disable_auth_cleanup and not running_under_pytest:
+        await app_state.auth_store.start_cleanup_task()
+        logger.info("AuthStore initialized (cleanup task started)")
+    else:
+        logger.info("AuthStore initialized (cleanup task disabled)")
 
     # 初始化 MeiliSearch 客户端
     try:
         app_state.meili_client = MeiliSearchClient(MEILI_HOST, MEILI_PASS)
         logger.info("MeiliSearch client initialized successfully")
-    except (MeiliSearchConnectionError, MeiliSearchAPIError) as e:
+    except (MeiliSearchConnectionError, MeiliSearchTimeoutError, MeiliSearchAPIError) as e:
         logger.error(f"Failed to initialize MeiliSearch client: {e}")
         # 允许 API 启动，但 meili_client 为 None
 
@@ -64,7 +69,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     app.state.app_state = app_state
 
     # 如果不是 API-only 模式，启动 Bot 作为后台任务
-    if not app_state.api_only:
+    #
+    # Notes:
+    # - In unit tests we must not start background Telegram tasks (they can hang on network).
+    # - Allow disabling autostart explicitly via env.
+    disable_bot_autostart = os.getenv("DISABLE_BOT_AUTOSTART", "").lower() in ("1", "true", "yes")
+    running_under_pytest = os.getenv("PYTEST_CURRENT_TEST") is not None
+    if (not app_state.api_only) and (not disable_bot_autostart) and (not running_under_pytest):
         try:
             from tg_search.core.bot import BotHandler
             from tg_search.main import run

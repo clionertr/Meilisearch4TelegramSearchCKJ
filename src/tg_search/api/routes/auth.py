@@ -277,7 +277,7 @@ async def get_me(
 
 @router.post("/logout", response_model=ApiResponse[LogoutResponse])
 async def logout(
-    request: Request,
+    auth_store: AuthStore = Depends(get_auth_store),
     auth_token: "AuthToken" = Depends(verify_bearer_token),
 ):
     """
@@ -285,7 +285,6 @@ async def logout(
 
     需要 Bearer Token 认证
     """
-    auth_store = get_auth_store(request)
     revoked = await auth_store.revoke_token(auth_token.token)
 
     logger.info(f"User {auth_token.user_id} logged out")
