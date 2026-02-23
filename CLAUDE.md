@@ -147,20 +147,6 @@ graph TD
     click H "./webui-example/CLAUDE.md" "查看 webui-example 模块文档"
 ```
 
----
-
-## 模块索引
-
-| 模块 | 路径 | 职责 | 文档链接 |
-|------|------|------|----------|
-| **config** | `src/tg_search/config/` | 环境变量配置管理与验证 | [查看文档](./src/tg_search/config/CLAUDE.md) |
-| **core** | `src/tg_search/core/` | 核心业务处理器（Bot/Telegram/MeiliSearch） | [查看文档](./src/tg_search/core/CLAUDE.md) |
-| **utils** | `src/tg_search/utils/` | 通用工具函数（格式化/权限/追踪） | [查看文档](./src/tg_search/utils/CLAUDE.md) |
-| **api** | `src/tg_search/api/` | FastAPI REST API 与 WebSocket | [查看文档](./src/tg_search/api/CLAUDE.md) |
-| **tests** | `tests/` | 单元测试与集成测试 | [查看文档](./tests/CLAUDE.md) |
-| **webui-example** | `webui-example/` | React + TypeScript 前端界面 | [查看文档](./webui-example/CLAUDE.md) |
-
----
 
 ## 目录结构
 
@@ -243,14 +229,6 @@ uv sync
 # 安装开发依赖
 uv sync --extra dev
 
-# 本地运行（默认模式：API + Bot）
-python -m tg_search
-
-# 仅运行 API 服务器
-python -m tg_search --mode api-only
-
-# 仅运行 Bot（无 API）
-python -m tg_search --mode bot-only
 
 # 自定义端口运行
 python -m tg_search --host 0.0.0.0 --port 8080
@@ -524,55 +502,6 @@ export DEBUG=true
 - **Telethon 文档**: https://docs.telethon.dev
 - **FastAPI 文档**: https://fastapi.tiangolo.com
 
----
-
-## 故障排查
-
-### 常见问题
-
-1. **配置验证失败**
-   ```
-   ConfigurationError: 配置验证失败，以下必填项存在问题
-   ```
-   解决：检查 `.env` 文件或环境变量，确保所有必填项（APP_ID、APP_HASH、BOT_TOKEN、MEILI_HOST、MEILI_MASTER_KEY）已正确设置
-
-2. **MeiliSearch 连接错误**
-   ```
-   MeiliSearchConnectionError: 无法连接到 MeiliSearch
-   ```
-   解决：确认 MEILI_HOST 可访问，MEILI_MASTER_KEY 正确
-
-3. **Telegram 限流**
-   ```
-   TelegramRateLimitError: 限流，需等待 XX 秒
-   ```
-   解决：程序会自动等待，也可减小 BATCH_MSG_UNM 值
-
-4. **权限错误**
-   ```
-   TelegramPermissionError: 权限错误
-   ```
-   解决：检查 Telegram 账号是否有权限访问目标频道/群组
-
-5. **API 认证失败**
-   ```
-   401 Unauthorized
-   ```
-   解决：检查 API_KEY 配置或 Bearer Token 是否正确
-
-### 日志位置
-- 控制台日志：实时输出
-- 文件日志：`log_file.log`（级别 WARNING 及以上）
-
----
-
-## 贡献指南
-
-1. Fork 本仓库
-2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 开启 Pull Request
 
 ### 代码审查清单
 - [ ] 所有测试通过 (`pytest tests/`)
