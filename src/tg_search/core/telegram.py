@@ -120,7 +120,7 @@ async def calculate_reaction_score(reactions: dict | None) -> float | None:
         return None
 
 
-async def serialize_chat(chat):
+async def serialize_chat(chat: Channel | Chat | User | None) -> dict[str, Any] | None:
     if not chat:
         return None
     chat_type = None
@@ -138,7 +138,7 @@ async def serialize_chat(chat):
     }
 
 
-async def serialize_sender(sender):
+async def serialize_sender(sender: User | None) -> dict[str, Any] | None:
     if not sender:
         return None
     return {"id": sender.id, "username": getattr(sender, "username", None)}

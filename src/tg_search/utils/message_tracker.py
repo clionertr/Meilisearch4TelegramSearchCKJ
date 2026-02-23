@@ -1,4 +1,5 @@
 import configparser
+from typing import Any
 
 from tg_search.core.meilisearch import MeiliSearchClient
 
@@ -14,7 +15,11 @@ def read_config(filename="config.ini"):
     return config
 
 
-def update_latest_msg_config(peer_id, message, config):
+def update_latest_msg_config(
+    peer_id: int | str,
+    message: dict[str, Any],
+    config: configparser.ConfigParser,
+) -> None:
     config["latest_msg_id"][str(peer_id)] = str(message["id"].split("-")[1])
     config["latest_msg_date"][str(peer_id)] = str(message["date"])
     write_config(config)
@@ -63,7 +68,12 @@ def get_latest_msg_id4_meili(config, chat_id: int):
         return 0
 
 
-async def update_latest_msg_config4_meili(dialog_id, message, config, meili):
+async def update_latest_msg_config4_meili(
+    dialog_id: int,
+    message: dict[str, Any],
+    config: dict[str, Any],
+    meili: MeiliSearchClient,
+) -> None:
     config[str(dialog_id)] = int(message["id"].split("-")[1])
     # This function is called from async download loops; avoid blocking the event loop.
     import asyncio

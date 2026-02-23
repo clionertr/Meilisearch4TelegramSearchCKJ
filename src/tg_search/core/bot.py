@@ -258,7 +258,7 @@ class BotHandler:
     async def message_handler(self, event):
         await self.search_handler(event, event.raw_text)
 
-    def format_search_result(self, hit):
+    def format_search_result(self, hit: dict[str, Any]) -> str:
         if len(hit["text"]) > 360:
             text = hit["text"][:360] + "..."
         else:
@@ -278,43 +278,47 @@ class BotHandler:
         date = hit["date"].split("T")[0]
         return f"- **{chat_title}**  ({date})\n{text}\n  [🔗Jump]({url})\n" + "—" * 18 + "\n"
 
-    async def send_results_page(self, event, hits, page_number, query):
+    def _build_results_page(
+        self,
+        hits: list[dict[str, Any]],
+        page_number: int,
+        query: str,
+    ) -> tuple[str, list | None]:
+        """构建结果页面内容和分页按钮（公共方法）
+
+        Returns:
+            (text, buttons)：text 为空字符串时表示无结果。
+        """
         start_index = page_number * RESULTS_PER_PAGE
         end_index = min((page_number + 1) * RESULTS_PER_PAGE, len(hits))
         page_results = hits[start_index:end_index]
 
         if not page_results:
-            await event.reply("没有更多结果了。")
-            return
+            return "", None
 
         response = "".join([self.format_search_result(hit) for hit in page_results])
-        buttons = []
+        buttons: list = []
         if page_number > 0:
             buttons.append(Button.inline("上一页", data=f"page_{query}_{page_number - 1}"))
         if end_index < len(hits):
             buttons.append(Button.inline("下一页", data=f"page_{query}_{page_number + 1}"))
 
-        await self.bot_client.send_message(
-            event.chat_id, f"搜索结果 (第 {page_number + 1} 页):\n{response}", buttons=buttons if buttons else None
-        )
+        text = f"搜索结果 (第 {page_number + 1} 页):\n{response}"
+        return text, buttons or None
+
+    async def send_results_page(self, event, hits, page_number, query):
+        text, buttons = self._build_results_page(hits, page_number, query)
+        if not text:
+            await event.reply("没有更多结果了。")
+            return
+        await self.bot_client.send_message(event.chat_id, text, buttons=buttons)
 
     async def edit_results_page(self, event, hits, page_number, query):
-        start_index = page_number * RESULTS_PER_PAGE
-        end_index = min((page_number + 1) * RESULTS_PER_PAGE, len(hits))
-        page_results = hits[start_index:end_index]
-
-        if not page_results:
+        text, buttons = self._build_results_page(hits, page_number, query)
+        if not text:
             await event.reply("没有更多结果了。")
             return
-
-        response = "".join([self.format_search_result(hit) for hit in page_results])
-        buttons = []
-        if page_number > 0:
-            buttons.append(Button.inline("上一页", data=f"page_{query}_{page_number - 1}"))
-        if end_index < len(hits):
-            buttons.append(Button.inline("下一页", data=f"page_{query}_{page_number + 1}"))
-
-        await event.edit(f"搜索结果 (第 {page_number + 1} 页):\n{response}", buttons=buttons if buttons else None)
+        await event.edit(text, buttons=buttons)
 
     async def callback_query_handler(self, event):
         data = event.data.decode("utf-8")
