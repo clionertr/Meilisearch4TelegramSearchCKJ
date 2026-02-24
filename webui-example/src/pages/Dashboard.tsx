@@ -1,51 +1,21 @@
-import React, { useEffect, useState } from 'react';
-import { dashboardApi, DashboardActivityItem, DashboardBriefData } from '../src/api/dashboard';
-import { extractApiErrorMessage } from '../src/api/error';
+import React from 'react';
+import { useDashboardActivities, useDashboardBrief } from '@/hooks/queries/useDashboard';
 
 const Dashboard: React.FC = () => {
-    const [activities, setActivities] = useState<DashboardActivityItem[]>([]);
-    const [brief, setBrief] = useState<DashboardBriefData | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const {
+        data: activities = [],
+        isLoading: activitiesLoading,
+        error: activitiesError
+    } = useDashboardActivities(20);
 
-    useEffect(() => {
-        let mounted = true;
+    const {
+        data: brief = null,
+        isLoading: briefLoading,
+        error: briefError
+    } = useDashboardBrief();
 
-        const fetchData = async () => {
-            setLoading(true);
-            setError(null);
-            const [activityResult, briefResult] = await Promise.allSettled([
-                dashboardApi.getActivity({ limit: 20 }),
-                dashboardApi.getBrief(),
-            ]);
-
-            if (!mounted) {
-                return;
-            }
-
-            if (activityResult.status === 'fulfilled') {
-                setActivities(activityResult.value.data.data?.items ?? []);
-            } else {
-                setActivities([]);
-                setError(extractApiErrorMessage(activityResult.reason, 'Failed to load dashboard activity'));
-            }
-
-            if (briefResult.status === 'fulfilled') {
-                setBrief(briefResult.value.data.data ?? null);
-            } else {
-                setBrief(null);
-                setError((prev) => prev ?? extractApiErrorMessage(briefResult.reason, 'Failed to load dashboard brief'));
-            }
-
-            setLoading(false);
-        };
-
-        void fetchData();
-
-        return () => {
-            mounted = false;
-        };
-    }, []);
+    const loading = activitiesLoading || briefLoading;
+    const error = activitiesError?.message || briefError?.message;
 
     const formatTime = (isoStr: string) => {
         try {

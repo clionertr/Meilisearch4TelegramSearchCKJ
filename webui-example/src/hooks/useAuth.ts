@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { authApi, SendCodeRequest, SignInRequest } from '../api/auth';
-import { useAuthStore } from '../store/authStore';
+import { authApi, SendCodeRequest, SignInRequest } from '@/api/auth';
+import { useAuthStore } from '@/store/authStore';
 
 export const useSendCode = () => {
   return useMutation({

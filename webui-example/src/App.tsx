@@ -1,19 +1,19 @@
 import React, { useEffect } from 'react';
 import { HashRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import BottomNav from './components/BottomNav';
-import Dashboard from './pages/Dashboard';
-import Login from './pages/Login';
-import Settings from './pages/Settings';
-import Search from './pages/Search';
-import SyncedChats from './pages/SyncedChats';
-import SelectChats from './pages/SelectChats';
-import Storage from './pages/Storage';
-import AIConfig from './pages/AIConfig';
-import { ProtectedRoute } from './src/components/common/ProtectedRoute';
-import { useStatusWebSocket } from './src/hooks/useWebSocket';
-import { ProgressData, useStatusStore } from './src/store/statusStore';
-import { AUTH_EXPIRED_EVENT } from './src/api/client';
+import BottomNav from '@/components/BottomNav';
+import Dashboard from '@/pages/Dashboard';
+import Login from '@/pages/Login';
+import Settings from '@/pages/Settings';
+import Search from '@/pages/Search';
+import SyncedChats from '@/pages/SyncedChats';
+import SelectChats from '@/pages/SelectChats';
+import Storage from '@/pages/Storage';
+import AIConfig from '@/pages/AIConfig';
+import { ProtectedRoute } from '@/components/common/ProtectedRoute';
+import { useStatusWebSocket } from '@/hooks/useWebSocket';
+import { ProgressData, useStatusStore } from '@/store/statusStore';
+import { AUTH_EXPIRED_EVENT } from '@/api/client';
 
 const queryClient = new QueryClient({
   defaultOptions: {

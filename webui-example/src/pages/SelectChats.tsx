@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { dialogsApi, AvailableDialogItem } from '../src/api/dialogs';
-import { extractApiErrorMessage } from '../src/api/error';
+import { dialogsApi, AvailableDialogItem } from '@/api/dialogs';
+import { extractApiErrorMessage } from '@/api/error';
 
 const SelectChats: React.FC = () => {
     const navigate = useNavigate();

@@ -1,5 +1,5 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { searchApi, SearchRequest } from '../api/search';
+import { searchApi, SearchRequest } from '@/api/search';
 
 export const useSearchMessages = (params: SearchRequest) => {
   return useInfiniteQuery({

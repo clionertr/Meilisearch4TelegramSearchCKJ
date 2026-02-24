@@ -1,5 +1,5 @@
 import useWebSocket from 'react-use-websocket';
-import { useAuthStore } from '../store/authStore';
+import { useAuthStore } from '@/store/authStore';
 
 const WS_BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/^http/, 'ws') || `ws://${window.location.host}/api/v1`;
 

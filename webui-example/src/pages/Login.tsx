@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { authApi } from '../src/api/auth';
-import { extractApiErrorDetail, extractApiErrorMessage } from '../src/api/error';
-import { useAuthStore } from '../src/store/authStore';
+import { authApi } from '@/api/auth';
+import { extractApiErrorDetail, extractApiErrorMessage } from '@/api/error';
+import { useAuthStore } from '@/store/authStore';
 
 type LoginStep = 'phone' | 'code' | 'password';
 

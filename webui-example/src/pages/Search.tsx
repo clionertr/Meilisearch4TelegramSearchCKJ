@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { searchApi } from '../src/api/search';
-import { extractApiErrorMessage } from '../src/api/error';
-import { Highlight } from '../src/components/common/Highlight';
+import { searchApi } from '@/api/search';
+import { extractApiErrorMessage } from '@/api/error';
+import { Highlight } from '@/components/common/Highlight';
 
 const Search: React.FC = () => {
     const navigate = useNavigate();

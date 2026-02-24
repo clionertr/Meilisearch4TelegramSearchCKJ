@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { aiConfigApi, AiConfigData } from '../src/api/ai_config';
-import { extractApiErrorMessage } from '../src/api/error';
+import { aiConfigApi, AiConfigData } from '@/api/ai_config';
+import { extractApiErrorMessage } from '@/api/error';
 
 const AIConfig: React.FC = () => {
     const navigate = useNavigate();

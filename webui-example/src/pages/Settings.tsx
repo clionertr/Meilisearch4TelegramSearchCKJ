@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { storageApi, StorageStatsData } from '../src/api/storage';
-import { statusApi, SystemStatus } from '../src/api/status';
-import { extractApiErrorMessage } from '../src/api/error';
+import { storageApi, StorageStatsData } from '@/api/storage';
+import { statusApi, SystemStatus } from '@/api/status';
+import { extractApiErrorMessage } from '@/api/error';
 
 const Settings: React.FC = () => {
   const navigate = useNavigate();
