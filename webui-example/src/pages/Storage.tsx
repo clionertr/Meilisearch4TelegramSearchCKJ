@@ -1,47 +1,18 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { storageApi, StorageStatsData } from '@/api/storage';
-import { extractApiErrorMessage } from '@/api/error';
+import { useStorageStats, useToggleAutoClean, useCleanupCache, useCleanupMedia } from '@/hooks/queries/useStorage';
 
 const Storage: React.FC = () => {
     const navigate = useNavigate();
-    const [stats, setStats] = useState<StorageStatsData | null>(null);
     const [autoClean, setAutoClean] = useState(false);
-    const [loading, setLoading] = useState(true);
-    const [cleaning, setCleaning] = useState<string | null>(null);
-    const [error, setError] = useState<string | null>(null);
-    const isMountedRef = useRef(false);
 
-    useEffect(() => {
-        isMountedRef.current = true;
-        return () => {
-            isMountedRef.current = false;
-        };
-    }, []);
+    const { data: stats, isLoading: loading, error: fetchError } = useStorageStats();
 
-    useEffect(() => {
-        const fetchData = async () => {
-            setLoading(true);
-            setError(null);
-            try {
-                const res = await storageApi.getStats();
-                if (isMountedRef.current) {
-                    setStats(res.data.data ?? null);
-                }
-            } catch (err: unknown) {
-                if (isMountedRef.current) {
-                    setError(extractApiErrorMessage(err, 'Failed to load storage stats'));
-                }
-            } finally {
-                if (isMountedRef.current) {
-                    setLoading(false);
-                }
-            }
-        };
-        void fetchData();
-    }, []);
+    const toggleAutoCleanMutation = useToggleAutoClean();
+    const cleanupCacheMutation = useCleanupCache();
+    const cleanupMediaMutation = useCleanupMedia();
 
-    const formatBytes = (bytes: number | null): string => {
+    const formatBytes = (bytes: number | null | undefined): string => {
         if (bytes === null || bytes === undefined) return '—';
         if (bytes < 1024) return `${bytes} B`;
         if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -49,55 +20,36 @@ const Storage: React.FC = () => {
         return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
     };
 
-    const handleAutoCleanToggle = async () => {
+    const handleAutoCleanToggle = () => {
         const newState = !autoClean;
-        try {
-            await storageApi.patchAutoClean({ enabled: newState });
-            if (isMountedRef.current) {
+        toggleAutoCleanMutation.mutate(newState, {
+            onSuccess: () => {
                 setAutoClean(newState);
             }
-        } catch (err: unknown) {
-            if (isMountedRef.current) {
-                setError(extractApiErrorMessage(err, 'Failed to update auto-clean'));
-            }
-        }
+        });
     };
 
-    const handleCleanupCache = async () => {
-        setCleaning('cache');
-        try {
-            const res = await storageApi.cleanupCache();
-            const cleared = res.data.data?.targets_cleared ?? [];
-            if (isMountedRef.current) {
-                setError(null);
+    const handleCleanupCache = () => {
+        cleanupCacheMutation.mutate(undefined, {
+            onSuccess: (data) => {
+                const cleared = data?.targets_cleared ?? [];
+                alert(`Cache cleared: ${cleared.length > 0 ? cleared.join(', ') : 'no targets'}`);
             }
-            alert(`Cache cleared: ${cleared.length > 0 ? cleared.join(', ') : 'no targets'}`);
-        } catch (err: unknown) {
-            if (isMountedRef.current) {
-                setError(extractApiErrorMessage(err, 'Failed to cleanup cache'));
-            }
-        } finally {
-            if (isMountedRef.current) {
-                setCleaning(null);
-            }
-        }
+        });
     };
 
-    const handleCleanupMedia = async () => {
-        setCleaning('media');
-        try {
-            await storageApi.cleanupMedia();
-            alert('Media cleanup is not available in current version');
-        } catch (err: unknown) {
-            if (isMountedRef.current) {
-                setError(extractApiErrorMessage(err, 'Failed to cleanup media'));
+    const handleCleanupMedia = () => {
+        cleanupMediaMutation.mutate(undefined, {
+            onSuccess: () => {
+                alert('Media cleanup is not available in current version');
             }
-        } finally {
-            if (isMountedRef.current) {
-                setCleaning(null);
-            }
-        }
+        });
     };
+
+    const isCleaning = cleanupCacheMutation.isPending || cleanupMediaMutation.isPending;
+    // Combine fetch errors and mutation errors
+    const error = fetchError?.message || toggleAutoCleanMutation.error?.message ||
+        cleanupCacheMutation.error?.message || cleanupMediaMutation.error?.message;
 
     return (
         <div className="pb-32 bg-background-light dark:bg-background-dark min-h-screen text-slate-900 dark:text-white">
@@ -182,7 +134,7 @@ const Storage: React.FC = () => {
                     <div className="space-y-3">
                         <button
                             onClick={handleCleanupCache}
-                            disabled={cleaning !== null}
+                            disabled={isCleaning}
                             className="w-full flex items-center justify-between p-4 bg-white dark:bg-[#192d33] border border-slate-200 dark:border-white/5 rounded-2xl active:scale-[0.98] transition-transform disabled:opacity-50"
                         >
                             <div className="text-left">
@@ -190,12 +142,12 @@ const Storage: React.FC = () => {
                                 <p className="text-xs text-slate-500 dark:text-[#92bbc9]">Removes search & config cache</p>
                             </div>
                             <div className="bg-primary/10 text-primary px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-tight">
-                                {cleaning === 'cache' ? 'Clearing...' : 'Clean Up'}
+                                {cleanupCacheMutation.isPending ? 'Clearing...' : 'Clean Up'}
                             </div>
                         </button>
                         <button
                             onClick={handleCleanupMedia}
-                            disabled={cleaning !== null}
+                            disabled={isCleaning}
                             className="w-full flex items-center justify-between p-4 bg-white dark:bg-[#192d33] border border-slate-200 dark:border-white/5 rounded-2xl active:scale-[0.98] transition-transform group disabled:opacity-50"
                         >
                             <div className="text-left">
@@ -203,7 +155,7 @@ const Storage: React.FC = () => {
                                 <p className="text-xs text-slate-500 dark:text-[#92bbc9]">Not available in current version</p>
                             </div>
                             <div className="bg-red-500/10 text-red-500 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-tight">
-                                {cleaning === 'media' ? 'Clearing...' : 'Clear'}
+                                {cleanupMediaMutation.isPending ? 'Clearing...' : 'Clear'}
                             </div>
                         </button>
                     </div>

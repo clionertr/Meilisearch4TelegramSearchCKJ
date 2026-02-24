@@ -1,61 +1,21 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { dialogsApi, SyncedDialogItem } from '@/api/dialogs';
-import { extractApiErrorMessage } from '@/api/error';
+import { SyncedDialogItem } from '@/api/dialogs';
+import { useSyncedDialogs, useToggleDialogSyncState } from '@/hooks/queries/useDialogs';
 
 const SyncedChats: React.FC = () => {
     const navigate = useNavigate();
-    const [dialogs, setDialogs] = useState<SyncedDialogItem[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const isMountedRef = useRef(false);
 
-    useEffect(() => {
-        isMountedRef.current = true;
-        return () => {
-            isMountedRef.current = false;
-        };
-    }, []);
+    const { data: dialogs = [], isLoading: loading, error: fetchError } = useSyncedDialogs();
+    const toggleSyncStateMutation = useToggleDialogSyncState();
 
-    useEffect(() => {
-        const fetchData = async () => {
-            setLoading(true);
-            setError(null);
-            try {
-                const res = await dialogsApi.getSynced();
-                if (isMountedRef.current) {
-                    setDialogs(res.data.data?.dialogs ?? []);
-                }
-            } catch (err: unknown) {
-                if (isMountedRef.current) {
-                    setError(extractApiErrorMessage(err, 'Failed to load synced chats'));
-                }
-            } finally {
-                if (isMountedRef.current) {
-                    setLoading(false);
-                }
-            }
-        };
-        void fetchData();
-    }, []);
-
-    const handleToggleState = async (dialog: SyncedDialogItem) => {
+    const handleToggleState = (dialog: SyncedDialogItem) => {
         const newState = dialog.sync_state === 'active' ? 'paused' : 'active';
-        try {
-            await dialogsApi.patchSyncState(dialog.id, newState);
-            if (isMountedRef.current) {
-                setDialogs((prev) =>
-                    prev.map((d) => d.id === dialog.id ? { ...d, sync_state: newState } : d)
-                );
-            }
-        } catch (err: unknown) {
-            if (isMountedRef.current) {
-                setError(extractApiErrorMessage(err, 'Failed to update sync state'));
-            }
-        }
+        toggleSyncStateMutation.mutate({ dialogId: dialog.id, newState });
     };
 
-    const activeCount = dialogs.filter(d => d.sync_state === 'active').length;
+    const error = fetchError?.message || toggleSyncStateMutation.error?.message;
+    const activeCount = dialogs.filter((d: SyncedDialogItem) => d.sync_state === 'active').length;
 
     const gradients = [
         'from-blue-500 to-cyan-400',
