@@ -67,6 +67,10 @@ _DEFAULT_SWITCHES: dict[str, bool] = {
     "dialog_sync_sync": True,
     "dialog_sync_patch": True,
     "dialog_sync_delete": True,
+    # Phase 8: Dashboard E2E
+    "dashboard_auth": True,
+    "dashboard_activity": True,
+    "dashboard_brief": True,
 }
 
 

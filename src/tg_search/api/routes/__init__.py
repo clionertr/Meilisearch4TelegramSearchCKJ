@@ -7,7 +7,7 @@ API 路由模块
 from fastapi import APIRouter, Depends
 
 from tg_search.api.deps import verify_api_key_or_bearer_token, verify_bearer_token
-from tg_search.api.routes import ai_config, auth, config, control, dialogs, search, status, storage, ws
+from tg_search.api.routes import ai_config, auth, config, control, dashboard, dialogs, search, status, storage, ws
 
 # 创建主路由器
 api_router = APIRouter(prefix="/api/v1")
@@ -64,6 +64,14 @@ api_router.include_router(
     ai_config.router,
     prefix="/ai",
     tags=["AI Config"],
+    dependencies=[Depends(verify_bearer_token)],
+)
+
+# Dashboard 端点 - Bearer-only（与 SPEC-P2-dashboard AC-1 对齐）
+api_router.include_router(
+    dashboard.router,
+    prefix="/dashboard",
+    tags=["Dashboard"],
     dependencies=[Depends(verify_bearer_token)],
 )
 

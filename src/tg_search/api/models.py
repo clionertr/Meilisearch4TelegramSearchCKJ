@@ -453,3 +453,38 @@ class AiModelsData(BaseModel):
 
     models: List[str]
     fallback: bool = False
+
+
+# ============ Dashboard 相关 (P2-DB) ============
+
+
+class DashboardActivityItem(BaseModel):
+    """Dashboard 活动项"""
+
+    chat_id: int
+    chat_title: str
+    chat_type: str
+    message_count: int
+    latest_message_time: datetime
+    top_keywords: List[str] = Field(default_factory=list)
+    sample_message: str = ""
+
+
+class DashboardActivityData(BaseModel):
+    """GET /dashboard/activity 响应 data"""
+
+    items: List[DashboardActivityItem]
+    total: int
+    sampled: bool
+    sample_size: int
+
+
+class DashboardBriefData(BaseModel):
+    """GET /dashboard/brief 响应 data"""
+
+    summary: str = ""
+    template_id: str = "brief.v1"
+    source_count: int = 0
+    reason: Optional[str] = None
+    sampled: bool = False
+    sample_size: int = 0
