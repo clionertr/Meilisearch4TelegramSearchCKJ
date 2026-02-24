@@ -171,6 +171,41 @@ def _build_dialog_lookup(
     return {item.id: item for item in items}
 
 
+def _collect_doc_ids_by_chat_id(index, dialog_id: int, page_size: int = 500) -> list[int]:
+    """
+    兼容旧版 Meili SDK：当缺少 delete_documents_by_filter 时，
+    通过 filter 搜索收集文档 id，再批量删除。
+    """
+    filter_expr = f"chat.id = {dialog_id}"
+    offset = 0
+    doc_ids: list[int] = []
+
+    while True:
+        result = index.search(
+            "",
+            {
+                "filter": filter_expr,
+                "limit": page_size,
+                "offset": offset,
+                "attributesToRetrieve": ["id"],
+            },
+        )
+        hits = result.get("hits", [])
+        if not hits:
+            break
+
+        for hit in hits:
+            doc_id = hit.get("id")
+            if isinstance(doc_id, int):
+                doc_ids.append(doc_id)
+
+        if len(hits) < page_size:
+            break
+        offset += len(hits)
+
+    return doc_ids
+
+
 # ══════════════════════════════════════════════════════════════════════════
 # T-P0-DS-03: GET /available
 # ══════════════════════════════════════════════════════════════════════════
@@ -467,8 +502,14 @@ async def delete_sync(
             # 尝试删除该 dialog 下的所有文档（而非整个索引）
             meili = app_state.meili_client
             idx = meili.client.index(index_name)
-            # 按 chat.id 过滤删除
-            idx.delete_documents_by_filter(f"chat.id = {dialog_id}")
+            # 优先使用 delete-by-filter；若 SDK 不支持则回退为“先查 id 再删”
+            delete_by_filter = getattr(idx, "delete_documents_by_filter", None)
+            if callable(delete_by_filter):
+                delete_by_filter(f"chat.id = {dialog_id}")
+            else:
+                doc_ids = _collect_doc_ids_by_chat_id(idx, dialog_id)
+                if doc_ids:
+                    idx.delete_documents(doc_ids)
             logger.info("[dialogs/delete] purged documents for dialog_id=%d", dialog_id)
         except Exception as exc:
             # ADR-DS-004: 索引删除失败不回滚同步配置删除

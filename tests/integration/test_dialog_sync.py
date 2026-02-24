@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
 import time
 from typing import AsyncGenerator
@@ -144,6 +145,47 @@ _DS_INDEX_PREFIX = "system_config_test_dialogs_"
 
 def _class_index(class_name: str) -> str:
     return f"{_DS_INDEX_PREFIX}{class_name.lower()}"
+
+
+def _extract_task_uid(task_info) -> int | None:
+    """兼容 SDK 对 TaskInfo 的不同字段命名"""
+    for field in ("task_uid", "uid", "taskUid"):
+        value = getattr(task_info, field, None)
+        if isinstance(value, int):
+            return value
+    if isinstance(task_info, dict):
+        for field in ("task_uid", "uid", "taskUid"):
+            value = task_info.get(field)
+            if isinstance(value, int):
+                return value
+    return None
+
+
+def _wait_task(meili_client, task_info, timeout_ms: int = 8000) -> None:
+    """等待异步任务完成（best effort）"""
+    task_uid = _extract_task_uid(task_info)
+    if task_uid is None:
+        return
+    wait_for_task = getattr(meili_client.client, "wait_for_task", None)
+    if not callable(wait_for_task):
+        return
+    try:
+        wait_for_task(task_uid, timeout_in_ms=timeout_ms, interval_in_ms=50)
+    except TypeError:
+        wait_for_task(task_uid)
+
+
+def _delete_docs_by_chat_id(meili_client, idx, chat_id: int) -> None:
+    """测试辅助：兼容是否支持 delete_documents_by_filter"""
+    delete_by_filter = getattr(idx, "delete_documents_by_filter", None)
+    if callable(delete_by_filter):
+        _wait_task(meili_client, delete_by_filter(f"chat.id = {chat_id}"))
+        return
+
+    result = idx.search("", {"filter": f"chat.id = {chat_id}", "limit": 200, "attributesToRetrieve": ["id"]})
+    ids = [hit.get("id") for hit in result.get("hits", []) if isinstance(hit.get("id"), int)]
+    if ids:
+        _wait_task(meili_client, idx.delete_documents(ids))
 
 
 @pytest.fixture(scope="module")
@@ -579,6 +621,75 @@ class TestDialogDeleteSync:
         r_synced = await c.get("/api/v1/dialogs/synced", headers=headers)
         ids = [d["id"] for d in r_synced.json()["data"]["dialogs"]]
         assert -100111 not in ids, f"-100111 still in synced after delete: {ids}"
+
+    async def test_delete_sync_purge_true_removes_meili_documents(self, ds_client):
+        """AC-7: 删除同步后，Meili 中该 chat.id 文档应被清理"""
+        c, bearer = ds_client["client"], ds_client["bearer"]
+        app = ds_client["app"]
+        headers = {"Authorization": f"Bearer {bearer}"}
+        meili = app.state.app_state.meili_client
+        index_name = "telegram"
+        target_chat_id = -100111
+        control_chat_id = -100222
+        control_doc_id = None
+
+        # 确保索引存在（若已存在则幂等）
+        meili.create_index(index_name=index_name, primary_key="id")
+        idx = meili.client.index(index_name)
+
+        # 先清理目标 chat，避免历史脏数据干扰断言
+        _delete_docs_by_chat_id(meili, idx, target_chat_id)
+
+        now = int(time.time() * 1000)
+        docs = [
+            {
+                "id": now,
+                "text": "purge_target_1",
+                "chat": {"id": target_chat_id, "type": "group"},
+                "from_user": {"id": 1},
+            },
+            {
+                "id": now + 1,
+                "text": "purge_target_2",
+                "chat": {"id": target_chat_id, "type": "group"},
+                "from_user": {"id": 1},
+            },
+            {
+                "id": now + 2,
+                "text": "purge_control",
+                "chat": {"id": control_chat_id, "type": "channel"},
+                "from_user": {"id": 2},
+            },
+        ]
+        control_doc_id = now + 2
+        _wait_task(meili, idx.add_documents(docs))
+
+        before_target = idx.search("", {"filter": f"chat.id = {target_chat_id}", "limit": 50})
+        before_control = idx.search("", {"filter": f"chat.id = {control_chat_id}", "limit": 50})
+        assert before_target.get("estimatedTotalHits", 0) >= 2
+        assert before_control.get("estimatedTotalHits", 0) >= 1
+
+        await self._ensure_synced(c, bearer, target_chat_id)
+        r = await c.delete(f"/api/v1/dialogs/{target_chat_id}/sync", headers=headers)
+        assert r.status_code == 200, f"Expected 200: {r.text}"
+        assert r.json()["data"]["purge_index"] is True
+
+        # delete_documents_by_filter 是异步任务，轮询确认最终一致性
+        deadline = time.time() + 6.0
+        while True:
+            after_target = idx.search("", {"filter": f"chat.id = {target_chat_id}", "limit": 50})
+            if after_target.get("estimatedTotalHits", 0) == 0:
+                break
+            if time.time() > deadline:
+                pytest.fail(f"chat.id={target_chat_id} documents not purged in time: {after_target}")
+            await asyncio.sleep(0.2)
+
+        # 控制组 chat 文档应保留，证明是按 chat.id 精准删除
+        after_control = idx.search("", {"filter": f"chat.id = {control_chat_id}", "limit": 50})
+        assert after_control.get("estimatedTotalHits", 0) >= 1
+
+        if control_doc_id is not None:
+            _wait_task(meili, idx.delete_documents([control_doc_id]))
 
     async def test_delete_sync_purge_false(self, ds_client):
         """AC-7: purge_index=false → removed=True，仅删同步配置"""

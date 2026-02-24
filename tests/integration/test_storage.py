@@ -2,6 +2,7 @@
 
 import os
 import time
+from contextlib import contextmanager
 from unittest import mock
 
 import pytest
@@ -37,6 +38,37 @@ requires_meili = pytest.mark.skipif(
     _MEILI_SKIP_REASON is not None,
     reason=_MEILI_SKIP_REASON or "",
 )
+
+
+def _cleanup_config_index(index_name: str) -> None:
+    """清理测试专用 ConfigStore 索引"""
+    from tg_search.core.meilisearch import MeiliSearchClient
+
+    cli = MeiliSearchClient(_MEILI_HOST, _MEILI_KEY, auto_create_index=False)
+    try:
+        cli.delete_index(index_name)
+        time.sleep(0.2)
+    except Exception:
+        pass
+
+
+@contextmanager
+def _isolated_storage_client(config_index_name: str):
+    """
+    构建一个使用隔离 ConfigStore 索引的 TestClient。
+    用于“重启后配置仍可读取”场景，避免污染默认 system_config。
+    """
+    from tg_search.config.config_store import ConfigStore
+
+    with (
+        mock.patch("tg_search.api.deps.API_KEY", _TEST_API_KEY),
+        mock.patch("tg_search.config.settings.API_KEY", _TEST_API_KEY),
+    ):
+        app = build_app()
+        with TestClient(app) as c:
+            meili_client = c.app.state.app_state.meili_client
+            c.app.state.app_state.config_store = ConfigStore(meili_client, index_name=config_index_name)
+            yield c
 
 
 # ============ Fixtures ============
@@ -195,6 +227,33 @@ class TestPatchAutoClean:
         assert resp.status_code == 200
         data = resp.json()["data"]
         assert data["media_retention_days"] == 30
+
+    def test_config_persisted_after_app_restart(self):
+        """AC-4(E2E): 重启 FastAPI app 后，storage 配置仍可从 ConfigStore 读取"""
+        index_name = f"system_config_test_storage_restart_{int(time.time() * 1000)}"
+
+        try:
+            with _isolated_storage_client(index_name) as c1:
+                r1 = c1.patch(
+                    "/api/v1/storage/auto-clean",
+                    headers=_AUTH_HEADER,
+                    json={"enabled": True, "media_retention_days": 9},
+                )
+                assert r1.status_code == 200
+                data = r1.json()["data"]
+                assert data["enabled"] is True
+                assert data["media_retention_days"] == 9
+
+            # 模拟“重启”后使用新 app 实例读取同一 ConfigStore 索引
+            with _isolated_storage_client(index_name) as c2:
+                r_stats = c2.get("/api/v1/storage/stats", headers=_AUTH_HEADER)
+                assert r_stats.status_code == 200
+
+                persisted = c2.app.state.app_state.config_store.load_config(refresh=True)
+                assert persisted.storage.auto_clean_enabled is True
+                assert persisted.storage.media_retention_days == 9
+        finally:
+            _cleanup_config_index(index_name)
 
 
 # ============ POST /storage/cleanup/cache 测试 ============
