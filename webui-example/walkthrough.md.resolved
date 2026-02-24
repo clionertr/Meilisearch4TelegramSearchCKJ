@@ -1,101 +1,136 @@
-# webui-example/ 全面审查报告（整合版）
+# webui-example 当前状态评估（2026-02-24）
 
-> 综合 Antigravity 代码审查 + CDOEX 实测验证
+> 基于当前仓库代码与本地命令复核（已对齐“API 已完善”现状）
 
-## 结论：⚠️ 可启动、部分可用、未达到完整可用
+## 一句话结论
 
-- **能运行 UI**：✅ 是
-- **能做登录 + 搜索**：⚠️ 条件可用（需后端可达，且正确配置 `VITE_API_URL` 或 proxy）
-- **能完成同步管理/存储管理/AI 配置的真实业务闭环**：❌ 否（目前是展示壳）
-
-### 实测记录（CDOEX）
-
-| 测试 | 结果 |
-|------|------|
-| `npm ci` | ✅ 成功 |
-| `npm run build` | ⚠️ 成功，但告警 `/index.css doesn't exist` |
-| `npm run dev` | ✅ 前端可启动 |
-| `npx tsc --noEmit` | ❌ 失败（`ImportMeta.env` 类型缺失） |
-| 后端 api-only 烟测 | ✅ `/health`、`/search`、`/ws/status` 可达；`/auth/send-code` 返回 Telegram 限流（链路通） |
+- **后端 API：已完善并进入可用态**（模块齐全、路由已注册、单元测试通过）。
+- **WebUI：可运行但仅部分接入真实 API**（登录/搜索/WebSocket 已接入，其余页面仍以静态展示为主）。
 
 ---
 
-## 按优先级分级
+## 本次核验范围与证据
 
-### 🔴 P0 — 阻塞"正常运行/开箱可用"
+### 代码核验
 
-| # | 问题 | 说明 |
-|---|------|------|
-| 1 | **默认 API 地址策略打到 Vite 本身** | 默认 base URL 是相对路径 `/api/v1`，Vite 未配置 `server.proxy`，README 也未要求配置 `VITE_API_URL`。**实测**：访问 `http://127.0.0.1:4173/api/v1/search?q=test` 返回的是 HTML 前端壳。涉及 [client.ts:4](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/webui-example/src/api/client.ts#L4)、[useWebSocket.ts:4](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/webui-example/src/hooks/useWebSocket.ts#L4)、[vite.config.ts:8](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/webui-example/vite.config.ts#L8) |
-| 2 | **缺少联调必需条件的文档闭环** | [README.md](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/webui-example/README.md) 仍是 AI Studio 模板文案，只提 `GEMINI_API_KEY`；实际系统要求后端 API + MeiliSearch + Telegram 配置。 |
-| 3 | **[index.html](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/webui-example/index.html) import map 与 Vite 冲突** | [index.html:48-57](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/webui-example/index.html#L48-L57) 将 `react`/`react-dom` 指向 esm.sh CDN。Vite 同时从 `node_modules` 解析同名包，React 不能有两份实例，会导致运行时错误。 |
+- 后端：
+  - `src/tg_search/api/routes/__init__.py`
+  - `src/tg_search/api/routes/*.py`
+  - `src/tg_search/api/models.py`
+  - `src/tg_search/api/app.py`
+- 前端：
+  - `webui-example/src/api/*`
+  - `webui-example/src/hooks/*`
+  - `webui-example/pages/*`
+  - `webui-example/vite.config.ts`
+  - `webui-example/tsconfig.json`
+  - `webui-example/index.html`
 
-### 🟠 P1 — 核心功能缺失 & 可维护性
+### 命令复核（本地执行）
 
-| # | 问题 | 说明 |
-|---|------|------|
-| 4 | **TypeScript 类型基础不完整，tsc 无法通过** | 使用 `import.meta.env` 但 [tsconfig.json:13](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/webui-example/tsconfig.json#L13) 的 `types` 只有 `node`，缺少 `vite/client`。**实测 `npx tsc --noEmit` 失败**。 |
-| 5 | **6 个页面完全硬编码，未对接已有后端 API** | Dashboard / Settings / SyncedChats / SelectChats / Storage / AIConfig 全是假数据。后端已有 `/status`、`/client/*`、`/config/*` 可对接。（详见下方对接状态表） |
-| 6 | **前端缺少大量后端 API service** | [src/api/](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/webui-example/src/api) 只有 [auth.ts](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/webui-example/src/api/auth.ts) 和 [search.ts](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/webui-example/src/api/search.ts)。缺少 `status.ts`、[config.ts](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/webui-example/vite.config.ts)、`control.ts`。 |
-| 7 | **登录 UX 与后端规则不一致** | [Login.tsx:91](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/webui-example/pages/Login.tsx#L91) placeholder 为 `+1 234 567 8900`（带空格），但后端 [auth.py:60](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/src/tg_search/api/routes/auth.py#L60) 要求严格 `^\+\d{7,15}$`。用户照着提示填写必定失败。 |
-
-### 🟡 P2 — 质量与部署韧性
-
-| # | 问题 | 说明 |
-|---|------|------|
-| 8 | **缺少 `index.css`** | [index.html:59](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/webui-example/index.html#L59) 引用 `/index.css`，文件不存在。build 有告警，运行时 404。 |
-| 9 | **强依赖外部 CDN** | Tailwind ([index.html:7](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/webui-example/index.html#L7)) 使用"仅供试验"的 CDN Play 版，不支持生产构建。Google Fonts、Material Symbols 也是 CDN 加载，离线/受限网络下样式退化。 |
-| 10 | **npm 依赖存在高危漏洞** | `npm audit` 报 **5 个 high**，含 axios。参考 [package.json:14](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/webui-example/package.json#L14) |
-| 11 | **[SelectChats.tsx](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/webui-example/pages/SelectChats.tsx) 使用 `class` 非 `className`** | [SelectChats.tsx:52](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/webui-example/pages/SelectChats.tsx#L52) `<img class=...>` 在 JSX 中无效。 |
-| 12 | **[types.ts](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/webui-example/types.ts) 和 [src/api/search.ts](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/webui-example/src/api/search.ts) 类型重复** | 两处都定义了 [SearchResult](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/webui-example/src/api/search.ts#22-30)，字段不一致，有命名冲突。 |
-| 13 | **Dashboard 搜索框 / Search filter chips / BottomNav Profile 按钮无功能** | 多处 UI 元素是纯装饰，无交互逻辑。 |
-| 14 | **[geminiService.ts](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/webui-example/services/geminiService.ts) 未被任何组件使用** | [geminiService.ts](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/webui-example/services/geminiService.ts) 导出了 `geminiService` 单例但从未 import。 |
-
-### 🔵 P3 — 架构和安全
-
-| # | 问题 | 说明 |
-|---|------|------|
-| 15 | **GEMINI_API_KEY 暴露到前端** | [vite.config.ts](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/webui-example/vite.config.ts) 将密钥注入 `process.env.API_KEY`，会被打包到 JS 中，任何用户可在 DevTools 看到。 |
-| 16 | **WebSocket URL 不处理 HTTPS** | [useWebSocket.ts:4](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/webui-example/src/hooks/useWebSocket.ts#L4) 回退到 `ws://`，HTTPS 页面应使用 `wss://`。 |
-| 17 | **目录结构混乱** | 源码分散在根目录 / `pages/` / `components/` / `services/` / `src/` 等不同层级。 |
-| 18 | **无 ESLint / Prettier / 测试** | 零代码规范工具，TypeScript strict 未启用，无任何测试。 |
+- `pytest -q tests/unit` -> `71 passed`
+- `pytest -q tests/unit/test_api.py tests/unit/test_dashboard.py` -> `23 passed`
+- `cd webui-example && npm run build` -> 构建成功（存在 `/index.css` 缺失告警）
+- `cd webui-example && npx tsc --noEmit` -> 失败（`ImportMeta.env` 类型缺失）
+- 集成测试默认未执行（`RUN_INTEGRATION_TESTS=true` 才启用）
 
 ---
 
-## 对接状态总览
+## API 完成度评估（已完善）
 
-| 前端页面 | 后端 API 对接 | 数据来源 |
-|----------|--------------|----------|
-| Login ✅ | `/auth/send-code`, `/auth/signin` | 真实 API |
-| Search ✅ | `/search` | 真实 API |
-| Dashboard ❌ | 无 | 100% 硬编码 |
-| Settings ❌ | 无 | 100% 硬编码 |
-| Storage ❌ | 无 | 100% 硬编码 |
-| SyncedChats ❌ | 无 | 100% 硬编码 |
-| SelectChats ❌ | 无 | 100% 硬编码 |
-| AIConfig ❌ | 无 | 100% 硬编码 |
+### 已落地的 API 模块
 
-## 后端可用但前端未对接的 API
+- Auth：`/api/v1/auth/*`
+- Search：`/api/v1/search`、`/api/v1/search/stats`
+- Status：`/api/v1/status*`
+- Config：`/api/v1/config*`
+- Client Control：`/api/v1/client*`
+- Dialog Sync：`/api/v1/dialogs*`
+- Storage：`/api/v1/storage*`
+- AI Config：`/api/v1/ai*`
+- Dashboard：`/api/v1/dashboard*`
+- WebSocket：`/api/v1/ws/status`
 
-| 后端端点 | 功能 | 应对接到 |
-|----------|------|----------|
-| `GET /api/v1/status` | 系统状态 | Dashboard, Settings |
-| `GET /api/v1/status/dialogs` | 对话列表 | SyncedChats, SelectChats |
-| `GET /api/v1/status/progress` | 下载进度 | Dashboard, SyncedChats |
-| `GET /api/v1/config` | 获取配置 | Settings, AIConfig |
-| `POST/DELETE /api/v1/config/whitelist` | 白名单管理 | SelectChats |
-| `POST/DELETE /api/v1/config/blacklist` | 黑名单管理 | SelectChats |
-| `POST /api/v1/client/start` | 启动客户端 | Dashboard |
-| `POST /api/v1/client/stop` | 停止客户端 | Settings |
-| `GET /api/v1/client/status` | 客户端状态 | Dashboard |
-| `GET /api/v1/search/stats` | 搜索统计 | Storage |
+### 鉴权策略已细化
+
+- `search/status/config/control/storage` 支持 `API Key 或 Bearer`
+- `ai/dashboard/dialogs` 为 `Bearer-only`
+- `ws/status` 在连接阶段执行 token 校验
+
+### 工程化状态
+
+- `api/models.py` 已覆盖各模块请求/响应模型（含 P1/P2 的 storage、ai、dashboard、dialogs）
+- `api/app.py` 已配置统一异常处理、CORS、health/root、lifespan 初始化
+- 单元测试通过，说明 API 基础行为与契约在当前代码下是稳定的
 
 ---
 
-## 最小"可正常运行"补齐清单（按执行顺序）
+## WebUI 对接状态（部分完成）
 
-1. **修 P0**：给开发环境补 Vite `server.proxy` 配置（或 `VITE_API_URL` 规范），删除 import map，更新 [README.md](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/README.md)
-2. **修 P1**：补 `vite/client` 类型 + `typecheck` 脚本，保证 `tsc --noEmit` 通过
-3. **修 P1**：修复登录 placeholder 格式与后端验证规则一致
-4. **修 P1**：新增 `status.ts` / [config.ts](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/webui-example/vite.config.ts) / `control.ts` API service，逐页接入真实数据
-5. **修 P2**：创建 `index.css`、评估 CDN 本地化、升级审计漏洞依赖、修复 JSX 语法错误
+### 页面对接总览
+
+| 页面 | 对接状态 | 数据来源 |
+|------|----------|----------|
+| Login | 已对接 | `auth/send-code`, `auth/signin` |
+| Search | 已对接 | `search`（分页） |
+| App 级实时状态 | 已对接 | `ws/status` -> Zustand `statusStore` |
+| Dashboard | 未对接 | 静态假数据 |
+| Settings | 未对接 | 静态假数据 |
+| Storage | 未对接 | 静态假数据 |
+| SyncedChats | 未对接 | 静态假数据 |
+| SelectChats | 未对接 | 静态假数据 |
+| AIConfig | 未对接 | 静态假数据 |
+
+### 已确认未完成的前端接口层
+
+- `webui-example/src/api/` 目前仅有：
+  - `auth.ts`
+  - `search.ts`
+  - `client.ts`
+- 尚缺页面所需的 API 封装：
+  - `status`、`dashboard`、`dialogs`、`storage`、`ai_config`、`control`、`config`
+
+---
+
+## 当前阻塞与风险（按优先级）
+
+### P0（应优先处理）
+
+1. `tsc` 不通过：`ImportMeta.env` 类型缺失  
+   - 现状：`tsconfig.json` 仅有 `"types": ["node"]`，缺少 `vite/client`。
+
+2. 前端联调默认路径存在歧义  
+   - 现状：`VITE_API_URL` 默认回退到 `/api/v1`，`vite.config.ts` 未配置 dev proxy。
+
+### P1（核心可用性）
+
+1. 6 个核心业务页面仍未接入真实 API  
+   - 影响：管理闭环（同步管理/存储管理/AI 配置）不可用。
+
+2. 登录提示与后端校验不一致  
+   - 现状：placeholder 为 `+1 234 567 8900`，后端要求 `^\+\d{7,15}$`。
+
+3. JSX 语法问题仍在  
+   - 现状：`SelectChats.tsx` 使用 `<img class="...">` 而非 `className`。
+
+### P2（质量与安全）
+
+1. `index.html` 引入 import map + CDN 依赖，与 Vite bundling 混用风险较高。  
+2. `index.css` 被引用但文件不存在。  
+3. `vite.config.ts` 将 `GEMINI_API_KEY` 注入前端构建产物，存在密钥暴露风险。  
+
+---
+
+## 与“API 已完善”的一致性说明
+
+- 本次评估确认：**“API 已完善”成立**。  
+- 目前项目主矛盾已从“后端接口缺失”转为“前端管理页尚未完成真实对接与工程收口”。
+
+---
+
+## 下一阶段建议（最小闭环）
+
+1. 先修工具链阻塞：补 `vite/client`、增加 `typecheck` 脚本、消除 JSX 错误。  
+2. 先打通管理最短链路：`Dashboard + SyncedChats + SelectChats` 对接 `status/dialogs/control`。  
+3. 再补 `Storage + AIConfig + Settings` 对接 `storage/ai/config`。  
+4. 最后处理部署质量：proxy/README、移除 import map、清理前端密钥注入。  
