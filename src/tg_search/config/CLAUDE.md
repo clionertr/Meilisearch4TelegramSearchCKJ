@@ -325,3 +325,115 @@ src/tg_search/config/
 - 创建模块文档
 - 记录所有配置项及其默认值
 - 添加配置验证逻辑说明
+
+### 2026-02-24
+- 新增 Config Store 模块（P0 功能）：运行时持久化配置基座
+- 更新文件清单与使用示例
+
+---
+
+## Config Store（P0 运行时配置）
+
+> 源文件：[config_store.py](file://./config_store.py) | 规格：[SPEC-P0-config-store.md](../../docs/specs/SPEC-P0-config-store.md)
+
+### 概述
+
+`ConfigStore` 将全局运行时配置持久化到 MeiliSearch（`system_config` 索引，主键 `id="global"`），
+提供 10 秒内存缓存、版本乐观锁和坏文档自动回退，**无需额外数据库**。
+
+### 数据模型
+
+```
+GlobalConfig
+├── id: str = "global"
+├── version: int = 0             # 每次写操作递增
+├── updated_at: str              # ISO8601 UTC 时间戳
+├── sync: SyncConfig
+│   ├── dialogs: dict[str, DialogSyncState]
+│   └── available_cache_ttl_sec: int = 120
+├── storage: StorageConfig
+│   ├── auto_clean_enabled: bool = False
+│   └── media_retention_days: int = 30
+└── ai: AiConfig
+    ├── provider: str = "openai_compatible"
+    ├── base_url: str = "https://api.openai.com/v1"
+    ├── model: str = "gpt-4o-mini"
+    └── api_key: str = ""
+```
+
+### 使用示例
+
+```python
+from tg_search.config.config_store import ConfigStore
+from tg_search.core.meilisearch import MeiliSearchClient
+
+# 初始化（会自动创建 system_config 索引 + 写入默认文档）
+meili = MeiliSearchClient(host, master_key, auto_create_index=False)
+store = ConfigStore(meili)
+
+# 读取配置（10s 内命中缓存，cache_hit=true 日志可观测）
+cfg = store.load_config()
+print(cfg.ai.model)           # "gpt-4o-mini"
+
+# 强制刷新（跳过缓存，直接读 MeiliSearch）
+cfg = store.load_config(refresh=True)
+
+# 更新单个 section（只改 ai，不影响 sync/storage）
+store.update_section("ai", {
+    "model": "gpt-4o",
+    "api_key": "sk-xxx",
+})
+
+# 全量 patch（可跨多个 section）
+store.save_config({
+    "storage": {"auto_clean_enabled": True, "media_retention_days": 14},
+    "ai":      {"model": "gpt-4o"},
+})
+
+# 乐观锁写（expected_version 不匹配时抛出 ValueError）
+try:
+    store.save_config({"storage": {"auto_clean_enabled": True}}, expected_version=3)
+except ValueError as e:
+    print(f"并发冲突: {e}")
+```
+
+### 监控日志格式
+
+| 事件 | 级别 | 日志示例 |
+|---|---|---|
+| 缓存命中 | INFO | `[ConfigStore] load_config: cache_hit=true version=5` |
+| 缓存未命中（正常） | INFO | `[ConfigStore] load_config: 12.3ms cache_hit=false version=5` |
+| 读取慢（>100ms） | WARNING | `[ConfigStore] load_config slow: 143.2ms (threshold=100ms) cache_hit=false version=5` |
+| 写入正常 | INFO | `[ConfigStore] _write_to_meili: 45.0ms version=6` |
+| 写入慢（>500ms） | WARNING | `[ConfigStore] _write_to_meili slow: 612.0ms (threshold=500ms) version=6` |
+| 坏文档回退 | WARNING | `[ConfigStore] Config document schema invalid, falling back to defaults. Error: ...` |
+| 首次初始化 | INFO | `[ConfigStore] No config document found, initializing with defaults` |
+
+### 测试
+
+```bash
+# 单元级（真实 MeiliSearch，需设置真实凭据）
+export MEILI_HOST=http://localhost:7700
+export MEILI_MASTER_KEY=<real_key>
+pytest tests/test_config_store.py -v
+
+# E2E 集成测试（须先启动 MeiliSearch）
+RUN_INTEGRATION_TESTS=true pytest tests/integration/test_config_store_e2e.py -v -s
+
+# 通过集成运行器执行（覆盖整个 tests/integration/ 目录）
+RUN_INTEGRATION_TESTS=true uv run tests/integration/run.py
+```
+
+---
+
+## 相关文件清单
+
+```
+src/tg_search/config/
+├── __init__.py          # 导出 ConfigStore, GlobalConfig 等
+├── settings.py          # 环境变量配置（178 行）
+├── config_store.py      # P0 运行时持久化配置（~290 行）
+└── CLAUDE.md            # 本文档
+```
+
+---

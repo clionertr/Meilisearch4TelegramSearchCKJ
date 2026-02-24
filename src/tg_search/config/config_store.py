@@ -167,9 +167,24 @@ class ConfigStore:
 
     def _write_to_meili(self, config: GlobalConfig) -> None:
         """将 GlobalConfig 写入 MeiliSearch，并记录结构化日志"""
+        t0 = time.monotonic()
         index = self._meili.client.index(self._index_name)
         doc = config.model_dump()
         index.add_documents([doc])
+        elapsed_ms = (time.monotonic() - t0) * 1000
+        # 监控点：写入延迟（规格要求 ≤500ms）
+        if elapsed_ms > 500:
+            logger.warning(
+                "[ConfigStore] _write_to_meili slow: %.1fms (threshold=500ms) version=%d",
+                elapsed_ms,
+                config.version,
+            )
+        else:
+            logger.info(
+                "[ConfigStore] _write_to_meili: %.1fms version=%d",
+                elapsed_ms,
+                config.version,
+            )
 
     # ---- 公开接口（T-P0-CS-03 / 04 / 05）----
 
@@ -186,10 +201,29 @@ class ConfigStore:
         if not refresh:
             cached = self._cache.get()
             if cached is not None:
-                logger.debug("[ConfigStore] Cache hit (cache_hit=true)")
+                # 监控点：缓存命中（规格要求 ≤100ms，缓存命中远低于此目标）
+                logger.info(
+                    "[ConfigStore] load_config: cache_hit=true version=%d",
+                    cached.version,
+                )
                 return cached
 
+        t0 = time.monotonic()
         config = self._fetch_from_meili()
+        elapsed_ms = (time.monotonic() - t0) * 1000
+        # 监控点：读取延迟（规格要求 ≤100ms，来自 MeiliSearch 而非缓存）
+        if elapsed_ms > 100:
+            logger.warning(
+                "[ConfigStore] load_config slow: %.1fms (threshold=100ms) cache_hit=false version=%d",
+                elapsed_ms,
+                config.version,
+            )
+        else:
+            logger.info(
+                "[ConfigStore] load_config: %.1fms cache_hit=false version=%d",
+                elapsed_ms,
+                config.version,
+            )
         self._cache.set(config)
         return config
 

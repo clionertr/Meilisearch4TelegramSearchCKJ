@@ -79,3 +79,12 @@
 - ADR-CS-001：采用 MeiliSearch 作为配置持久化后端，避免引入额外数据库。
 - ADR-CS-002：配置为实例全局唯一（不做用户隔离）。
 - ADR-CS-003：按需求不加密 AI key（仅限制接口回显），后续可升级。
+- ADR-CS-004：MeiliSearch Python SDK 的 `get_document()` 返回 `Document` 对象而非裸 `dict`，
+  需通过 `dict(raw_doc.__dict__)` 转换后才能传给 `GlobalConfig.model_validate()`。
+- ADR-CS-005：`version` 递增为进程内"写-前读"乐观锁（非分布式 CAS），
+  足以应对单实例顺序写场景；多实例强一致需求需另行引入分布式锁（当前明确超出范围）。
+- ADR-CS-006：测试隔离策略——每个测试类使用独立 `system_config_test_<classname>` 索引，
+  测试结束后通过 fixture teardown 自动清理，保证测试幂等。
+- ADR-CS-007：`tests/test_config_store.py` 依赖真实 MeiliSearch；当与全套测试并跑时，
+  `conftest.py` 会覆盖 `MEILI_MASTER_KEY` 为假值，结合 `.env` 显式覆盖机制和
+  fixture 内 `pytest.skip()` 门控，无真实凭据时自动跳过，不影响 CI 其他测试。
