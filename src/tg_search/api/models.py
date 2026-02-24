@@ -412,3 +412,44 @@ class MediaCleanupData(BaseModel):
     not_applicable: bool = True
     reason: str = "MEDIA_STORAGE_DISABLED"
     freed_bytes: int = 0
+
+
+# ============ AI Config 相关 (P1-AI) ============
+
+
+class AiConfigData(BaseModel):
+    """GET /ai/config 响应 data（不回显明文 api_key，仅含 api_key_set）"""
+
+    provider: str
+    base_url: str
+    model: str
+    api_key_set: bool
+    updated_at: Optional[str] = None
+
+
+class AiConfigUpdateRequest(BaseModel):
+    """PUT /ai/config 请求体"""
+
+    provider: Literal["openai_compatible"] = Field(
+        default="openai_compatible",
+        description="AI 供应商类型，当前仅支持 openai_compatible",
+    )
+    base_url: str = Field(..., min_length=1, pattern=r"^https?://", description="API base URL，须以 http(s):// 开头")
+    model: str = Field(..., min_length=1, description="模型名称，不能为空")
+    api_key: str = Field(default="", description="API 密钥")
+
+
+class AiConfigTestData(BaseModel):
+    """POST /ai/config/test 响应 data"""
+
+    ok: bool
+    error_code: Optional[str] = None
+    error_message: Optional[str] = None
+    latency_ms: int = 0
+
+
+class AiModelsData(BaseModel):
+    """GET /ai/models 响应 data"""
+
+    models: List[str]
+    fallback: bool = False

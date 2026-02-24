@@ -24,6 +24,8 @@ dependencies = [
     "pydantic>=2.5.0",
     "anyio>=4.2.0",
     "websockets>=12.0",
+    # AI 连通性测试（P1-AI-01）
+    "httpx>=0.27",
 ]
 
 [project.optional-dependencies]
