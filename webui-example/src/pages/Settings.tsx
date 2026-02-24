@@ -1,49 +1,16 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { storageApi, StorageStatsData } from '@/api/storage';
-import { statusApi, SystemStatus } from '@/api/status';
-import { extractApiErrorMessage } from '@/api/error';
+import { useStorageStats } from '@/hooks/queries/useStorage';
+import { useSystemStatus } from '@/hooks/queries/useStatus';
 
 const Settings: React.FC = () => {
   const navigate = useNavigate();
-  const [storageStats, setStorageStats] = useState<StorageStatsData | null>(null);
-  const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let mounted = true;
+  const { data: storageStats, isLoading: storageLoading, error: storageError } = useStorageStats();
+  const { data: systemStatus, isLoading: statusLoading, error: statusError } = useSystemStatus();
 
-    const fetchData = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const [storageRes, statusRes] = await Promise.all([
-          storageApi.getStats(),
-          statusApi.getStatus(),
-        ]);
-        if (!mounted) {
-          return;
-        }
-        setStorageStats(storageRes.data.data ?? null);
-        setSystemStatus(statusRes.data.data ?? null);
-      } catch (err: unknown) {
-        if (mounted) {
-          setError(extractApiErrorMessage(err, 'Failed to load settings data'));
-        }
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    void fetchData();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
+  const loading = storageLoading || statusLoading;
+  const error = storageError?.message || statusError?.message;
 
   const formatBytes = (bytes: number | null): string => {
     if (bytes === null || bytes === undefined) return '—';

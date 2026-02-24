@@ -17,6 +17,40 @@ export const useSyncedDialogs = () => {
     });
 };
 
+export const useAvailableDialogs = (limit: number = 200) => {
+    return useQuery({
+        queryKey: ['availableDialogs', limit],
+        queryFn: async () => {
+            try {
+                const response = await dialogsApi.getAvailable({ limit });
+                return response.data.data?.dialogs ?? [];
+            } catch (err) {
+                throw new Error(extractApiErrorMessage(err, 'Failed to load available chats'));
+            }
+        },
+        staleTime: 1000 * 60 * 5, // 5 minutes
+    });
+};
+
+export const useSyncDialogs = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (dialogIds: number[]) => {
+            try {
+                const response = await dialogsApi.sync({ dialog_ids: dialogIds });
+                return response.data.data;
+            } catch (err) {
+                throw new Error(extractApiErrorMessage(err, 'Failed to start sync'));
+            }
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['syncedDialogs'] });
+            queryClient.invalidateQueries({ queryKey: ['availableDialogs'] });
+        },
+    });
+};
+
 export const useToggleDialogSyncState = () => {
     const queryClient = useQueryClient();
 

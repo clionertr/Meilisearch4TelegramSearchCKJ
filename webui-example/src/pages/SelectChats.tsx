@@ -1,50 +1,23 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { dialogsApi, AvailableDialogItem } from '@/api/dialogs';
-import { extractApiErrorMessage } from '@/api/error';
+import { useAvailableDialogs, useSyncDialogs } from '@/hooks/queries/useDialogs';
 
 const SelectChats: React.FC = () => {
     const navigate = useNavigate();
-    const [dialogs, setDialogs] = useState<AvailableDialogItem[]>([]);
     const [selected, setSelected] = useState<Set<number>>(new Set());
-    const [loading, setLoading] = useState(true);
-    const [syncing, setSyncing] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const isMountedRef = useRef(false);
 
-    useEffect(() => {
-        isMountedRef.current = true;
-        return () => {
-            isMountedRef.current = false;
-        };
-    }, []);
+    const { data: dialogs = [], isLoading: loading, error: fetchError } = useAvailableDialogs(200);
+    const syncMutation = useSyncDialogs();
 
+    // Pre-select currently active sync sessions once the dialogs are loaded
     useEffect(() => {
-        const fetchData = async () => {
-            setLoading(true);
-            setError(null);
-            try {
-                const res = await dialogsApi.getAvailable({ limit: 200 });
-                const items = res.data.data?.dialogs ?? [];
-                if (!isMountedRef.current) {
-                    return;
-                }
-                setDialogs(items);
-                // Pre-select currently active sync sessions.
-                const activeDialogs = items.filter((d) => d.sync_state === 'active').map((d) => d.id);
+        if (dialogs.length > 0 && selected.size === 0) {
+            const activeDialogs = dialogs.filter((d) => d.sync_state === 'active').map((d) => d.id);
+            if (activeDialogs.length > 0) {
                 setSelected(new Set(activeDialogs));
-            } catch (err: unknown) {
-                if (isMountedRef.current) {
-                    setError(extractApiErrorMessage(err, 'Failed to load available chats'));
-                }
-            } finally {
-                if (isMountedRef.current) {
-                    setLoading(false);
-                }
             }
-        };
-        void fetchData();
-    }, []);
+        }
+    }, [dialogs, selected.size]);
 
     const toggleSelect = (id: number) => {
         setSelected(prev => {
@@ -63,23 +36,17 @@ const SelectChats: React.FC = () => {
         }
     };
 
-    const handleSync = async () => {
+    const handleSync = () => {
         if (selected.size === 0) return;
-        setSyncing(true);
-        setError(null);
-        try {
-            await dialogsApi.sync({ dialog_ids: Array.from(selected) });
-            navigate('/synced-chats');
-        } catch (err: unknown) {
-            if (isMountedRef.current) {
-                setError(extractApiErrorMessage(err, 'Failed to start sync'));
+        syncMutation.mutate(Array.from(selected), {
+            onSuccess: () => {
+                navigate('/synced-chats');
             }
-        } finally {
-            if (isMountedRef.current) {
-                setSyncing(false);
-            }
-        }
+        });
     };
+
+    const error = fetchError?.message || syncMutation.error?.message;
+    const syncing = syncMutation.isPending;
 
     const getIcon = (type: string) => {
         switch (type) {

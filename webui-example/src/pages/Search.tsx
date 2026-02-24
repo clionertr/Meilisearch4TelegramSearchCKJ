@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useInfiniteQuery } from '@tanstack/react-query';
-import { searchApi } from '@/api/search';
 import { extractApiErrorMessage } from '@/api/error';
 import { Highlight } from '@/components/common/Highlight';
+import { useSearchQuery } from '@/hooks/queries/useSearch';
 
 const Search: React.FC = () => {
     const navigate = useNavigate();
@@ -24,17 +23,7 @@ const Search: React.FC = () => {
         isFetchingNextPage,
         isLoading,
         error
-    } = useInfiniteQuery({
-        queryKey: ['search', debouncedQuery],
-        queryFn: ({ pageParam = 0 }) => 
-            searchApi.search({ q: debouncedQuery, offset: pageParam, limit: 20 }),
-        getNextPageParam: (lastPage) => {
-            const { offset, limit, total_hits } = lastPage.data.data;
-            return offset + limit < total_hits ? offset + limit : undefined;
-        },
-        enabled: debouncedQuery.length > 0,
-        initialPageParam: 0,
-    });
+    } = useSearchQuery(debouncedQuery, 20);
 
     const allResults = useMemo(() => {
         return data?.pages.flatMap(page => page.data.data.hits) || [];
@@ -52,21 +41,21 @@ const Search: React.FC = () => {
                     </button>
                     <h1 className="text-lg font-semibold flex-1 text-center pr-8 dark:text-white">Search</h1>
                 </div>
-                
+
                 <div className="relative w-full group">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <span className="material-symbols-outlined text-primary">search</span>
                     </div>
-                    <input 
-                        className="block w-full pl-10 pr-10 py-3 rounded-xl border-none bg-surface-light dark:bg-surface-dark text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-primary/50 shadow-sm text-base" 
-                        placeholder="Search messages..." 
-                        type="text" 
+                    <input
+                        className="block w-full pl-10 pr-10 py-3 rounded-xl border-none bg-surface-light dark:bg-surface-dark text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-primary/50 shadow-sm text-base"
+                        placeholder="Search messages..."
+                        type="text"
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
                     />
                     {query && (
                         <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                            <button 
+                            <button
                                 onClick={() => setQuery('')}
                                 className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
                             >
@@ -138,9 +127,9 @@ const Search: React.FC = () => {
                         </div>
                     </div>
                 ))}
-                
+
                 {hasNextPage && (
-                    <button 
+                    <button
                         onClick={() => fetchNextPage()}
                         disabled={isFetchingNextPage}
                         className="w-full py-4 text-primary text-sm font-medium"
@@ -155,7 +144,7 @@ const Search: React.FC = () => {
                     </div>
                 )}
             </div>
-            
+
             <div className="absolute bottom-24 right-6 z-20">
                 <button className="bg-primary hover:bg-sky-500 text-white rounded-full w-14 h-14 flex items-center justify-center shadow-lg shadow-primary/40 transition-colors">
                     <span className="material-symbols-outlined text-[28px]">search_check</span>
