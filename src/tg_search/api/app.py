@@ -83,7 +83,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             async def run_bot():
                 """运行 Bot 的包装函数"""
                 try:
-                    bot_handler = BotHandler(run)
+                    bot_handler = BotHandler(lambda: run(progress_registry=app_state.progress_registry))
                     await bot_handler.run()
                 except asyncio.CancelledError:
                     logger.info("Bot task was cancelled")

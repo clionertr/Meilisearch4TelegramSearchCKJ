@@ -1,7 +1,7 @@
 import asyncio
 import os
 from collections.abc import Awaitable
-from typing import cast
+from typing import Any, cast
 
 from tg_search.config.settings import (
     BLACK_LIST,
@@ -18,6 +18,7 @@ from tg_search.utils.message_tracker import (
     get_latest_msg_id4_meili,
     read_config_from_meili,
 )
+from tg_search.utils.permissions import is_allowed
 
 logger = setup_logger()
 
@@ -28,7 +29,11 @@ def _maybe_validate_config() -> None:
     validate_config()
 
 
-async def download_and_listen(user_bot_client: TelegramUserBot, meili: MeiliSearchClient):
+async def download_and_listen(
+    user_bot_client: TelegramUserBot,
+    meili: MeiliSearchClient,
+    progress_registry: Any | None = None,
+):
     try:
         config = read_config_from_meili(meili)
         white_list = config.get("WHITE_LIST") or WHITE_LIST
@@ -38,20 +43,52 @@ async def download_and_listen(user_bot_client: TelegramUserBot, meili: MeiliSear
         tasks = []
         dialogs = await user_bot_client.client.get_dialogs()
         for d in dialogs:
-            logger.log(25, f"Dialogs: {d.id}, {d.title if d.title else d}")
-            if (white_list and d.id in white_list) or (not white_list and d.id not in black_list):
-                logger.log(25, f"Downloading history for {d.title or d.id}")
+            dialog_title = d.title or str(d.id)
+            logger.log(25, f"Dialog discovered: {d.id} ({dialog_title})")
+            if is_allowed(d.id, white_list, black_list):
+                logger.log(25, f"Downloading history for {dialog_title}")
                 peer = await user_bot_client.client.get_entity(d.id)
-                tasks.append(
-                    user_bot_client.download_history(
-                        peer,
-                        limit=None,
-                        offset_id=get_latest_msg_id4_meili(config, d.id),
-                        latest_msg_config=config,
-                        meili=meili,
-                        dialog_id=d.id,
+
+                dialog_id = d.id
+
+                async def _progress(current: int, did: int = dialog_id, dtitle: str = dialog_title):
+                    if progress_registry is None:
+                        return
+                    await progress_registry.update_progress(
+                        dialog_id=did,
+                        dialog_title=dtitle,
+                        current=current,
+                        total=0,
+                        status="downloading",
                     )
-                )
+
+                async def _download_one(p=peer, did: int = dialog_id, dtitle: str = dialog_title):
+                    if progress_registry is not None:
+                        await progress_registry.update_progress(
+                            dialog_id=did,
+                            dialog_title=dtitle,
+                            current=0,
+                            total=0,
+                            status="downloading",
+                        )
+                    try:
+                        await user_bot_client.download_history(
+                            p,
+                            limit=None,
+                            offset_id=get_latest_msg_id4_meili(config, did),
+                            latest_msg_config=config,
+                            meili=meili,
+                            dialog_id=did,
+                            progress_callback=_progress,
+                        )
+                        if progress_registry is not None:
+                            await progress_registry.complete_progress(did)
+                    except Exception as e:
+                        if progress_registry is not None:
+                            await progress_registry.fail_progress(did, str(e))
+                        raise
+
+                tasks.append(_download_one())
         # 并行处理所有下载任务
         await asyncio.gather(*tasks)
         # 监控内存使用
@@ -64,7 +101,7 @@ async def download_and_listen(user_bot_client: TelegramUserBot, meili: MeiliSear
         logger.error(f"下载任务出错: {e}")
 
 
-async def main():
+async def main(progress_registry: Any | None = None):
     _maybe_validate_config()
 
     meili = MeiliSearchClient(MEILI_HOST, MEILI_PASS)
@@ -74,7 +111,7 @@ async def main():
         logger.info("User Bot started")
 
         # 创建并运行下载和监听任务
-        download_task = asyncio.create_task(download_and_listen(user_bot_client, meili))
+        download_task = asyncio.create_task(download_and_listen(user_bot_client, meili, progress_registry))
 
         # 这里可以添加其他需要并行运行的任务
 
@@ -90,10 +127,10 @@ async def main():
         await user_bot_client.cleanup()
 
 
-async def run():
+async def run(progress_registry: Any | None = None):
     try:
         _maybe_validate_config()
-        await main()
+        await main(progress_registry)
     except KeyboardInterrupt:
         logger.info("Bot stopped by user")
 

@@ -112,5 +112,6 @@ async def get_download_progress(
     """获取所有下载进度"""
     all_progress = app_state.progress_registry.get_all_progress()
     progress_data = {str(k): v.to_dict() for k, v in all_progress.items()}
+    active_count = sum(1 for v in all_progress.values() if v.status == "downloading")
 
-    return ApiResponse(data={"progress": progress_data, "count": len(progress_data)})
+    return ApiResponse(data={"progress": progress_data, "count": active_count})

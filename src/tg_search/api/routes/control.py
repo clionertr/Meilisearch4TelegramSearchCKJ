@@ -50,7 +50,7 @@ async def start_client(
         from tg_search.main import run
 
         # 在后台任务中运行
-        app_state.bot_task = asyncio.create_task(run())
+        app_state.bot_task = asyncio.create_task(run(progress_registry=app_state.progress_registry))
         logger.info("Telegram client started via API")
 
         response = ClientControlResponse(

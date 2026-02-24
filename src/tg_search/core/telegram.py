@@ -11,7 +11,7 @@ import asyncio
 import gc
 import os
 import tracemalloc
-from collections.abc import Awaitable
+from collections.abc import Awaitable, Callable
 from typing import Any, cast
 
 import pytz
@@ -362,6 +362,7 @@ class TelegramUserBot:
         latest_msg_config=None,
         meili=None,
         dialog_id=None,
+        progress_callback: Callable[[int], Awaitable[None]] | None = None,
     ):
         """
         下载历史消息
@@ -408,6 +409,8 @@ class TelegramUserBot:
 
                     logger.info(f"Downloaded {total_messages} messages")
                     self.get_memory_usage()
+                    if progress_callback is not None:
+                        await progress_callback(total_messages)
 
             # 处理剩余消息
             if messages:
@@ -417,8 +420,14 @@ class TelegramUserBot:
                 messages = []
                 gc.collect()
                 logger.log(25, f"Download completed for {peer.id}")
+                if progress_callback is not None:
+                    await progress_callback(total_messages)
             elif last_seen_marker is not None and latest_msg_config is not None and meili is not None:
                 await update_latest_msg_config4_meili(dialog_id, last_seen_marker, latest_msg_config, meili)
+                if progress_callback is not None:
+                    await progress_callback(total_messages)
+            elif progress_callback is not None:
+                await progress_callback(total_messages)
 
         except FloodWaitError as e:
             logger.warning(f"Rate limited, need to wait {e.seconds} seconds")
