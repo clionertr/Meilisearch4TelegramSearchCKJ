@@ -1,8 +1,33 @@
-version: "3.9"
 services:
+  # MeiliSearch 全文搜索引擎
+  meilisearch:
+    image: getmeili/meilisearch:latest
+    container_name: meili-db
+    restart: unless-stopped
+    environment:
+      - MEILI_MASTER_KEY=${MEILI_MASTER_KEY}
+    volumes:
+      - meili_data:/meili_data
+    ports:
+      - "7700:7700"
+
+  # Telegram 搜索服务 (Bot + API)
   app:
-    build: . # 使用当前目录下的 Dockerfile 构建镜像
+    build: .
     image: tg_msg_search_from_meili
     container_name: tg_msg_search_from_meili
+    restart: unless-stopped
+    depends_on:
+      - meilisearch
+    env_file:
+      - .env
+    environment:
+      # Docker 内部使用服务名连接 MeiliSearch
+      - MEILI_HOST=http://meilisearch:7700
+    volumes:
+      - ./session:/app/session
     ports:
-      - "8012:7860"  # 端口映射
+      - "8000:8000"  # API 端口
+
+volumes:
+  meili_data:

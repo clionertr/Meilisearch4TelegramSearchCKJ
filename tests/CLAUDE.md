@@ -19,19 +19,44 @@
 
 ## 文件清单
 
-### 测试文件
+### 单元测试 (`tests/unit/`)
 
-| 文件 | 职责 | 测试类 |
-|------|------|--------|
-| `conftest.py` | pytest 配置和公共 fixtures | - |
-| `test_api.py` | FastAPI 端点测试 | 7 个测试类 (20+ 测试) |
-| `test_api_integration.py` | API 集成测试 | - |
-| `test_meilisearch_handler.py` | MeiliSearch 客户端测试 | 4 个测试类 |
-| `test_utils.py` | 工具函数测试 | 3 个测试类 |
-| `test_logger.py` | 日志配置测试 | - |
-| `test_tg_client.py` | Telegram 客户端测试 (集成) | - |
-| `test_configparser.py` | 配置解析测试 | - |
-| `test_meilisearch.py` | MeiliSearch 集成测试 | - |
+| 文件 | 职责 |
+|------|------|
+| `conftest.py` | 单元测试 fixtures（Mock MeiliSearch、TestClient 等） |
+| `test_api.py` | FastAPI 端点单元测试 (7 个测试类, 20+ 测试) |
+| `test_auth_store.py` | 认证存储测试 |
+| `test_configparser.py` | 配置解析测试 |
+| `test_dashboard.py` | Dashboard 单元测试 |
+| `test_logger.py` | 日志配置测试 |
+| `test_meilisearch.py` | MeiliSearch 基础测试 |
+| `test_meilisearch_handler.py` | MeiliSearch 客户端测试 (4 个测试类) |
+| `test_utils.py` | 工具函数测试 (3 个测试类) |
+
+### 集成测试 (`tests/integration/`)
+
+| 文件 | 职责 |
+|------|------|
+| `conftest.py` | 集成测试 fixtures（真实 MeiliSearch 实例） |
+| `config.py` | 集成测试配置 |
+| `env_manager.py` | 环境变量管理器 |
+| `run.py` | 集成测试运行器 |
+| `test_api_e2e.py` | API 端到端测试 |
+| `test_ai_config.py` | AI Config API 集成测试 |
+| `test_config_store.py` | ConfigStore 集成测试 |
+| `test_config_store_e2e.py` | ConfigStore E2E 测试 |
+| `test_dashboard_e2e.py` | Dashboard E2E 测试 |
+| `test_dialog_sync.py` | Dialog Sync 集成测试 |
+| `test_dialog_sync_e2e.py` | Dialog Sync E2E 测试 |
+| `test_group_setup.py` | 测试组配置 |
+| `test_storage.py` | Storage API 集成测试 |
+
+### 公共文件
+
+| 文件 | 职责 |
+|------|------|
+| `conftest.py` (根目录) | 全局 pytest 配置和 fixtures |
+| `helpers/` | 测试辅助模块 |
 
 ### 工具脚本
 
@@ -492,6 +517,11 @@ def test_my_endpoint(self, test_client):
 ---
 
 ## 变更记录 (Changelog)
+
+### 2026-02-24
+- 测试目录重组为 `unit/` + `integration/` 二级结构
+- 新增集成测试：ConfigStore, Dialog Sync, AI Config, Storage, Dashboard
+- 更新文件清单和运行说明
 
 ### 2026-02-06
 - 更新文档，添加 API 测试说明

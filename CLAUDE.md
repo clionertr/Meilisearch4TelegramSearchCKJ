@@ -2,11 +2,24 @@
 
 > 基于 Telethon + MeiliSearch 的 Telegram 中文/日文/韩文 (CJK) 消息搜索解决方案
 
-**生成时间**: 2026-02-06（最近同步: 2026-02-17）
+**生成时间**: 2026-02-06（最近同步: 2026-02-24）
 
 ---
 
 ## 变更记录 (Changelog)
+
+### 2026-02-24
+- 新增 **ConfigStore** 配置持久化模块 (`config/config_store.py`)，基于 MeiliSearch 实现全局配置读写
+- 新增 **Dialog Sync API** (`routes/dialogs.py`)：会话同步管理（available / synced / sync / patch / delete）
+- 新增 **AI Config API** (`routes/ai_config.py`)：AI 配置读写与连通性测试
+- 新增 **Storage API** (`routes/storage.py`)：存储统计与缓存清理
+- 新增 **Dashboard API** (`routes/dashboard.py`)：活动聚合与规则摘要
+- 测试目录重组为 `tests/unit/` + `tests/integration/` 二级结构
+- 新增大量集成测试：`test_dialog_sync.py`, `test_ai_config.py`, `test_storage.py`, `test_dashboard_e2e.py` 等
+- 更新 `.env.example` 补充 `CORS_ORIGINS` 配置
+- 更新 `docker-compose.yml` 为生产可用配置
+- 更新 `.dockerignore` 适配当前目录结构
+- 全面更新所有文档以与代码同步
 
 ### 2026-02-17
 - 同步重构进度：Phase 1-3 已完成，Phase 4 P0 已完成（主链路打通）
@@ -122,6 +135,7 @@ graph TD
     A --> H["webui-example"];
 
     C --> C1["settings.py<br/>配置管理"];
+    C --> C2["config_store.py<br/>ConfigStore 持久化"];
     D --> D1["bot.py<br/>Bot处理器"];
     D --> D2["telegram.py<br/>TG客户端"];
     D --> D3["meilisearch.py<br/>搜索客户端"];
@@ -134,7 +148,9 @@ graph TD
     G --> G2["routes/<br/>API路由"];
     G --> G3["models.py<br/>Pydantic模型"];
     G --> G4["auth_store.py<br/>认证存储"];
-    H --> H1["pages/<br/>页面组件"];
+    G --> G5["deps.py<br/>依赖注入"];
+    G --> G6["state.py<br/>应用状态"];
+    H --> H1["src/pages/<br/>页面组件"];
     H --> H2["src/api/<br/>API层"];
     H --> H3["src/store/<br/>状态管理"];
     H --> H4["src/hooks/<br/>React Hooks"];
@@ -153,11 +169,22 @@ graph TD
 ```
 Meilisearch4TelegramSearchCKJ/
 ├── CLAUDE.md                    # 本文档
+├── README.md                    # 项目说明
 ├── pyproject.toml               # 项目配置 (PEP 621)
+├── .env.example                 # 环境变量示例
 ├── Dockerfile                   # Docker 构建文件
 ├── docker-compose.yml           # Docker Compose 配置
-├── .claude/
-│   └── index.json               # 项目索引（AI工具用）
+├── docker-compose-windows.yml   # Windows Docker 配置
+├── docs/
+│   └── specs/                   # API 规格文档
+│       ├── SPEC-P0-config-store.md
+│       ├── SPEC-P0-dialog-sync.md
+│       ├── SPEC-P0-search-service.md
+│       ├── SPEC-P0-service-layer-architecture.md
+│       ├── SPEC-P1-ai-config.md
+│       ├── SPEC-P1-observability-service.md
+│       ├── SPEC-P1-storage.md
+│       └── SPEC-P2-dashboard.md
 ├── src/
 │   └── tg_search/               # 主包
 │       ├── __init__.py
@@ -167,6 +194,7 @@ Meilisearch4TelegramSearchCKJ/
 │       ├── config/              # 配置模块
 │       │   ├── __init__.py
 │       │   ├── settings.py      # 环境变量配置
+│       │   ├── config_store.py  # ConfigStore 配置持久化 (基于 MeiliSearch)
 │       │   └── CLAUDE.md        # 模块文档
 │       ├── core/                # 核心业务逻辑
 │       │   ├── __init__.py
@@ -183,33 +211,66 @@ Meilisearch4TelegramSearchCKJ/
 │       │   ├── memory.py        # 内存监控
 │       │   ├── bridge.py        # 桥接模块
 │       │   └── CLAUDE.md        # 模块文档
-│       ├── api/                 # REST API 模块 (v0.2.0)
-│       │   ├── __init__.py
-│       │   ├── app.py           # FastAPI 应用构建
-│       │   ├── models.py        # Pydantic 模型
-│       │   ├── deps.py          # 依赖注入
-│       │   ├── state.py         # 应用状态管理
-│       │   ├── auth_store.py    # 认证存储
-│       │   ├── routes/          # API 路由
-│       │   │   ├── __init__.py
-│       │   │   ├── auth.py      # 认证端点
-│       │   │   ├── search.py    # 搜索端点
-│       │   │   ├── status.py    # 状态端点
-│       │   │   ├── config.py    # 配置端点
-│       │   │   ├── control.py   # 控制端点
-│       │   │   └── ws.py        # WebSocket 端点
-│       │   └── CLAUDE.md        # 模块文档
-│       └── session/             # Telethon 会话文件
-└── tests/                       # 测试文件
-    ├── conftest.py              # pytest 配置和 fixtures
-    ├── test_meilisearch_handler.py
-    ├── test_utils.py
-    ├── test_logger.py
-    ├── test_tg_client.py
-    ├── test_configparser.py
-    ├── test_api.py              # API 端点测试
-    ├── test_api_integration.py  # API 集成测试
-    └── CLAUDE.md                # 模块文档
+│       └── api/                 # REST API 模块 (v0.2.0)
+│           ├── __init__.py
+│           ├── app.py           # FastAPI 应用构建
+│           ├── models.py        # Pydantic 模型
+│           ├── deps.py          # 依赖注入
+│           ├── state.py         # 应用状态管理
+│           ├── auth_store.py    # 认证存储
+│           ├── routes/          # API 路由
+│           │   ├── __init__.py  # 路由注册
+│           │   ├── auth.py      # 认证端点
+│           │   ├── search.py    # 搜索端点
+│           │   ├── status.py    # 状态端点
+│           │   ├── config.py    # 配置端点
+│           │   ├── control.py   # 控制端点
+│           │   ├── storage.py   # 存储端点 (P1-ST)
+│           │   ├── ai_config.py # AI 配置端点 (P1-AI)
+│           │   ├── dashboard.py # Dashboard 端点 (P2-DB)
+│           │   ├── dialogs.py   # 会话同步端点 (P0-DS)
+│           │   └── ws.py        # WebSocket 端点
+│           └── CLAUDE.md        # 模块文档
+├── tests/                       # 测试文件
+│   ├── conftest.py              # pytest 配置和 fixtures
+│   ├── CLAUDE.md                # 模块文档
+│   ├── TESTING_GUIDELINES.md     # 测试指南
+│   ├── helpers/                 # 测试辅助模块
+│   ├── unit/                    # 单元测试
+│   │   ├── conftest.py
+│   │   ├── test_api.py          # API 端点单元测试
+│   │   ├── test_auth_store.py   # 认证存储测试
+│   │   ├── test_configparser.py # 配置解析测试
+│   │   ├── test_dashboard.py    # Dashboard 单元测试
+│   │   ├── test_logger.py       # 日志测试
+│   │   ├── test_meilisearch.py  # MeiliSearch 测试
+│   │   ├── test_meilisearch_handler.py # MeiliSearch 客户端测试
+│   │   └── test_utils.py        # 工具函数测试
+│   └── integration/             # 集成测试
+│       ├── conftest.py
+│       ├── config.py            # 集成测试配置
+│       ├── env_manager.py       # 环境管理器
+│       ├── run.py               # 集成测试运行器
+│       ├── test_api_e2e.py      # API 端到端测试
+│       ├── test_ai_config.py    # AI 配置集成测试
+│       ├── test_config_store.py # ConfigStore 集成测试
+│       ├── test_config_store_e2e.py  # ConfigStore E2E 测试
+│       ├── test_dashboard_e2e.py    # Dashboard E2E 测试
+│       ├── test_dialog_sync.py      # Dialog Sync 集成测试
+│       ├── test_dialog_sync_e2e.py  # Dialog Sync E2E 测试
+│       ├── test_group_setup.py      # 测试组配置
+│       └── test_storage.py          # Storage 集成测试
+└── webui-example/               # 前端管理界面 (React + TypeScript)
+    ├── src/
+    │   ├── pages/               # 页面组件
+    │   ├── api/                 # API 层
+    │   ├── components/          # 公共组件
+    │   ├── hooks/               # React Hooks
+    │   ├── store/               # 状态管理
+    │   ├── types/               # 类型定义
+    │   └── utils/               # 工具函数
+    ├── CLAUDE.md                # 模块文档
+    └── README.md                # 前端说明
 ```
 
 ---
@@ -282,6 +343,7 @@ ruff format src/
 |------|--------|------|
 | `API_KEY` | `None` | API 密钥（未设置则无需认证） |
 | `API_KEY_HEADER` | `X-API-Key` | API 密钥请求头名称 |
+| `AUTH_TOKEN_STORE_FILE` | `session/auth_tokens.json` | Bearer Token 持久化文件路径（空为仅内存） |
 | `CORS_ORIGINS` | `http://localhost:5173,http://localhost:3000` | 允许的 CORS 源 |
 
 #### 可选（搜索相关）
@@ -337,6 +399,41 @@ ruff format src/
 | POST | `/api/v1/client/start` | 启动下载 |
 | POST | `/api/v1/client/stop` | 停止下载 |
 
+### 存储端点 (需要认证, P1-ST)
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/v1/storage/stats` | 存储统计信息 |
+| PATCH | `/api/v1/storage/auto-clean` | 配置自动清理 |
+| POST | `/api/v1/storage/cleanup/cache` | 清理缓存 |
+| POST | `/api/v1/storage/cleanup/media` | 清理媒体（当前未启用） |
+
+### AI 配置端点 (Bearer-only, P1-AI)
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/v1/ai/config` | 获取 AI 配置（不回显 api_key） |
+| PUT | `/api/v1/ai/config` | 更新 AI 配置 |
+| POST | `/api/v1/ai/config/test` | AI 连通性测试 |
+| GET | `/api/v1/ai/models` | 获取可用模型列表 |
+
+### Dashboard 端点 (Bearer-only, P2-DB)
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/v1/dashboard/activity` | 活动聚合列表 |
+| GET | `/api/v1/dashboard/brief` | 规则摘要 |
+
+### 会话同步端点 (Bearer-only, P0-DS)
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/v1/dialogs/available` | 可用会话列表（带 120s 缓存） |
+| GET | `/api/v1/dialogs/synced` | 已同步会话列表 |
+| POST | `/api/v1/dialogs/sync` | 批量开启会话同步 |
+| PATCH | `/api/v1/dialogs/{id}/sync-state` | 修改同步状态 |
+| DELETE | `/api/v1/dialogs/{id}/sync` | 删除同步配置 |
+
 ### WebSocket
 
 | 路径 | 说明 |
@@ -353,29 +450,38 @@ ruff format src/
 
 ## 测试策略
 
-### 测试覆盖
-- **单元测试**: MeiliSearchClient、工具函数、权限检查
-- **API 测试**: FastAPI 端点测试（使用 TestClient）
-- **Mock 测试**: Telegram 客户端、异步操作
-- **异常测试**: 网络错误、超时、权限错误
-- **重试机制测试**: tenacity 重试验证
+### 测试架构
+
+测试分为两层，位于 `tests/` 目录下：
+
+- **`tests/unit/`** — 单元测试（Mock 驱动，无外部依赖）
+  - MeiliSearchClient、工具函数、权限检查、认证存储
+  - FastAPI 端点单元测试（使用 TestClient + Mock）
+  - Dashboard 单元测试
+- **`tests/integration/`** — 集成测试（需要真实 MeiliSearch 实例）
+  - ConfigStore 集成/E2E 测试
+  - Dialog Sync 集成/E2E 测试
+  - AI Config 集成测试
+  - Storage 集成测试
+  - Dashboard E2E 测试
+  - API 端到端测试
 
 ### 运行测试
 ```bash
 # 运行所有测试
 pytest tests/
 
-# 运行特定测试文件
-pytest tests/test_meilisearch_handler.py
+# 仅运行单元测试
+pytest tests/unit/
 
-# 运行 API 测试
-pytest tests/test_api.py
+# 仅运行集成测试（需要 MeiliSearch）
+pytest tests/integration/
+
+# 运行特定测试文件
+pytest tests/unit/test_meilisearch_handler.py
 
 # 生成覆盖率报告
 pytest --cov=src/tg_search --cov-report=html tests/
-
-# 查看覆盖率报告
-open htmlcov/index.html
 ```
 
 ### Fixtures

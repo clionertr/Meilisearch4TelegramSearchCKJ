@@ -1,12 +1,48 @@
-/Meilisearch4TelegramSearchCKJ/src/session/user_bot_session.session
-/Meilisearch4TelegramSearchCKJ/src/session/user_bot_session.session-journal
-/Meilisearch4TelegramSearchCKJ/src/session/bot.session
-/Meilisearch4TelegramSearchCKJ/src/models/bot.session
-/Meilisearch4TelegramSearchCKJ/src/models/bot.session-journal
-/Meilisearch4TelegramSearchCKJ/src/models/log_file.log
-/Meilisearch4TelegramSearchCKJ/src/log_file.log
-/Meilisearch4TelegramSearchCKJ.egg-info
-/Meilisearch4TelegramSearchCKJ/__pycache__
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+
+# 虚拟环境
+.venv/
+venv/
+
+# 测试和开发
+tests/
+htmlcov/
+.coverage
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# IDE
+.vscode/
+.idea/
+
+# Git
+.git/
 .gitignore
-.idea
-/Meilisearch4TelegramSearchCKJ/src/config.ini
+
+# 环境和敏感文件
+.env
+session/*.session
+session/*.session-journal
+session/auth_tokens.json
+
+# 前端 (不需要在 Python 镜像中)
+webui-example/
+node_modules/
+
+# 文档和工具
+docs/
+*.md
+.ace-tool/
+.claude/
+.github/
+asset/
+
+# 日志
+*.log
+log_file.log
