@@ -6,8 +6,8 @@ API 路由模块
 
 from fastapi import APIRouter, Depends
 
-from tg_search.api.deps import verify_api_key_or_bearer_token
-from tg_search.api.routes import auth, config, control, search, status, ws
+from tg_search.api.deps import verify_api_key_or_bearer_token, verify_bearer_token
+from tg_search.api.routes import auth, config, control, dialogs, search, status, ws
 
 # 创建主路由器
 api_router = APIRouter(prefix="/api/v1")
@@ -49,6 +49,15 @@ api_router.include_router(
     prefix="/client",
     tags=["Control"],
     dependencies=[Depends(verify_api_key_or_bearer_token)],
+)
+
+# Dialog Sync 端点 - Bearer-only（ADR-DS-001，不接受 API Key）
+# 鉴权在各路由函数内通过 verify_bearer_token dep 单独控制（不在此处添加全局 dep，
+# 避免 FastAPI 双重校验），实际通过各端点 _token 参数强制注入
+api_router.include_router(
+    dialogs.router,
+    prefix="/dialogs",
+    tags=["Dialogs"],
 )
 
 # WebSocket 端点 - 内部处理 Token 鉴权

@@ -5,9 +5,13 @@ Pydantic 模型定义
 """
 
 from datetime import datetime
-from typing import Any, Dict, Generic, List, Optional, TypeVar
+from enum import Enum
+from typing import Any, Dict, Generic, List, Literal, Optional, TypeVar
 
 from pydantic import BaseModel, Field
+
+# sync_state 允许值（输入校验用）
+SyncStateInput = Literal["active", "paused"]
 
 T = TypeVar("T")
 
@@ -268,3 +272,99 @@ class LogoutResponse(BaseModel):
     """登出响应"""
 
     revoked: bool = Field(..., description="是否成功撤销")
+
+
+# ============ Dialog Sync 相关（P0-DS）============
+
+
+class AvailableDialogItem(BaseModel):
+    """GET /available 中单个可用对话条目"""
+
+    id: int
+    title: str
+    type: str  # group | channel | private
+    message_count: Optional[int] = None  # ADR-DS-002: Telegram 无低成本接口，返回 null
+    sync_state: str = "inactive"
+
+
+class AvailableDialogsData(BaseModel):
+    """GET /available 响应 data 字段"""
+
+    dialogs: List[AvailableDialogItem]
+    total: int
+
+
+class AvailableDialogsMeta(BaseModel):
+    """GET /available 响应 meta 字段"""
+
+    cached: bool
+    cache_ttl_sec: int
+
+
+class AvailableDialogsResponse(BaseModel):
+    """GET /available 完整响应"""
+
+    success: bool = True
+    data: AvailableDialogsData
+    meta: AvailableDialogsMeta
+
+
+class SyncedDialogItem(BaseModel):
+    """GET /synced 中单个已同步对话条目"""
+
+    id: int
+    title: str
+    type: str
+    sync_state: str
+    last_synced_at: Optional[str] = None
+    is_syncing: bool = False
+    updated_at: str
+
+
+class SyncedDialogsData(BaseModel):
+    """GET /synced 响应 data 字段"""
+
+    dialogs: List[SyncedDialogItem]
+    total: int
+
+
+class SyncRequest(BaseModel):
+    """POST /sync 请求体"""
+
+    dialog_ids: List[int] = Field(
+        ...,
+        min_length=1,
+        max_length=200,
+        description="要同步的 dialog ID 列表（1-200 个，自动去重）",
+    )
+    default_sync_state: SyncStateInput = Field(default="active", description="初始同步状态: active | paused")
+
+
+class SyncResult(BaseModel):
+    """POST /sync 响应 data 字段"""
+
+    accepted: List[int]
+    ignored: List[int]
+    not_found: List[int]
+
+
+class PatchSyncStateRequest(BaseModel):
+    """PATCH /{dialog_id}/sync-state 请求体"""
+
+    sync_state: SyncStateInput = Field(..., description="同步状态: active | paused")
+
+
+class PatchSyncStateResult(BaseModel):
+    """PATCH /{dialog_id}/sync-state 响应 data 字段"""
+
+    id: int
+    sync_state: str
+    updated_at: str
+
+
+class DeleteSyncResult(BaseModel):
+    """DELETE /{dialog_id}/sync 响应 data 字段"""
+
+    removed: bool
+    purge_index: bool
+    purge_error: Optional[str] = None

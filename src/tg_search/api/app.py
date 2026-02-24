@@ -14,10 +14,10 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from tg_search.api.auth_store import AuthStore
 from tg_search.api.models import ErrorResponse
 from tg_search.api.routes import api_router
 from tg_search.api.state import AppState
-from tg_search.api.auth_store import AuthStore
 from tg_search.core.logger import setup_logger
 from tg_search.core.meilisearch import (
     MeiliSearchAPIError,
@@ -61,6 +61,22 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     except (MeiliSearchConnectionError, MeiliSearchTimeoutError, MeiliSearchAPIError) as e:
         logger.error(f"Failed to initialize MeiliSearch client: {e}")
         # 允许 API 启动，但 meili_client 为 None
+
+    # 初始化 ConfigStore（P0-Config-Store）
+    if app_state.meili_client is not None:
+        try:
+            from tg_search.config.config_store import ConfigStore
+
+            app_state.config_store = ConfigStore(app_state.meili_client)
+            logger.info("ConfigStore initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize ConfigStore: {e}")
+            # 允许 API 启动，但 config_store 为 None
+
+    # 初始化 dialog available 缓存（Fix-4：绑定到 app 生命周期）
+    from tg_search.api.routes.dialogs import _AvailableCache
+
+    app_state.dialog_available_cache = _AvailableCache()
 
     # 检查是否为 API-only 模式
     app_state.api_only = os.getenv("API_ONLY", "false").lower() == "true"

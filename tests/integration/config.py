@@ -60,6 +60,13 @@ _DEFAULT_SWITCHES: dict[str, bool] = {
     "error_invalid_limit": True,
     # Config Store E2E
     "config_store_e2e": True,
+    # Phase 7: Dialog Sync E2E
+    "dialog_sync_auth": True,
+    "dialog_sync_available": True,
+    "dialog_sync_cache": True,
+    "dialog_sync_sync": True,
+    "dialog_sync_patch": True,
+    "dialog_sync_delete": True,
 }
 
 

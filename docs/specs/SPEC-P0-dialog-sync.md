@@ -87,7 +87,7 @@
 - [ ] T-P0-DS-06 实现 `PATCH /sync-state`。
 - [ ] T-P0-DS-07 实现 `DELETE /sync` + `purge_index` 可选路径。
 - [ ] T-P0-DS-08 单元测试（边界值、鉴权、幂等、状态码）。
-- [ ] T-P0-DS-09 集成测试接入 `uv run tests/integration/run.py`。
+- [ ] T-P0-DS-09 使用真实环境，集成测试接入 `uv run tests/integration/run.py`。
 
 ## 5. E2E 测试用例清单
 1. 登录后获取 `GET /dialogs/available` -> 返回数组。

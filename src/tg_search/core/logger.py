@@ -4,7 +4,6 @@ import coloredlogs
 
 from tg_search.config.settings import LOGGING2FILE_LEVEL, LOGGING_LEVEL
 
-
 _ROOT_CONFIGURED = False
 
 

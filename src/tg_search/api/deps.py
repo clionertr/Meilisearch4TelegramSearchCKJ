@@ -18,6 +18,7 @@ from tg_search.config.settings import API_KEY, API_KEY_HEADER
 if TYPE_CHECKING:
     from tg_search.api.auth_store import AuthStore, AuthToken
     from tg_search.api.state import AppState, ProgressRegistry
+    from tg_search.config.config_store import ConfigStore
     from tg_search.core.meilisearch import MeiliSearchClient
 
 
@@ -149,6 +150,16 @@ async def get_auth_store(request: Request) -> "AuthStore":
     if app_state.auth_store is None:
         raise HTTPException(status_code=503, detail="AuthStore not initialized")
     return app_state.auth_store
+
+
+async def get_config_store(request: Request) -> "ConfigStore":
+    """获取 ConfigStore"""
+    from tg_search.config.config_store import ConfigStore  # noqa: F401
+
+    app_state = await get_app_state(request)
+    if app_state.config_store is None:
+        raise HTTPException(status_code=503, detail="ConfigStore not initialized")
+    return app_state.config_store
 
 
 def parse_bearer_token(authorization: Optional[str]) -> Optional[str]:

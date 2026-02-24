@@ -24,13 +24,13 @@ from tg_search.api.auth_store import AuthStore
 from tg_search.api.deps import get_auth_store, verify_bearer_token
 from tg_search.api.models import (
     ApiResponse,
+    AuthUserInfo,
     LogoutResponse,
     MeResponse,
     SendCodeRequest,
     SendCodeResponse,
     SignInRequest,
     SignInResponse,
-    AuthUserInfo,
 )
 from tg_search.config.settings import APP_HASH, APP_ID, PROXY, IPv6
 from tg_search.core.logger import setup_logger
