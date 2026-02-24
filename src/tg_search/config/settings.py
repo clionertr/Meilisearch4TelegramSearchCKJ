@@ -128,6 +128,8 @@ TIME_ZONE = os.getenv("TIME_ZONE", "Asia/Shanghai")
 API_KEY = os.getenv("API_KEY", None)
 # API Key 请求头名称
 API_KEY_HEADER = os.getenv("API_KEY_HEADER", "X-API-Key")
+# Bearer Token 持久化文件路径（为空表示仅内存，不持久化）
+AUTH_TOKEN_STORE_FILE = os.getenv("AUTH_TOKEN_STORE_FILE", "session/auth_tokens.json")
 
 ## 机器人设置
 # 这里计算了一些Telegram的表情符号的情感分数，计算后会加到消息的reactions_scores字段中

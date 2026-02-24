@@ -16,6 +16,7 @@ os.environ.setdefault("API_ONLY", "true")
 os.environ.setdefault("DISABLE_BOT_AUTOSTART", "true")
 os.environ.setdefault("DISABLE_AUTH_CLEANUP_TASK", "true")
 os.environ.setdefault("DISABLE_THREAD_OFFLOAD", "true")
+os.environ.setdefault("AUTH_TOKEN_STORE_FILE", "")
 
 # 设置必填的环境变量（测试用假值）
 os.environ.setdefault("APP_ID", "12345678")

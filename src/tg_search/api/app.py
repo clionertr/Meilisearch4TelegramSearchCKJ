@@ -38,14 +38,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """
     import asyncio
 
-    from tg_search.config.settings import MEILI_HOST, MEILI_PASS
+    from tg_search.config.settings import AUTH_TOKEN_STORE_FILE, MEILI_HOST, MEILI_PASS
 
     # 创建应用状态
     app_state = AppState()
     app_state.start_time = datetime.utcnow()
 
     # 初始化 AuthStore
-    app_state.auth_store = AuthStore()
+    app_state.auth_store = AuthStore(token_store_file=AUTH_TOKEN_STORE_FILE)
     disable_auth_cleanup = os.getenv("DISABLE_AUTH_CLEANUP_TASK", "").lower() in ("1", "true", "yes")
     running_under_pytest = os.getenv("PYTEST_CURRENT_TEST") is not None
     if not disable_auth_cleanup and not running_under_pytest:

@@ -19,7 +19,6 @@ from telethon.errors import (
     PhoneNumberInvalidError,
     SessionPasswordNeededError,
 )
-from telethon.sessions import StringSession
 
 from tg_search.api.auth_store import AuthStore
 from tg_search.api.deps import get_auth_store, verify_api_key, verify_bearer_token
@@ -42,6 +41,14 @@ if TYPE_CHECKING:
 logger = setup_logger()
 
 router = APIRouter()
+API_AUTH_SESSION_FILE = os.getenv("API_AUTH_SESSION_FILE", "session/api_auth.session")
+
+
+def ensure_session_dir(session_file: str) -> None:
+    """确保 Telethon 会话目录存在"""
+    session_dir = os.path.dirname(session_file)
+    if session_dir:
+        os.makedirs(session_dir, exist_ok=True)
 
 
 def mask_phone_number(phone: str) -> str:
@@ -81,9 +88,10 @@ async def send_code(
             detail="INVALID_PHONE",
         )
 
-    # 创建临时 Telegram 客户端
+    # 创建网页登录专用 Telegram 客户端（文件会话持久化）
+    ensure_session_dir(API_AUTH_SESSION_FILE)
     client = TelegramClient(
-        StringSession(),
+        API_AUTH_SESSION_FILE,
         APP_ID,
         APP_HASH,
         proxy=PROXY,
@@ -103,7 +111,7 @@ async def send_code(
         session = await auth_store.create_session(
             phone_number=phone,
             phone_code_hash=sent_code.phone_code_hash,
-            telegram_session_string=client.session.save(),
+            telegram_session_string=API_AUTH_SESSION_FILE,
         )
 
         logger.info(f"Verification code sent to {mask_phone_number(phone)}")
@@ -168,9 +176,10 @@ async def signin(
             detail="TOO_MANY_ATTEMPTS",
         )
 
-    # 使用发送验证码时的会话上下文继续登录，否则 phone_code_hash 可能失效
+    # 使用发送验证码时同一个文件会话上下文继续登录，否则 phone_code_hash 可能失效
+    ensure_session_dir(API_AUTH_SESSION_FILE)
     client = TelegramClient(
-        StringSession(session.telegram_session_string),
+        session.telegram_session_string or API_AUTH_SESSION_FILE,
         APP_ID,
         APP_HASH,
         proxy=PROXY,

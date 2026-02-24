@@ -5,6 +5,8 @@
 """
 
 import asyncio
+import json
+import os
 import secrets
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -61,6 +63,33 @@ class AuthToken:
             "last_name": self.last_name,
         }
 
+    def to_record(self) -> dict:
+        """序列化为可持久化记录"""
+        return {
+            "token": self.token,
+            "user_id": self.user_id,
+            "username": self.username,
+            "first_name": self.first_name,
+            "last_name": self.last_name,
+            "phone_number": self.phone_number,
+            "expires_at": self.expires_at.isoformat(),
+            "created_at": self.created_at.isoformat(),
+        }
+
+    @classmethod
+    def from_record(cls, record: dict) -> "AuthToken":
+        """从持久化记录反序列化"""
+        return cls(
+            token=str(record["token"]),
+            user_id=int(record["user_id"]),
+            username=record.get("username"),
+            first_name=record.get("first_name"),
+            last_name=record.get("last_name"),
+            phone_number=str(record["phone_number"]),
+            expires_at=datetime.fromisoformat(str(record["expires_at"])),
+            created_at=datetime.fromisoformat(str(record["created_at"])),
+        )
+
 
 # ============ AuthStore 类 ============
 
@@ -83,6 +112,7 @@ class AuthStore:
         self,
         session_ttl: int = SESSION_TTL_SECONDS,
         token_ttl: int = TOKEN_TTL_SECONDS,
+        token_store_file: Optional[str] = None,
     ):
         self._sessions: dict[str, AuthSession] = {}
         self._tokens: dict[str, AuthToken] = {}
@@ -90,6 +120,80 @@ class AuthStore:
         self._session_ttl = session_ttl
         self._token_ttl = token_ttl
         self._cleanup_task: Optional[asyncio.Task] = None
+        self._token_store_file = token_store_file.strip() if token_store_file else None
+        self._load_tokens_from_file()
+
+    def _ensure_token_store_dir(self) -> None:
+        if not self._token_store_file:
+            return
+        token_store_dir = os.path.dirname(self._token_store_file)
+        if token_store_dir:
+            os.makedirs(token_store_dir, exist_ok=True)
+
+    def _persist_tokens_locked(self) -> None:
+        """
+        持久化 Token（调用方需持有 _lock）
+
+        使用临时文件 + 原子替换，降低文件损坏风险。
+        """
+        if not self._token_store_file:
+            return
+
+        try:
+            self._ensure_token_store_dir()
+            payload = {
+                "version": 1,
+                "tokens": [token.to_record() for token in self._tokens.values()],
+            }
+            tmp_file = f"{self._token_store_file}.tmp"
+            with open(tmp_file, "w", encoding="utf-8") as f:
+                json.dump(payload, f, ensure_ascii=False, indent=2)
+            os.replace(tmp_file, self._token_store_file)
+        except Exception as e:
+            logger.error(f"Failed to persist auth tokens: {type(e).__name__}: {e}")
+
+    def _load_tokens_from_file(self) -> None:
+        """启动时从文件恢复未过期 Token"""
+        if not self._token_store_file:
+            return
+
+        try:
+            with open(self._token_store_file, "r", encoding="utf-8") as f:
+                payload = json.load(f)
+        except FileNotFoundError:
+            return
+        except Exception as e:
+            logger.error(f"Failed to load auth tokens: {type(e).__name__}: {e}")
+            return
+
+        records = payload.get("tokens", []) if isinstance(payload, dict) else []
+        if not isinstance(records, list):
+            logger.warning("Invalid auth token file format: 'tokens' should be a list")
+            return
+
+        loaded = 0
+        dropped_expired = 0
+        for record in records:
+            if not isinstance(record, dict):
+                continue
+            try:
+                token = AuthToken.from_record(record)
+            except Exception as e:
+                logger.warning(f"Skipped invalid token record: {type(e).__name__}: {e}")
+                continue
+
+            if token.is_expired:
+                dropped_expired += 1
+                continue
+
+            self._tokens[token.token] = token
+            loaded += 1
+
+        if loaded:
+            logger.info(f"Loaded {loaded} auth tokens from {self._token_store_file}")
+
+        if dropped_expired:
+            self._persist_tokens_locked()
 
     # ============ 会话管理 ============
 
@@ -105,7 +209,7 @@ class AuthStore:
         Args:
             phone_number: 手机号
             phone_code_hash: Telegram 返回的验证码哈希
-            telegram_session_string: 发送验证码时的 Telegram StringSession
+            telegram_session_string: 发送验证码时的会话标识（StringSession 或会话文件路径）
 
         Returns:
             AuthSession 对象
@@ -192,6 +296,7 @@ class AuthStore:
             )
 
             self._tokens[token] = auth_token
+            self._persist_tokens_locked()
             logger.info(f"Issued token for user {user_id}")
             return auth_token
 
@@ -203,6 +308,7 @@ class AuthStore:
                 return None
             if auth_token.is_expired:
                 del self._tokens[token]
+                self._persist_tokens_locked()
                 return None
             return auth_token
 
@@ -215,6 +321,7 @@ class AuthStore:
         async with self._lock:
             if token in self._tokens:
                 del self._tokens[token]
+                self._persist_tokens_locked()
                 logger.info("Token revoked")
                 return True
             return False
@@ -244,6 +351,9 @@ class AuthStore:
             ]
             for t in expired_tokens:
                 del self._tokens[t]
+
+            if expired_tokens:
+                self._persist_tokens_locked()
 
             if expired_sessions or expired_tokens:
                 logger.info(

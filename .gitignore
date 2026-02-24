@@ -63,3 +63,4 @@ src/tg_search/config/config.ini
 # uv.lock
 
 tests/integration/.test_groups.json
+session/auth_tokens.json

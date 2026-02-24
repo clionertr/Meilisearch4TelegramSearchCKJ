@@ -237,17 +237,10 @@ class TestAuthAPI:
     """认证 API 测试"""
 
     async def test_signin_reuses_send_code_session(self, test_client):
-        """send-code 与 signin 必须复用同一 Telegram StringSession"""
+        """send-code 与 signin 必须复用同一 Telegram 文件会话"""
         from tg_search.api.routes import auth as auth_routes
 
         captured: dict[str, str | None] = {"signin_session": None}
-
-        class FakeStringSession:
-            def __init__(self, value: str = ""):
-                self.value = value
-
-            def save(self) -> str:
-                return self.value or "session-from-send-code"
 
         class FakeTelegramClient:
             def __init__(self, session, *args, **kwargs):
@@ -263,7 +256,9 @@ class TestAuthAPI:
                 return SimpleNamespace(phone_code_hash="hash-123")
 
             async def sign_in(self, phone=None, code=None, phone_code_hash=None, password=None):
-                captured["signin_session"] = getattr(self.session, "value", None)
+                captured["signin_session"] = (
+                    self.session if isinstance(self.session, str) else getattr(self.session, "value", None)
+                )
                 return SimpleNamespace(
                     id=10001,
                     username="tester",
@@ -271,10 +266,7 @@ class TestAuthAPI:
                     last_name="User",
                 )
 
-        with (
-            patch.object(auth_routes, "StringSession", FakeStringSession),
-            patch.object(auth_routes, "TelegramClient", FakeTelegramClient),
-        ):
+        with patch.object(auth_routes, "TelegramClient", FakeTelegramClient):
             send_resp = await test_client.post(
                 "/api/v1/auth/send-code",
                 json={"phone_number": "+8613800138000"},
@@ -294,7 +286,7 @@ class TestAuthAPI:
             signin_data = signin_resp.json()["data"]
             assert signin_data["token_type"] == "Bearer"
             assert signin_data["user"]["id"] == 10001
-            assert captured["signin_session"] == "session-from-send-code"
+            assert captured["signin_session"] == auth_routes.API_AUTH_SESSION_FILE
 
 
 class TestModels:
