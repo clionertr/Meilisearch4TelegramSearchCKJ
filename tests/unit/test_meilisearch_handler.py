@@ -4,15 +4,11 @@ MeiliSearch Handler 单元测试
 覆盖 CRUD 操作和异常处理。
 """
 
-# 确保环境变量在导入前设置
-import os
 from unittest.mock import MagicMock, patch
 
 import meilisearch.errors
 import pytest
 import requests.exceptions
-
-os.environ["SKIP_CONFIG_VALIDATION"] = "true"
 
 from tg_search.core.meilisearch import (
     MeiliSearchAPIError,
@@ -20,6 +16,8 @@ from tg_search.core.meilisearch import (
     MeiliSearchConnectionError,
     MeiliSearchTimeoutError,
 )
+
+pytestmark = [pytest.mark.unit]
 
 
 class TestMeiliSearchClientInit:

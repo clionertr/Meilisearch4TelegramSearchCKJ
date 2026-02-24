@@ -37,6 +37,8 @@ if os.getenv("RUN_INTEGRATION_TESTS", "").lower() not in ("1", "true", "yes"):
 from tests.integration.config import TEST_API_BASE_URL, TEST_MEILI_HOST, TEST_MEILI_KEY  # noqa: E402
 from tests.integration.conftest import switchable  # noqa: E402
 
+pytestmark = [pytest.mark.integration, pytest.mark.e2e, pytest.mark.meili]
+
 # ── Bearer Token ──────────────────────────────────────────────────────────
 # 集成测试环境中需要提前登录并设置 TEST_BEARER_TOKEN
 _TEST_BEARER_TOKEN = os.getenv("TEST_BEARER_TOKEN", "")

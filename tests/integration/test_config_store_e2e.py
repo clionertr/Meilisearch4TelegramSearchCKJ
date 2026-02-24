@@ -32,6 +32,8 @@ from tests.integration.conftest import switchable  # noqa: E402
 from tg_search.config.config_store import ConfigStore, GlobalConfig  # noqa: E402
 from tg_search.core.meilisearch import MeiliSearchClient  # noqa: E402
 
+pytestmark = [pytest.mark.integration, pytest.mark.e2e, pytest.mark.meili]
+
 # ============ Constants ============
 
 INDEX_NAME = "system_config_test_e2e"  # 使用专用测试索引，避免污染生产数据

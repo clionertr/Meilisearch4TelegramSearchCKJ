@@ -170,7 +170,33 @@ class ConfigStore:
         t0 = time.monotonic()
         index = self._meili.client.index(self._index_name)
         doc = config.model_dump()
-        index.add_documents([doc])
+        task_info = index.add_documents([doc])
+
+        # MeiliSearch 写入是异步任务；等待任务完成，确保随后 refresh 读取到最新值。
+        task_uid: int | None = None
+        for field in ("task_uid", "uid", "taskUid"):
+            value = getattr(task_info, field, None)
+            if isinstance(value, int):
+                task_uid = value
+                break
+        if task_uid is None and isinstance(task_info, dict):
+            for field in ("task_uid", "uid", "taskUid"):
+                value = task_info.get(field)
+                if isinstance(value, int):
+                    task_uid = value
+                    break
+
+        wait_for_task = getattr(self._meili.client, "wait_for_task", None)
+        if callable(wait_for_task) and task_uid is not None:
+            try:
+                task = wait_for_task(task_uid, timeout_in_ms=5000, interval_in_ms=50)
+            except TypeError:
+                # 兼容旧版 SDK：仅支持 wait_for_task(uid)
+                task = wait_for_task(task_uid)
+            status = getattr(task, "status", None)
+            if isinstance(status, str) and status != "succeeded":
+                raise RuntimeError(f"[ConfigStore] write task {task_uid} did not succeed (status={status})")
+
         elapsed_ms = (time.monotonic() - t0) * 1000
         # 监控点：写入延迟（规格要求 ≤500ms）
         if elapsed_ms > 500:

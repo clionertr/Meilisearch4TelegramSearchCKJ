@@ -32,6 +32,22 @@ if os.getenv("RUN_INTEGRATION_TESTS", "").lower() not in ("1", "true", "yes"):
     )
 
 
+def _check_api_server_available() -> str | None:
+    """Return None when external API server is reachable, otherwise a skip reason."""
+    try:
+        response = httpx.get(f"{TEST_API_BASE_URL}/health", timeout=2.0)
+    except Exception as exc:
+        return f"External API unavailable at {TEST_API_BASE_URL}: {exc}"
+
+    if response.status_code != 200:
+        return f"External API health check failed at {TEST_API_BASE_URL}: {response.status_code}"
+
+    return None
+
+
+_API_SKIP_REASON = _check_api_server_available()
+
+
 # ============ Fixtures ============
 
 
@@ -81,6 +97,15 @@ def switchable(test_name: str):
         def wrapper(*args, **kwargs):
             if not is_enabled(test_name):
                 pytest.skip(f"Test '{test_name}' is disabled via TEST_SWITCHES")
+
+            # test_api_e2e / test_dialog_sync_e2e rely on an already running API server.
+            # When the server is down, skip instead of failing with connection errors.
+            module_name = getattr(func, "__module__", "")
+            if _API_SKIP_REASON and (
+                "test_api_e2e" in module_name or "test_dialog_sync_e2e" in module_name
+            ):
+                pytest.skip(_API_SKIP_REASON)
+
             return func(*args, **kwargs)
 
         return wrapper

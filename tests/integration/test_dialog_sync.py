@@ -1,24 +1,4 @@
-"""
-P0 Dialog Sync API 单元测试（红-绿-重构 RED 阶段）
-
-使用真实 FastAPI ASGI + httpx.AsyncClient 测试所有 dialog 端点。
-使用真实 ConfigStore 对接真实 MeiliSearch（不可用则自动跳过）。
-
-覆盖 SPEC-P0-dialog-sync.md 全部验收标准：
-  AC-1  未携带 Token → 401
-  AC-2  GET /available 返回数组
-  AC-3  缓存命中 meta.cached=true
-  AC-4  refresh=true 绕过缓存
-  AC-5  POST /sync accepted/ignored/not_found
-  AC-6  PATCH /sync-state 更新状态
-  AC-7  DELETE /sync 移除 + purge_index
-  AC-8  POST /sync dialog_ids=[] → 422
-  AC-9  POST /sync dialog_ids 超 200 → 422
-
-依赖环境变量（默认可由 .env 提供）：
-    MEILI_HOST=http://localhost:7700
-    MEILI_MASTER_KEY=<真实 key>
-"""
+"""Dialog Sync integration tests against real MeiliSearch + FastAPI app."""
 
 from __future__ import annotations
 
@@ -30,6 +10,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
+from tests.helpers.requirements import (
+    check_meili_available,
+    load_meili_env_from_dotenv,
+)
+
 # ── 环境设置（必须在 import 项目模块前） ────────────────────────────────────
 os.environ.setdefault("SKIP_CONFIG_VALIDATION", "true")
 os.environ.setdefault("API_ONLY", "true")
@@ -39,39 +24,14 @@ os.environ.setdefault("DISABLE_THREAD_OFFLOAD", "1")
 os.environ.setdefault("APP_ID", "12345")
 os.environ.setdefault("APP_HASH", "testhash")
 os.environ.setdefault("BOT_TOKEN", "1:test")
+load_meili_env_from_dotenv()
 
 # ── MeiliSearch 连接参数（在环境设置之后读取） ─────────────────────────────
 _MEILI_HOST = os.environ.get("MEILI_HOST", "http://localhost:7700")
 _MEILI_KEY = os.environ.get("MEILI_MASTER_KEY", "")
 
-# 已知无效的占位 keys（由 conftest.py 或测试框架注入）
-_FAKE_KEYS: set[str] = {"test_master_key_12345", "test_master_key", "", "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"}
-
-
-# ── MeiliSearch 可用性检查（需要有效认证）─────────────────────────────────
-
-
-def _check_meili_available() -> str | None:
-    """检查 MeiliSearch 是否可达且 API key 有效（使用已认证端点）"""
-    if _MEILI_KEY in _FAKE_KEYS:
-        return f"MEILI_MASTER_KEY 是占位值 ({_MEILI_KEY!r})，跳过（需要真实 MeiliSearch）"
-    try:
-        # 使用已认证端点验证 key 有效性（GET /indexes 需要有效 token）
-        r = httpx.get(
-            f"{_MEILI_HOST}/indexes",
-            headers={"Authorization": f"Bearer {_MEILI_KEY}"},
-            timeout=3,
-        )
-        if r.status_code == 401 or r.status_code == 403:
-            return f"MEILI_MASTER_KEY 无效（{r.status_code}），跳过（需要有效 MeiliSearch 认证）"
-        if r.status_code not in (200, 404):
-            return f"MeiliSearch 响应异常: {r.status_code}"
-    except Exception as e:
-        return f"MeiliSearch 不可达 ({_MEILI_HOST}): {e}"
-    return None
-
-
-_MEILI_SKIP_REASON = _check_meili_available()
+pytestmark = [pytest.mark.integration, pytest.mark.meili]
+_MEILI_SKIP_REASON = check_meili_available(_MEILI_HOST, _MEILI_KEY, require_auth=True)
 requires_meili = pytest.mark.skipif(
     _MEILI_SKIP_REASON is not None,
     reason=_MEILI_SKIP_REASON or "",

@@ -133,6 +133,10 @@ class MeiliSearchAsync:
         """异步删除文档"""
         return await run_sync_in_thread(self._client.delete_documents, document_ids, index_name)
 
+    async def get_all_stats(self) -> dict:
+        """获取 MeiliSearch 全局统计（包含 databaseSize）"""
+        return await run_sync_in_thread(self._client.client.get_all_stats)
+
 
 async def get_meili_async(
     meili_client: "MeiliSearchClient" = Depends(get_meili_client),

@@ -20,9 +20,12 @@ import time
 from typing import Any
 
 import httpx
+import pytest
 
 from tests.integration.config import DOWNLOAD_WAIT_TIMEOUT
 from tests.integration.conftest import switchable
+
+pytestmark = [pytest.mark.integration, pytest.mark.e2e]
 
 POLL_INTERVAL_SECONDS = 2
 

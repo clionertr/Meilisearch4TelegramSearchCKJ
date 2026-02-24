@@ -3,15 +3,12 @@
 
 测试 is_allowed 和 sizeof_fmt 函数。
 """
-import os
-
 import pytest
-
-# 确保环境变量在导入前设置
-os.environ["SKIP_CONFIG_VALIDATION"] = "true"
 
 from tg_search.utils.formatters import sizeof_fmt
 from tg_search.utils.permissions import is_allowed
+
+pytestmark = [pytest.mark.unit]
 
 
 class TestIsAllowed:
@@ -54,16 +51,8 @@ class TestIsAllowed:
 
     def test_none_blacklist_treated_as_empty(self):
         """None 黑名单视为空"""
-        # 注意：当前实现可能会报错，这个测试验证行为
         whitelist = [100]
-        # 根据当前实现，None 黑名单会导致 `in None` 错误
-        # 如果测试失败，说明需要修复 is_allowed 函数
-        try:
-            result = is_allowed(100, whitelist, None)
-            assert result is True
-        except TypeError:
-            # 如果报错，标记为需要修复
-            pytest.skip("is_allowed needs fix for None blacklist")
+        assert is_allowed(100, whitelist, None) is True
 
     def test_negative_chat_id(self):
         """测试负数 chat_id（群组 ID 可能为负数）"""

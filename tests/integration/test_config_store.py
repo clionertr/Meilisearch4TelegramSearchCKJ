@@ -1,75 +1,26 @@
-"""
-Config Store 测试
-
-使用真实 MeiliSearch 环境测试 GlobalConfig 模型和 ConfigStore 的核心功能。
-
-依赖环境变量（默认值可在 .env 中设置）：
-    MEILI_HOST=http://localhost:7700
-    MEILI_MASTER_KEY=<master_key>
-
-遵循与 tests/integration/ 相同的真实环境策略：不使用 Mock，直接连接 MeiliSearch。
-每个测试类使用独立的索引名称，测试结束后自动清理，确保测试隔离。
-
-注意：tests/conftest.py 中的 setdefault() 会在此模块加载之前覆盖 MEILI_MASTER_KEY
-为假值（仅当未设置时）。为正确连接真实 MeiliSearch，
-本测试从 .env 文件（如存在）加载凭据，并在 MeiliSearch 不可达时自动跳过。
-"""
+"""Config Store integration tests against a real MeiliSearch instance."""
 
 import os
 import time
-from pathlib import Path
 
 import pytest
 
-# ── 尝试从 .env 取回真实凭据 ───────────────────────────────────────────────
-# 问题背景：conftest.py 先于本模块执行，已通过 setdefault() 设置了假凭据。
-# 解决方案：直接读取 .env 文件，如果当前环境变量仍是已知假值则用真实值覆盖。
-_FAKE_KEYS: set[str] = {"test_master_key_12345", "test_master_key", "", "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"}
-
-_env_path = Path(__file__).resolve().parents[1] / ".env"
-if _env_path.exists():
-    try:
-        from dotenv import dotenv_values as _dotenv_values
-
-        _dot = _dotenv_values(_env_path)
-        # 仅当当前值是假占位符时才覆盖
-        if os.environ.get("MEILI_HOST", "") in {"", "http://localhost:7700"}:
-            _real_host = _dot.get("MEILI_HOST")
-            if _real_host:
-                os.environ["MEILI_HOST"] = _real_host
-        if os.environ.get("MEILI_MASTER_KEY", "") in _FAKE_KEYS:
-            _real_key = _dot.get("MEILI_MASTER_KEY", "")
-            if _real_key and _real_key not in _FAKE_KEYS:
-                os.environ["MEILI_MASTER_KEY"] = _real_key
-    except ImportError:
-        pass
+from tests.helpers.requirements import (
+    check_meili_available,
+    load_meili_env_from_dotenv,
+)
 
 os.environ.setdefault("SKIP_CONFIG_VALIDATION", "true")
+load_meili_env_from_dotenv()
 
-# 捕获此时的凭据（conftest 已注入，.env 覆盖已尝试）
 _MEILI_HOST = os.environ.get("MEILI_HOST", "http://localhost:7700")
 _MEILI_KEY = os.environ.get("MEILI_MASTER_KEY", "")
 
 from tg_search.config.config_store import ConfigStore, GlobalConfig  # noqa: E402
 from tg_search.core.meilisearch import MeiliSearchClient  # noqa: E402
 
-
-def _check_meili_available() -> str | None:
-    """检查 MeiliSearch 是否可用。返回 None 表示可用，否则返回跳过原因。"""
-    if _MEILI_KEY in _FAKE_KEYS:
-        return f"MEILI_MASTER_KEY 为测试占位值 ({_MEILI_KEY!r})，跳过真实 MeiliSearch 测试"
-    try:
-        import httpx
-
-        r = httpx.get(f"{_MEILI_HOST}/health", timeout=3)
-        if r.status_code != 200:
-            return f"MeiliSearch health check 失败: {r.status_code}"
-    except Exception as e:
-        return f"MeiliSearch 不可达 ({_MEILI_HOST}): {e}"
-    return None
-
-
-_MEILI_SKIP_REASON = _check_meili_available()
+pytestmark = [pytest.mark.integration, pytest.mark.meili]
+_MEILI_SKIP_REASON = check_meili_available(_MEILI_HOST, _MEILI_KEY, require_auth=True)
 requires_meili = pytest.mark.skipif(
     _MEILI_SKIP_REASON is not None,
     reason=_MEILI_SKIP_REASON or "",

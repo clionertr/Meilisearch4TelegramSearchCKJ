@@ -368,3 +368,47 @@ class DeleteSyncResult(BaseModel):
     removed: bool
     purge_index: bool
     purge_error: Optional[str] = None
+
+
+# ============ Storage 相关 (P1-ST) ============
+
+
+class StorageStatsData(BaseModel):
+    """GET /storage/stats 响应 data"""
+
+    total_bytes: Optional[int] = None
+    index_bytes: Optional[int] = None
+    media_bytes: None = None  # 当前版本固定 null
+    cache_bytes: None = None  # 当前版本固定 null
+    media_supported: bool = False
+    cache_supported: bool = False
+    notes: List[str] = Field(default_factory=list)
+
+
+class AutoCleanRequest(BaseModel):
+    """PATCH /storage/auto-clean 请求"""
+
+    enabled: bool
+    media_retention_days: int = 30
+
+
+class AutoCleanData(BaseModel):
+    """PATCH /storage/auto-clean 响应 data"""
+
+    enabled: bool
+    media_retention_days: int
+
+
+class CacheCleanupData(BaseModel):
+    """POST /storage/cleanup/cache 响应 data"""
+
+    targets_cleared: List[str]
+    freed_bytes: None = None
+
+
+class MediaCleanupData(BaseModel):
+    """POST /storage/cleanup/media 响应 data"""
+
+    not_applicable: bool = True
+    reason: str = "MEDIA_STORAGE_DISABLED"
+    freed_bytes: int = 0

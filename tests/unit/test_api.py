@@ -4,23 +4,14 @@ API 测试模块
 使用 pytest + httpx 测试 FastAPI 端点
 """
 
-# 设置测试环境变量
-import os
-from datetime import datetime
 from dataclasses import dataclass
+from datetime import datetime
 from unittest.mock import patch
 
 import httpx
 import pytest
 
-os.environ["SKIP_CONFIG_VALIDATION"] = "true"
-os.environ["API_ONLY"] = "true"
-os.environ["DISABLE_BOT_AUTOSTART"] = "true"
-os.environ["MEILI_HOST"] = "http://localhost:7700"
-os.environ["MEILI_MASTER_KEY"] = "test_key"
-os.environ["APP_ID"] = "12345"
-os.environ["APP_HASH"] = "test_hash"
-os.environ["BOT_TOKEN"] = "test_token"
+pytestmark = [pytest.mark.unit]
 
 
 @pytest.fixture
