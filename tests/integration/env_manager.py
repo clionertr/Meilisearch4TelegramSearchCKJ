@@ -121,6 +121,7 @@ def start_api_server() -> None:
     # 由测试用例当需手动调用 /api/v1/client/start 触发
     env["DISABLE_BOT_AUTOSTART"] = "true"
     env.setdefault("DISABLE_AUTH_CLEANUP_TASK", "true")
+    env.setdefault("ALLOW_TEST_TOKEN_ISSUE", "true")
 
     # 从 TEST_API_BASE_URL 提取 host 和 port
     from urllib.parse import urlparse
@@ -138,8 +139,9 @@ def start_api_server() -> None:
         ],
         cwd=str(PROJECT_ROOT),
         env=env,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
+        # Do not pipe logs without a reader; full pipe buffer can block the API process.
+        stdout=None,
+        stderr=None,
     )
 
     # 等待就绪
@@ -150,8 +152,7 @@ def start_api_server() -> None:
             return
         # 检查进程是否已退出
         if _api_process.poll() is not None:
-            stdout = _api_process.stdout.read().decode() if _api_process.stdout else ""
-            _print(f"API server process exited unexpectedly:\n{stdout}")
+            _print(f"API server process exited unexpectedly (exit={_api_process.returncode})")
             sys.exit(1)
         time.sleep(0.5)
 

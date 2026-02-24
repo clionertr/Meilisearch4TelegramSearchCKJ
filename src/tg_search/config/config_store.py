@@ -18,6 +18,7 @@ P0 Config Store - 统一配置持久化基座
 
 from __future__ import annotations
 
+import os
 import time
 from datetime import datetime, timezone
 from typing import Any, Literal
@@ -32,6 +33,7 @@ logger = setup_logger()
 _INDEX_NAME = "system_config"
 _DOC_ID = "global"
 _CACHE_TTL_SEC = 10
+_WAIT_TASK_TIMEOUT_MS = int(os.getenv("CONFIG_STORE_WAIT_TASK_TIMEOUT_MS", "15000"))
 
 
 # ============ Pydantic Models (T-P0-CS-01) ============
@@ -189,7 +191,7 @@ class ConfigStore:
         wait_for_task = getattr(self._meili.client, "wait_for_task", None)
         if callable(wait_for_task) and task_uid is not None:
             try:
-                task = wait_for_task(task_uid, timeout_in_ms=5000, interval_in_ms=50)
+                task = wait_for_task(task_uid, timeout_in_ms=_WAIT_TASK_TIMEOUT_MS, interval_in_ms=50)
             except TypeError:
                 # 兼容旧版 SDK：仅支持 wait_for_task(uid)
                 task = wait_for_task(task_uid)

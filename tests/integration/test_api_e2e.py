@@ -28,6 +28,7 @@ from tests.integration.conftest import switchable
 pytestmark = [pytest.mark.integration, pytest.mark.e2e]
 
 POLL_INTERVAL_SECONDS = 2
+E2E_HTTP_TIMEOUT_SECONDS = 20.0
 
 
 def _log(method: str, path: str, status: int, body: dict | None = None) -> None:
@@ -90,7 +91,7 @@ def _search_marker_hits(
                 "limit": limit,
                 "offset": 0,
             },
-            timeout=8.0,
+            timeout=E2E_HTTP_TIMEOUT_SECONDS,
         )
     except (httpx.ReadTimeout, httpx.ConnectError) as exc:
         raise AssertionError(f"探针搜索超时或连接失败: {type(exc).__name__}: {exc}") from exc

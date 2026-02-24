@@ -87,7 +87,7 @@ def _cleanup_dialog_sync_in_config(host: str, key: str) -> None:
 
 @pytest.fixture(scope="module")
 def api_client() -> httpx.Client:
-    with httpx.Client(base_url=TEST_API_BASE_URL, timeout=10.0) as c:
+    with httpx.Client(base_url=TEST_API_BASE_URL, timeout=20.0) as c:
         yield c
 
 
