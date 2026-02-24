@@ -1,9 +1,42 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import DonutChart from '../components/DonutChart';
+import { storageApi, StorageStatsData } from '../src/api/storage';
+import { statusApi, SystemStatus } from '../src/api/status';
 
 const Settings: React.FC = () => {
   const navigate = useNavigate();
+  const [storageStats, setStorageStats] = useState<StorageStatsData | null>(null);
+  const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const [storageRes, statusRes] = await Promise.all([
+          storageApi.getStats(),
+          statusApi.getStatus(),
+        ]);
+        setStorageStats(storageRes.data.data ?? null);
+        setSystemStatus(statusRes.data.data ?? null);
+      } catch (err: any) {
+        setError(err.response?.data?.message || 'Failed to load settings data');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const formatBytes = (bytes: number | null): string => {
+    if (bytes === null || bytes === undefined) return '—';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+  };
 
   return (
     <div className="pb-24">
@@ -18,6 +51,18 @@ const Settings: React.FC = () => {
         </button>
       </div>
 
+      {loading && (
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" />
+        </div>
+      )}
+
+      {error && (
+        <div className="mx-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg text-sm mb-3">
+          {error}
+        </div>
+      )}
+
       {/* Storage Card */}
       <div className="p-4">
         <div className="flex flex-col items-stretch justify-start rounded-xl p-5 shadow-lg bg-white dark:bg-[#192d33] border border-slate-200 dark:border-white/5">
@@ -29,17 +74,15 @@ const Settings: React.FC = () => {
             <span className="material-symbols-outlined text-primary text-3xl">database</span>
           </div>
           <div className="flex items-center gap-6 mb-6">
-            <DonutChart percentage={48} color="#13b6ec" bgColor="#111e22" />
             <div className="flex flex-col gap-2 flex-1">
               <div className="flex justify-between items-end dark:text-white">
-                <p className="text-2xl font-bold">2.4<span className="text-sm font-normal text-slate-400 ml-1">GB</span></p>
-                <p className="text-sm text-slate-400">of 5GB used</p>
-              </div>
-              <div className="w-full h-2 bg-slate-100 dark:bg-[#111e22] rounded-full overflow-hidden">
-                <div className="bg-primary h-full w-[48%] rounded-full"></div>
+                <p className="text-2xl font-bold">{formatBytes(storageStats?.total_bytes ?? null)}</p>
               </div>
               <p className="text-slate-500 dark:text-[#92bbc9] text-xs font-normal leading-relaxed mt-1">
-                TeleMemory is indexing 14,202 messages and 843 media files locally.
+                {systemStatus
+                  ? `TeleMemory is indexing ${systemStatus.indexed_messages.toLocaleString()} messages.`
+                  : 'Loading status...'
+                }
               </p>
             </div>
           </div>
@@ -55,8 +98,35 @@ const Settings: React.FC = () => {
         </div>
       </div>
 
+      {/* System Status */}
+      {systemStatus && (
+        <div className="px-4 py-2">
+          <h3 className="text-lg font-bold leading-tight tracking-tight mb-4 dark:text-white">System Status</h3>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="p-4 rounded-xl bg-white dark:bg-[#192d33] border border-slate-200 dark:border-white/5">
+              <div className="flex items-center gap-2 mb-2">
+                <span className={`w-2 h-2 rounded-full ${systemStatus.meili_connected ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                <span className="text-xs font-medium text-slate-500 dark:text-slate-400">MeiliSearch</span>
+              </div>
+              <p className={`text-sm font-bold ${systemStatus.meili_connected ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                {systemStatus.meili_connected ? 'Connected' : 'Disconnected'}
+              </p>
+            </div>
+            <div className="p-4 rounded-xl bg-white dark:bg-[#192d33] border border-slate-200 dark:border-white/5">
+              <div className="flex items-center gap-2 mb-2">
+                <span className={`w-2 h-2 rounded-full ${systemStatus.telegram_connected ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Telegram</span>
+              </div>
+              <p className={`text-sm font-bold ${systemStatus.telegram_connected ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                {systemStatus.telegram_connected ? 'Connected' : 'Disconnected'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Configurations */}
-      <div className="px-4 py-2">
+      <div className="px-4 py-4">
         <h3 className="text-lg font-bold leading-tight tracking-tight mb-4 dark:text-white">Configurations</h3>
         <div className="grid grid-cols-2 gap-4">
           <div onClick={() => navigate('/ai-config')} className="flex flex-col gap-4 p-4 rounded-xl bg-white dark:bg-[#192d33] border border-slate-200 dark:border-white/5 shadow-sm cursor-pointer active:scale-95 transition-transform">
@@ -70,11 +140,6 @@ const Settings: React.FC = () => {
               <p className="font-bold text-base dark:text-white">AI Configuration</p>
               <p className="text-slate-500 dark:text-[#92bbc9] text-xs mt-1">OpenAI, Claude, Local</p>
             </div>
-            <div className="flex -space-x-2 mt-1">
-              <div className="w-6 h-6 rounded-full bg-slate-800 border-2 border-[#192d33] flex items-center justify-center text-[8px] font-bold text-white">GPT</div>
-              <div className="w-6 h-6 rounded-full bg-orange-600 border-2 border-[#192d33] flex items-center justify-center text-[8px] font-bold text-white">CL</div>
-              <div className="w-6 h-6 rounded-full bg-primary border-2 border-[#192d33] flex items-center justify-center text-[8px] font-bold text-white">LLM</div>
-            </div>
           </div>
           <div onClick={() => navigate('/synced-chats')} className="flex flex-col gap-4 p-4 rounded-xl bg-white dark:bg-[#192d33] border border-slate-200 dark:border-white/5 shadow-sm cursor-pointer active:scale-95 transition-transform">
             <div className="flex items-center justify-between">
@@ -85,44 +150,7 @@ const Settings: React.FC = () => {
             </div>
             <div>
               <p className="font-bold text-base dark:text-white">Synced Chats</p>
-              <p className="text-slate-500 dark:text-[#92bbc9] text-xs mt-1">12 Active Syncs</p>
-            </div>
-            <div className="mt-1 flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-              <span className="text-[10px] text-green-500 font-medium">Real-time sync active</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Memory Index */}
-      <div className="px-4 py-6">
-        <h3 className="text-lg font-bold leading-tight tracking-tight mb-4 dark:text-white">Memory Index</h3>
-        <div className="space-y-3">
-          <div className="flex items-center gap-4 p-4 rounded-xl bg-white dark:bg-[#192d33] border border-slate-200 dark:border-white/5">
-            <div className="w-12 h-12 rounded-lg bg-cover bg-center overflow-hidden" style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuBgxRUoem31aWld-lMwnUTLoXzNBG_ERJwlPIKhJzwd6ofci-p_FABD_AsxvSPAi_Ira2NYQ_BaslGiN0VazE3UAb2LcrFVzv_4nhhPqALjFOkRsA4zrDGbTGfs53I-T1-fLU997uqEJK4hGUYBB8IQgMkLt3JtH4MuztUf_tREe8nqkSRd8Nr6p-k9xaSNXdmslNwL6J-X2Y3lGAXZd4VHT4RWwkptJlYbYN3YgLl9b9rAqdim8e5JmB1RokVZAfEfqNtpn79Fxkg')" }}></div>
-            <div className="flex-1">
-              <p className="font-bold text-sm text-slate-900 dark:text-white">Message Summaries</p>
-              <p className="text-xs text-slate-500 dark:text-[#92bbc9]">Daily group activity digests</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-slate-400">On</span>
-              <div className="w-10 h-5 bg-primary rounded-full relative cursor-pointer">
-                <div className="absolute right-0.5 top-0.5 w-4 h-4 bg-white rounded-full"></div>
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-4 p-4 rounded-xl bg-white dark:bg-[#192d33] border border-slate-200 dark:border-white/5">
-            <div className="w-12 h-12 rounded-lg bg-cover bg-center overflow-hidden" style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuDBpBak3QoLST73NKzcD_4N5uym-IK7sgaz_m1MFCeFIaKEtwk_RWnenc5IcVa73NVCK3qoVPd16ECVebECfKT1ia-FURiHmGei6tqrhpmGCyeXX9Sx4WqFBrRhr9xxocOKur7Np3njk6sxu_KtCbFSTfa_RQvCHcyzeTXRx7WtqE8pi45gqwKCj2cq3HlNyPQmciDVwLRXxchaLxZd9bgJAdeK3FDDkf9OmwJF8VB9r7BR1ZMoo2gNSKcybhEk8XH4tteeNEXHw9o')" }}></div>
-            <div className="flex-1">
-              <p className="font-bold text-sm text-slate-900 dark:text-white">Semantic Search</p>
-              <p className="text-xs text-slate-500 dark:text-[#92bbc9]">Natural language indexing</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-slate-400">On</span>
-              <div className="w-10 h-5 bg-primary rounded-full relative cursor-pointer">
-                <div className="absolute right-0.5 top-0.5 w-4 h-4 bg-white rounded-full"></div>
-              </div>
+              <p className="text-slate-500 dark:text-[#92bbc9] text-xs mt-1">Manage sync settings</p>
             </div>
           </div>
         </div>

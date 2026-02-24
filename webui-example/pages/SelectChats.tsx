@@ -1,8 +1,81 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { dialogsApi, AvailableDialogItem } from '../src/api/dialogs';
 
 const SelectChats: React.FC = () => {
     const navigate = useNavigate();
+    const [dialogs, setDialogs] = useState<AvailableDialogItem[]>([]);
+    const [selected, setSelected] = useState<Set<number>>(new Set());
+    const [loading, setLoading] = useState(true);
+    const [syncing, setSyncing] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            setLoading(true);
+            setError(null);
+            try {
+                const res = await dialogsApi.getAvailable({ limit: 200 });
+                const items = res.data.data?.dialogs ?? [];
+                setDialogs(items);
+                // Pre-select already synced ones
+                const synced = items.filter(d => d.sync_state === 'active').map(d => d.id);
+                setSelected(new Set(synced));
+            } catch (err: any) {
+                setError(err.response?.data?.message || 'Failed to load available chats');
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchData();
+    }, []);
+
+    const toggleSelect = (id: number) => {
+        setSelected(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    };
+
+    const selectAll = () => {
+        if (selected.size === dialogs.length) {
+            setSelected(new Set());
+        } else {
+            setSelected(new Set(dialogs.map(d => d.id)));
+        }
+    };
+
+    const handleSync = async () => {
+        if (selected.size === 0) return;
+        setSyncing(true);
+        setError(null);
+        try {
+            await dialogsApi.sync({ dialog_ids: Array.from(selected) });
+            navigate('/synced-chats');
+        } catch (err: any) {
+            setError(err.response?.data?.message || 'Failed to start sync');
+        } finally {
+            setSyncing(false);
+        }
+    };
+
+    const getIcon = (type: string) => {
+        switch (type) {
+            case 'channel': return 'campaign';
+            case 'private': return 'person';
+            default: return 'group';
+        }
+    };
+
+    const getIconColor = (type: string) => {
+        switch (type) {
+            case 'channel': return 'text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30';
+            case 'private': return 'text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30';
+            default: return 'text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30';
+        }
+    };
 
     return (
         <div className="bg-background-light dark:bg-background-dark min-h-screen flex flex-col text-slate-900 dark:text-white">
@@ -11,7 +84,9 @@ const SelectChats: React.FC = () => {
                     <span className="material-symbols-outlined text-2xl">arrow_back</span>
                 </button>
                 <div className="flex-1 flex justify-end px-2">
-                    <button className="text-sm font-semibold text-primary hover:opacity-80 transition-opacity">Select All</button>
+                    <button onClick={selectAll} className="text-sm font-semibold text-primary hover:opacity-80 transition-opacity">
+                        {selected.size === dialogs.length ? 'Deselect All' : 'Select All'}
+                    </button>
                 </div>
             </header>
 
@@ -23,69 +98,45 @@ const SelectChats: React.FC = () => {
                     </p>
                 </div>
 
+                {loading && (
+                    <div className="flex items-center justify-center py-12">
+                        <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" />
+                    </div>
+                )}
+
+                {error && (
+                    <div className="mx-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg text-sm mb-3">
+                        {error}
+                    </div>
+                )}
+
                 <div className="px-4 space-y-2">
-                    {/* Saved Messages */}
-                    <div className="flex items-center justify-between p-4 rounded-2xl bg-white dark:bg-[#15262d] border border-slate-100 dark:border-slate-800/50 shadow-sm">
-                        <div className="flex items-center gap-3 overflow-hidden">
-                            <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
-                                <span className="material-symbols-outlined text-blue-600 dark:text-blue-400 text-2xl">bookmark</span>
-                            </div>
-                            <div className="flex flex-col truncate">
-                                <span className="font-semibold text-base truncate">Saved Messages</span>
-                                <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-                                    <span>1.2k messages</span>
-                                    <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-600"></span>
-                                    <span>Private</span>
+                    {dialogs.map(dialog => (
+                        <div key={dialog.id} className="flex items-center justify-between p-4 rounded-2xl bg-white dark:bg-[#15262d] border border-slate-100 dark:border-slate-800/50 shadow-sm">
+                            <div className="flex items-center gap-3 overflow-hidden">
+                                <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${getIconColor(dialog.type)}`}>
+                                    <span className="material-symbols-outlined text-2xl">{getIcon(dialog.type)}</span>
+                                </div>
+                                <div className="flex flex-col truncate">
+                                    <span className="font-semibold text-base truncate">{dialog.title}</span>
+                                    <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+                                        {dialog.message_count !== null && <span>{dialog.message_count.toLocaleString()} messages</span>}
+                                        <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-600"></span>
+                                        <span className="capitalize">{dialog.type}</span>
+                                    </div>
                                 </div>
                             </div>
+                            <label className="relative inline-flex items-center cursor-pointer shrink-0 ml-4">
+                                <input
+                                    type="checkbox"
+                                    checked={selected.has(dialog.id)}
+                                    onChange={() => toggleSelect(dialog.id)}
+                                    className="sr-only peer"
+                                />
+                                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
+                            </label>
                         </div>
-                        <label className="relative inline-flex items-center cursor-pointer shrink-0 ml-4">
-                            <input type="checkbox" defaultChecked className="sr-only peer" />
-                            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
-                        </label>
-                    </div>
-
-                    {/* Silicon Valley Tech */}
-                    <div className="flex items-center justify-between p-4 rounded-2xl bg-white dark:bg-[#15262d] border border-slate-100 dark:border-slate-800/50 shadow-sm">
-                        <div className="flex items-center gap-3 overflow-hidden">
-                            <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 relative">
-                                <img alt="Silicon Valley Tech" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB9XVRFs4CUx_0pyGVf1q4S65zcNEEfDRMr6JNrWLwiBCr1DMabwK21P072CKqbtHFo20Sac7Dp4n-EiKNYu4KrHMpjbO7c73REbPtMUR52rpbWlBpqu4NLjIIcX0DYOLcCUG4054ffbjMLnGjh8DGbp_QzOjEG9nV_ZQOCuSf7k6sa9TI3-ORPmm7iPM-K4jww_K-wRbru_-eDS-Z0aOdE7xmR82mPTPqmlc3nh0Blc-RGoxPN7clsOhkMIadJialJFfFCQWuVud0" />
-                            </div>
-                            <div className="flex flex-col truncate">
-                                <span className="font-semibold text-base truncate">Silicon Valley Tech</span>
-                                <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-                                    <span>15.2k messages</span>
-                                    <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-600"></span>
-                                    <span>Group</span>
-                                </div>
-                            </div>
-                        </div>
-                        <label className="relative inline-flex items-center cursor-pointer shrink-0 ml-4">
-                            <input type="checkbox" defaultChecked className="sr-only peer" />
-                            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
-                        </label>
-                    </div>
-
-                    {/* Crypto Alerts */}
-                    <div className="flex items-center justify-between p-4 rounded-2xl bg-white dark:bg-[#15262d] border border-slate-100 dark:border-slate-800/50 shadow-sm">
-                        <div className="flex items-center gap-3 overflow-hidden">
-                            <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center shrink-0">
-                                <span className="material-symbols-outlined text-emerald-600 dark:text-emerald-400 text-2xl">currency_bitcoin</span>
-                            </div>
-                            <div className="flex flex-col truncate">
-                                <span className="font-semibold text-base truncate">Crypto Alerts</span>
-                                <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-                                    <span>42.1k messages</span>
-                                    <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-600"></span>
-                                    <span>Channel</span>
-                                </div>
-                            </div>
-                        </div>
-                        <label className="relative inline-flex items-center cursor-pointer shrink-0 ml-4">
-                            <input type="checkbox" className="sr-only peer" />
-                            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
-                        </label>
-                    </div>
+                    ))}
                 </div>
 
                 <p className="text-xs text-slate-400 text-center mt-6">
@@ -94,8 +145,12 @@ const SelectChats: React.FC = () => {
             </main>
 
             <footer className="fixed bottom-0 left-0 right-0 p-6 pb-8 bg-gradient-to-t from-background-light dark:from-background-dark via-background-light/95 dark:via-background-dark/95 to-transparent z-40">
-                <button onClick={() => navigate('/synced-chats')} className="w-full bg-primary hover:bg-sky-500 text-white font-bold py-4 px-6 rounded-2xl shadow-xl shadow-primary/30 active:scale-[0.98] transition-all flex items-center justify-center gap-3">
-                    <span>Start Syncing</span>
+                <button
+                    onClick={handleSync}
+                    disabled={selected.size === 0 || syncing}
+                    className="w-full bg-primary hover:bg-sky-500 disabled:opacity-50 text-white font-bold py-4 px-6 rounded-2xl shadow-xl shadow-primary/30 active:scale-[0.98] transition-all flex items-center justify-center gap-3"
+                >
+                    <span>{syncing ? 'Syncing...' : `Start Syncing (${selected.size})`}</span>
                     <span className="material-symbols-outlined text-[22px]">sync</span>
                 </button>
             </footer>

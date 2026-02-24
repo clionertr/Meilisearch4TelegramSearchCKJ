@@ -8,12 +8,12 @@ type LoginStep = 'phone' | 'code' | 'password';
 const Login: React.FC = () => {
     const navigate = useNavigate();
     const setAuth = useAuthStore((state) => state.setAuth);
-    
+
     const [step, setStep] = useState<LoginStep>('phone');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [countdown, setCountdown] = useState(0);
-    
+
     const [phoneNumber, setPhoneNumber] = useState('');
     const [code, setCode] = useState('');
     const [password, setPassword] = useState('');
@@ -86,17 +86,17 @@ const Login: React.FC = () => {
                     <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
                         <span className="material-symbols-outlined text-slate-400 text-xl">call</span>
                     </div>
-                    <input 
-                        className="form-input block w-full pl-11 pr-4 py-3.5 bg-white dark:bg-[#192d33] border border-slate-200 dark:border-[#325a67] rounded-xl text-base focus:ring-2 focus:ring-primary focus:border-primary transition-all placeholder:text-slate-400 dark:placeholder:text-[#92bbc9] dark:text-white" 
-                        placeholder="+1 234 567 8900" 
-                        type="tel" 
+                    <input
+                        className="form-input block w-full pl-11 pr-4 py-3.5 bg-white dark:bg-[#192d33] border border-slate-200 dark:border-[#325a67] rounded-xl text-base focus:ring-2 focus:ring-primary focus:border-primary transition-all placeholder:text-slate-400 dark:placeholder:text-[#92bbc9] dark:text-white"
+                        placeholder="+8613800138000"
+                        type="tel"
                         value={phoneNumber}
                         onChange={(e) => setPhoneNumber(e.target.value)}
                         disabled={loading}
                     />
                 </div>
             </label>
-            <button 
+            <button
                 onClick={handleSendCode}
                 disabled={loading || !phoneNumber}
                 className="w-full bg-primary hover:bg-sky-500 disabled:opacity-50 text-white font-semibold py-4 px-4 rounded-xl shadow-lg shadow-primary/25 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
@@ -122,17 +122,17 @@ const Login: React.FC = () => {
                     <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
                         <span className="material-symbols-outlined text-slate-400 text-xl">password</span>
                     </div>
-                    <input 
-                        className="form-input block w-full pl-11 pr-4 py-3.5 bg-white dark:bg-[#192d33] border border-slate-200 dark:border-[#325a67] rounded-xl text-base focus:ring-2 focus:ring-primary focus:border-primary transition-all placeholder:text-slate-400 dark:placeholder:text-[#92bbc9] dark:text-white" 
-                        placeholder="12345" 
-                        type="text" 
+                    <input
+                        className="form-input block w-full pl-11 pr-4 py-3.5 bg-white dark:bg-[#192d33] border border-slate-200 dark:border-[#325a67] rounded-xl text-base focus:ring-2 focus:ring-primary focus:border-primary transition-all placeholder:text-slate-400 dark:placeholder:text-[#92bbc9] dark:text-white"
+                        placeholder="12345"
+                        type="text"
                         value={code}
                         onChange={(e) => setCode(e.target.value)}
                         disabled={loading}
                     />
                 </div>
             </label>
-            <button 
+            <button
                 onClick={handleSignIn}
                 disabled={loading || !code}
                 className="w-full bg-primary hover:bg-sky-500 disabled:opacity-50 text-white font-semibold py-4 px-4 rounded-xl shadow-lg shadow-primary/25 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
@@ -145,8 +145,8 @@ const Login: React.FC = () => {
                 )}
             </button>
             <div className="text-center mt-2">
-                <button 
-                    onClick={() => setStep('phone')} 
+                <button
+                    onClick={() => setStep('phone')}
                     className="text-sm text-primary hover:underline"
                 >
                     Change phone number
@@ -171,17 +171,17 @@ const Login: React.FC = () => {
                     <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
                         <span className="material-symbols-outlined text-slate-400 text-xl">lock</span>
                     </div>
-                    <input 
-                        className="form-input block w-full pl-11 pr-4 py-3.5 bg-white dark:bg-[#192d33] border border-slate-200 dark:border-[#325a67] rounded-xl text-base focus:ring-2 focus:ring-primary focus:border-primary transition-all placeholder:text-slate-400 dark:placeholder:text-[#92bbc9] dark:text-white" 
-                        placeholder="Your 2FA password" 
-                        type="password" 
+                    <input
+                        className="form-input block w-full pl-11 pr-4 py-3.5 bg-white dark:bg-[#192d33] border border-slate-200 dark:border-[#325a67] rounded-xl text-base focus:ring-2 focus:ring-primary focus:border-primary transition-all placeholder:text-slate-400 dark:placeholder:text-[#92bbc9] dark:text-white"
+                        placeholder="Your 2FA password"
+                        type="password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         disabled={loading}
                     />
                 </div>
             </label>
-            <button 
+            <button
                 onClick={handleSignIn}
                 disabled={loading || !password}
                 className="w-full bg-primary hover:bg-sky-500 disabled:opacity-50 text-white font-semibold py-4 px-4 rounded-xl shadow-lg shadow-primary/25 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
@@ -205,7 +205,7 @@ const Login: React.FC = () => {
                 <h2 className="text-lg font-bold leading-tight">Login</h2>
                 <div className="w-10"></div>
             </header>
-            
+
             <main className="flex-1 flex flex-col items-center justify-center px-6">
                 <div className="w-full max-w-sm">
                     <div className="flex flex-col items-center text-center mb-8">
@@ -223,13 +223,13 @@ const Login: React.FC = () => {
                             {error}
                         </div>
                     )}
-                    
+
                     {step === 'phone' && renderPhoneStep()}
                     {step === 'code' && renderCodeStep()}
                     {step === 'password' && renderPasswordStep()}
                 </div>
             </main>
-            
+
             <footer className="p-6 text-center">
                 <p className="text-xs text-slate-400">
                     By continuing, you agree to the indexing of your local data.
