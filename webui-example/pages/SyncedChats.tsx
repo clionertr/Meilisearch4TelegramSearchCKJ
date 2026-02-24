@@ -1,12 +1,21 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { dialogsApi, SyncedDialogItem } from '../src/api/dialogs';
+import { extractApiErrorMessage } from '../src/api/error';
 
 const SyncedChats: React.FC = () => {
     const navigate = useNavigate();
     const [dialogs, setDialogs] = useState<SyncedDialogItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const isMountedRef = useRef(false);
+
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+        };
+    }, []);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -14,25 +23,35 @@ const SyncedChats: React.FC = () => {
             setError(null);
             try {
                 const res = await dialogsApi.getSynced();
-                setDialogs(res.data.data?.dialogs ?? []);
-            } catch (err: any) {
-                setError(err.response?.data?.message || 'Failed to load synced chats');
+                if (isMountedRef.current) {
+                    setDialogs(res.data.data?.dialogs ?? []);
+                }
+            } catch (err: unknown) {
+                if (isMountedRef.current) {
+                    setError(extractApiErrorMessage(err, 'Failed to load synced chats'));
+                }
             } finally {
-                setLoading(false);
+                if (isMountedRef.current) {
+                    setLoading(false);
+                }
             }
         };
-        fetchData();
+        void fetchData();
     }, []);
 
     const handleToggleState = async (dialog: SyncedDialogItem) => {
         const newState = dialog.sync_state === 'active' ? 'paused' : 'active';
         try {
             await dialogsApi.patchSyncState(dialog.id, newState);
-            setDialogs(prev =>
-                prev.map(d => d.id === dialog.id ? { ...d, sync_state: newState } : d)
-            );
-        } catch (err: any) {
-            setError(err.response?.data?.message || 'Failed to update sync state');
+            if (isMountedRef.current) {
+                setDialogs((prev) =>
+                    prev.map((d) => d.id === dialog.id ? { ...d, sync_state: newState } : d)
+                );
+            }
+        } catch (err: unknown) {
+            if (isMountedRef.current) {
+                setError(extractApiErrorMessage(err, 'Failed to update sync state'));
+            }
         }
     };
 
@@ -98,7 +117,7 @@ const SyncedChats: React.FC = () => {
                                 <h3 className={`font-bold text-sm truncate ${isActive ? 'dark:text-white' : 'text-slate-600 dark:text-slate-300'}`}>{dialog.title}</h3>
                                 <div className="flex items-center gap-1.5 mt-0.5">
                                     <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-tight ${isActive ? 'bg-green-500/10 text-green-500' : 'bg-slate-200 dark:bg-white/10 text-slate-500 dark:text-slate-400'}`}>
-                                        {isActive ? 'Real-time' : 'Paused'}
+                                        {isActive ? 'Real-time' : 'Sync paused'}
                                     </span>
                                     <span className="text-[10px] text-slate-400">{dialog.type}</span>
                                 </div>

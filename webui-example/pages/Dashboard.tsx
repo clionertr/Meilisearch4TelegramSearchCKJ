@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { dashboardApi, DashboardActivityItem, DashboardBriefData } from '../src/api/dashboard';
+import { extractApiErrorMessage } from '../src/api/error';
 
 const Dashboard: React.FC = () => {
     const [activities, setActivities] = useState<DashboardActivityItem[]>([]);
@@ -8,23 +9,42 @@ const Dashboard: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
+        let mounted = true;
+
         const fetchData = async () => {
             setLoading(true);
             setError(null);
-            try {
-                const [activityRes, briefRes] = await Promise.all([
-                    dashboardApi.getActivity({ limit: 20 }),
-                    dashboardApi.getBrief(),
-                ]);
-                setActivities(activityRes.data.data?.items ?? []);
-                setBrief(briefRes.data.data ?? null);
-            } catch (err: any) {
-                setError(err.response?.data?.message || 'Failed to load dashboard');
-            } finally {
-                setLoading(false);
+            const [activityResult, briefResult] = await Promise.allSettled([
+                dashboardApi.getActivity({ limit: 20 }),
+                dashboardApi.getBrief(),
+            ]);
+
+            if (!mounted) {
+                return;
             }
+
+            if (activityResult.status === 'fulfilled') {
+                setActivities(activityResult.value.data.data?.items ?? []);
+            } else {
+                setActivities([]);
+                setError(extractApiErrorMessage(activityResult.reason, 'Failed to load dashboard activity'));
+            }
+
+            if (briefResult.status === 'fulfilled') {
+                setBrief(briefResult.value.data.data ?? null);
+            } else {
+                setBrief(null);
+                setError((prev) => prev ?? extractApiErrorMessage(briefResult.reason, 'Failed to load dashboard brief'));
+            }
+
+            setLoading(false);
         };
-        fetchData();
+
+        void fetchData();
+
+        return () => {
+            mounted = false;
+        };
     }, []);
 
     const formatTime = (isoStr: string) => {
@@ -115,7 +135,7 @@ const Dashboard: React.FC = () => {
             )}
 
             {/* Recent Activity */}
-            {!loading && !error && (
+            {!loading && (
                 <section className="flex flex-col">
                     <div className="px-4 flex items-center justify-between mb-2">
                         <h2 className="text-lg font-bold text-slate-800 dark:text-white">Recent Activity</h2>

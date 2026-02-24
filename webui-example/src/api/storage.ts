@@ -5,8 +5,8 @@ import { api } from './client';
 export interface StorageStatsData {
     total_bytes: number | null;
     index_bytes: number | null;
-    media_bytes: null;
-    cache_bytes: null;
+    media_bytes: number | null;
+    cache_bytes: number | null;
     media_supported: boolean;
     cache_supported: boolean;
     notes: string[];
@@ -19,7 +19,7 @@ export interface AutoCleanData {
 
 export interface CacheCleanupData {
     targets_cleared: string[];
-    freed_bytes: null;
+    freed_bytes: number | null;
 }
 
 export interface MediaCleanupData {

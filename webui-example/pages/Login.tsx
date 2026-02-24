@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authApi } from '../src/api/auth';
+import { extractApiErrorDetail, extractApiErrorMessage } from '../src/api/error';
 import { useAuthStore } from '../src/store/authStore';
 
 type LoginStep = 'phone' | 'code' | 'password';
@@ -41,8 +42,9 @@ const Login: React.FC = () => {
             setMaskedPhone(data.phone_number_masked);
             setStep('code');
             setCountdown(data.expires_in || 60);
-        } catch (err: any) {
-            setError(err.response?.data?.detail || 'Failed to send code');
+        } catch (err: unknown) {
+            const detail = extractApiErrorDetail(err);
+            setError(detail || extractApiErrorMessage(err, 'Failed to send code'));
         } finally {
             setLoading(false);
         }
@@ -62,16 +64,16 @@ const Login: React.FC = () => {
             const data = response.data.data;
             setAuth(data.token, data.user);
             navigate('/');
-        } catch (err: any) {
-            const detail = err.response?.data?.detail;
+        } catch (err: unknown) {
+            const detail = extractApiErrorDetail(err);
             if (detail === 'PASSWORD_REQUIRED') {
                 setStep('password');
             } else if (detail === 'CODE_INVALID') {
                 setError('Invalid verification code');
-            } else if (err.response?.status === 400 && detail?.includes('FLOOD_WAIT')) {
+            } else if (detail?.includes('FLOOD_WAIT')) {
                 setError(`Too many attempts. Please wait ${detail.split('_').pop()} seconds.`);
             } else {
-                setError(detail || 'Login failed');
+                setError(detail || extractApiErrorMessage(err, 'Login failed'));
             }
         } finally {
             setLoading(false);

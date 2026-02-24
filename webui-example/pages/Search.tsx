@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { searchApi } from '../src/api/search';
+import { extractApiErrorMessage } from '../src/api/error';
 import { Highlight } from '../src/components/common/Highlight';
 
 const Search: React.FC = () => {
@@ -104,7 +105,7 @@ const Search: React.FC = () => {
             <div className="flex-1 overflow-y-auto px-4 pb-24 space-y-4 no-scrollbar">
                 {error && (
                     <div className="p-4 text-center text-red-500">
-                        Error: {(error as any).message || 'Failed to fetch results'}
+                        Error: {extractApiErrorMessage(error, 'Failed to fetch results')}
                     </div>
                 )}
 

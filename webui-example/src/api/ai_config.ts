@@ -14,7 +14,7 @@ export interface AiConfigUpdateRequest {
     provider?: string;
     base_url: string;
     model: string;
-    api_key?: string;
+    api_key: string;
 }
 
 export interface AiConfigTestData {

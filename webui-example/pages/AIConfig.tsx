@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { aiConfigApi, AiConfigData } from '../src/api/ai_config';
+import { extractApiErrorMessage } from '../src/api/error';
 
 const AIConfig: React.FC = () => {
     const navigate = useNavigate();
@@ -17,6 +18,14 @@ const AIConfig: React.FC = () => {
     const [model, setModel] = useState('');
     const [apiKey, setApiKey] = useState('');
     const [showApiKey, setShowApiKey] = useState(false);
+    const isMountedRef = useRef(false);
+
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+        };
+    }, []);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -28,19 +37,26 @@ const AIConfig: React.FC = () => {
                     aiConfigApi.getModels(),
                 ]);
                 const data = configRes.data.data;
+                if (!isMountedRef.current) {
+                    return;
+                }
                 if (data) {
                     setConfig(data);
                     setBaseUrl(data.base_url);
                     setModel(data.model);
                 }
                 setModels(modelsRes.data.data?.models ?? []);
-            } catch (err: any) {
-                setError(err.response?.data?.message || 'Failed to load AI config');
+            } catch (err: unknown) {
+                if (isMountedRef.current) {
+                    setError(extractApiErrorMessage(err, 'Failed to load AI config'));
+                }
             } finally {
-                setLoading(false);
+                if (isMountedRef.current) {
+                    setLoading(false);
+                }
             }
         };
-        fetchData();
+        void fetchData();
     }, []);
 
     const handleSave = async () => {
@@ -49,15 +65,21 @@ const AIConfig: React.FC = () => {
         try {
             const res = await aiConfigApi.updateConfig({
                 base_url: baseUrl,
-                model: model,
-                api_key: apiKey || undefined,
+                model,
+                api_key: apiKey,
             });
-            setConfig(res.data.data ?? null);
-            setApiKey('');
-        } catch (err: any) {
-            setError(err.response?.data?.message || 'Failed to save config');
+            if (isMountedRef.current) {
+                setConfig(res.data.data ?? null);
+                setApiKey('');
+            }
+        } catch (err: unknown) {
+            if (isMountedRef.current) {
+                setError(extractApiErrorMessage(err, 'Failed to save config'));
+            }
         } finally {
-            setSaving(false);
+            if (isMountedRef.current) {
+                setSaving(false);
+            }
         }
     };
 
@@ -67,17 +89,21 @@ const AIConfig: React.FC = () => {
         try {
             const res = await aiConfigApi.testConnection();
             const data = res.data.data;
-            if (data) {
+            if (data && isMountedRef.current) {
                 setTestResult({
                     ok: data.ok,
                     message: data.ok ? 'Connection verified' : (data.error_message || 'Connection failed'),
                     latency: data.latency_ms,
                 });
             }
-        } catch (err: any) {
-            setTestResult({ ok: false, message: err.response?.data?.message || 'Test failed' });
+        } catch (err: unknown) {
+            if (isMountedRef.current) {
+                setTestResult({ ok: false, message: extractApiErrorMessage(err, 'Test failed') });
+            }
         } finally {
-            setTesting(false);
+            if (isMountedRef.current) {
+                setTesting(false);
+            }
         }
     };
 
@@ -124,7 +150,7 @@ const AIConfig: React.FC = () => {
                                     <div className="relative">
                                         <input
                                             className="w-full bg-[#111e22] border-white/10 rounded-xl px-4 py-3 text-sm focus:ring-primary focus:border-primary placeholder:text-slate-600 outline-none"
-                                            placeholder={config?.api_key_set ? 'Key is set (enter new to update)' : 'Enter your API key'}
+                                            placeholder={config?.api_key_set ? 'Key is set (leave empty to clear)' : 'Enter your API key'}
                                             type={showApiKey ? 'text' : 'password'}
                                             value={apiKey}
                                             onChange={e => setApiKey(e.target.value)}
@@ -136,6 +162,9 @@ const AIConfig: React.FC = () => {
                                             <span className="material-symbols-outlined">{showApiKey ? 'visibility_off' : 'visibility'}</span>
                                         </button>
                                     </div>
+                                    {config?.api_key_set && apiKey.length === 0 && (
+                                        <p className="text-[11px] text-amber-300 px-1">Save with empty key will clear the current API key.</p>
+                                    )}
                                 </div>
                                 <div className="flex items-center justify-between p-1">
                                     {testResult && (

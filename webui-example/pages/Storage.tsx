@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { storageApi, StorageStatsData } from '../src/api/storage';
+import { extractApiErrorMessage } from '../src/api/error';
 
 const Storage: React.FC = () => {
     const navigate = useNavigate();
@@ -9,6 +10,14 @@ const Storage: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [cleaning, setCleaning] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const isMountedRef = useRef(false);
+
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+        };
+    }, []);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -16,14 +25,20 @@ const Storage: React.FC = () => {
             setError(null);
             try {
                 const res = await storageApi.getStats();
-                setStats(res.data.data ?? null);
-            } catch (err: any) {
-                setError(err.response?.data?.message || 'Failed to load storage stats');
+                if (isMountedRef.current) {
+                    setStats(res.data.data ?? null);
+                }
+            } catch (err: unknown) {
+                if (isMountedRef.current) {
+                    setError(extractApiErrorMessage(err, 'Failed to load storage stats'));
+                }
             } finally {
-                setLoading(false);
+                if (isMountedRef.current) {
+                    setLoading(false);
+                }
             }
         };
-        fetchData();
+        void fetchData();
     }, []);
 
     const formatBytes = (bytes: number | null): string => {
@@ -38,9 +53,13 @@ const Storage: React.FC = () => {
         const newState = !autoClean;
         try {
             await storageApi.patchAutoClean({ enabled: newState });
-            setAutoClean(newState);
-        } catch (err: any) {
-            setError(err.response?.data?.message || 'Failed to update auto-clean');
+            if (isMountedRef.current) {
+                setAutoClean(newState);
+            }
+        } catch (err: unknown) {
+            if (isMountedRef.current) {
+                setError(extractApiErrorMessage(err, 'Failed to update auto-clean'));
+            }
         }
     };
 
@@ -49,12 +68,18 @@ const Storage: React.FC = () => {
         try {
             const res = await storageApi.cleanupCache();
             const cleared = res.data.data?.targets_cleared ?? [];
-            setError(null);
+            if (isMountedRef.current) {
+                setError(null);
+            }
             alert(`Cache cleared: ${cleared.length > 0 ? cleared.join(', ') : 'no targets'}`);
-        } catch (err: any) {
-            setError(err.response?.data?.message || 'Failed to cleanup cache');
+        } catch (err: unknown) {
+            if (isMountedRef.current) {
+                setError(extractApiErrorMessage(err, 'Failed to cleanup cache'));
+            }
         } finally {
-            setCleaning(null);
+            if (isMountedRef.current) {
+                setCleaning(null);
+            }
         }
     };
 
@@ -63,10 +88,14 @@ const Storage: React.FC = () => {
         try {
             await storageApi.cleanupMedia();
             alert('Media cleanup is not available in current version');
-        } catch (err: any) {
-            setError(err.response?.data?.message || 'Failed to cleanup media');
+        } catch (err: unknown) {
+            if (isMountedRef.current) {
+                setError(extractApiErrorMessage(err, 'Failed to cleanup media'));
+            }
         } finally {
-            setCleaning(null);
+            if (isMountedRef.current) {
+                setCleaning(null);
+            }
         }
     };
 
@@ -116,7 +145,9 @@ const Storage: React.FC = () => {
                                 <div className="w-2 h-2 rounded-full bg-slate-400"></div>
                                 <span className="text-sm font-medium">Media</span>
                             </div>
-                            <span className="text-sm font-semibold text-slate-400">{stats?.media_supported ? formatBytes(null) : 'Not supported'}</span>
+                            <span className="text-sm font-semibold text-slate-400">
+                                {stats?.media_supported ? formatBytes(stats?.media_bytes ?? null) : 'Not supported'}
+                            </span>
                         </div>
                     </div>
                     {stats?.notes && stats.notes.length > 0 && (

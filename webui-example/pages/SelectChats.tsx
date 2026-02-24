@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { dialogsApi, AvailableDialogItem } from '../src/api/dialogs';
+import { extractApiErrorMessage } from '../src/api/error';
 
 const SelectChats: React.FC = () => {
     const navigate = useNavigate();
@@ -9,6 +10,14 @@ const SelectChats: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [syncing, setSyncing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const isMountedRef = useRef(false);
+
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+        };
+    }, []);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -17,17 +26,24 @@ const SelectChats: React.FC = () => {
             try {
                 const res = await dialogsApi.getAvailable({ limit: 200 });
                 const items = res.data.data?.dialogs ?? [];
+                if (!isMountedRef.current) {
+                    return;
+                }
                 setDialogs(items);
-                // Pre-select already synced ones
-                const synced = items.filter(d => d.sync_state === 'active').map(d => d.id);
-                setSelected(new Set(synced));
-            } catch (err: any) {
-                setError(err.response?.data?.message || 'Failed to load available chats');
+                // Pre-select currently active sync sessions.
+                const activeDialogs = items.filter((d) => d.sync_state === 'active').map((d) => d.id);
+                setSelected(new Set(activeDialogs));
+            } catch (err: unknown) {
+                if (isMountedRef.current) {
+                    setError(extractApiErrorMessage(err, 'Failed to load available chats'));
+                }
             } finally {
-                setLoading(false);
+                if (isMountedRef.current) {
+                    setLoading(false);
+                }
             }
         };
-        fetchData();
+        void fetchData();
     }, []);
 
     const toggleSelect = (id: number) => {
@@ -54,10 +70,14 @@ const SelectChats: React.FC = () => {
         try {
             await dialogsApi.sync({ dialog_ids: Array.from(selected) });
             navigate('/synced-chats');
-        } catch (err: any) {
-            setError(err.response?.data?.message || 'Failed to start sync');
+        } catch (err: unknown) {
+            if (isMountedRef.current) {
+                setError(extractApiErrorMessage(err, 'Failed to start sync'));
+            }
         } finally {
-            setSyncing(false);
+            if (isMountedRef.current) {
+                setSyncing(false);
+            }
         }
     };
 
@@ -74,6 +94,26 @@ const SelectChats: React.FC = () => {
             case 'channel': return 'text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30';
             case 'private': return 'text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30';
             default: return 'text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30';
+        }
+    };
+
+    const getSyncStateLabel = (syncState: string) => {
+        switch (syncState) {
+            case 'active':
+                return {
+                    text: 'Synced - Active',
+                    className: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
+                };
+            case 'paused':
+                return {
+                    text: 'Synced - Paused',
+                    className: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+                };
+            default:
+                return {
+                    text: 'Not Synced',
+                    className: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
+                };
         }
     };
 
@@ -111,32 +151,40 @@ const SelectChats: React.FC = () => {
                 )}
 
                 <div className="px-4 space-y-2">
-                    {dialogs.map(dialog => (
-                        <div key={dialog.id} className="flex items-center justify-between p-4 rounded-2xl bg-white dark:bg-[#15262d] border border-slate-100 dark:border-slate-800/50 shadow-sm">
-                            <div className="flex items-center gap-3 overflow-hidden">
-                                <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${getIconColor(dialog.type)}`}>
-                                    <span className="material-symbols-outlined text-2xl">{getIcon(dialog.type)}</span>
-                                </div>
-                                <div className="flex flex-col truncate">
-                                    <span className="font-semibold text-base truncate">{dialog.title}</span>
-                                    <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-                                        {dialog.message_count !== null && <span>{dialog.message_count.toLocaleString()} messages</span>}
-                                        <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-600"></span>
-                                        <span className="capitalize">{dialog.type}</span>
+                    {dialogs.map(dialog => {
+                        const syncStateMeta = getSyncStateLabel(dialog.sync_state);
+                        return (
+                            <div key={dialog.id} className="flex items-center justify-between p-4 rounded-2xl bg-white dark:bg-[#15262d] border border-slate-100 dark:border-slate-800/50 shadow-sm">
+                                <div className="flex items-center gap-3 overflow-hidden">
+                                    <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${getIconColor(dialog.type)}`}>
+                                        <span className="material-symbols-outlined text-2xl">{getIcon(dialog.type)}</span>
+                                    </div>
+                                    <div className="flex flex-col truncate">
+                                        <span className="font-semibold text-base truncate">{dialog.title}</span>
+                                        <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+                                            {dialog.message_count !== null && <span>{dialog.message_count.toLocaleString()} messages</span>}
+                                            <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-600"></span>
+                                            <span className="capitalize">{dialog.type}</span>
+                                        </div>
+                                        <div className="mt-1">
+                                            <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide ${syncStateMeta.className}`}>
+                                                {syncStateMeta.text}
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
+                                <label className="relative inline-flex items-center cursor-pointer shrink-0 ml-4">
+                                    <input
+                                        type="checkbox"
+                                        checked={selected.has(dialog.id)}
+                                        onChange={() => toggleSelect(dialog.id)}
+                                        className="sr-only peer"
+                                    />
+                                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
+                                </label>
                             </div>
-                            <label className="relative inline-flex items-center cursor-pointer shrink-0 ml-4">
-                                <input
-                                    type="checkbox"
-                                    checked={selected.has(dialog.id)}
-                                    onChange={() => toggleSelect(dialog.id)}
-                                    className="sr-only peer"
-                                />
-                                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
-                            </label>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
 
                 <p className="text-xs text-slate-400 text-center mt-6">

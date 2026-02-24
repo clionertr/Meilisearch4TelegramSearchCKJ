@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { storageApi, StorageStatsData } from '../src/api/storage';
 import { statusApi, SystemStatus } from '../src/api/status';
+import { extractApiErrorMessage } from '../src/api/error';
 
 const Settings: React.FC = () => {
   const navigate = useNavigate();
@@ -11,6 +12,8 @@ const Settings: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let mounted = true;
+
     const fetchData = async () => {
       setLoading(true);
       setError(null);
@@ -19,15 +22,27 @@ const Settings: React.FC = () => {
           storageApi.getStats(),
           statusApi.getStatus(),
         ]);
+        if (!mounted) {
+          return;
+        }
         setStorageStats(storageRes.data.data ?? null);
         setSystemStatus(statusRes.data.data ?? null);
-      } catch (err: any) {
-        setError(err.response?.data?.message || 'Failed to load settings data');
+      } catch (err: unknown) {
+        if (mounted) {
+          setError(extractApiErrorMessage(err, 'Failed to load settings data'));
+        }
       } finally {
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     };
-    fetchData();
+
+    void fetchData();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const formatBytes = (bytes: number | null): string => {
