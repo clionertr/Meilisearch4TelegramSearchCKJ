@@ -163,6 +163,15 @@ def main() -> int:
             print(f"✅ 测试群组就绪: {group_data.get('group_title')} "
                   f"(ID: {group_data.get('group_id')}, "
                   f"消息: {group_data.get('message_count')}条)\n")
+            if group_data.get("probe_marker"):
+                print(
+                    "  审查探针: "
+                    f"marker={group_data.get('probe_marker')}, "
+                    f"keyword={group_data.get('probe_keyword')}, "
+                    f"count={group_data.get('probe_message_count')}"
+                )
+                print("  将执行强保证校验: 下载链路审核 / 搜索结果格式审核 / 高亮审核")
+                print()
         except Exception as e:
             print(f"⚠️  测试群组创建失败: {e}")
             print("   继续运行测试（某些需要群组的测试会跳过）\n")

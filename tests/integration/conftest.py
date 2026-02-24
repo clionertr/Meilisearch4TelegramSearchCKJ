@@ -48,7 +48,7 @@ def api_client() -> Generator[httpx.Client, None, None]:
     with httpx.Client(
         base_url=TEST_API_BASE_URL,
         headers=headers,
-        timeout=30.0,
+        timeout=8.0,
     ) as client:
         yield client
 
@@ -86,3 +86,37 @@ def switchable(test_name: str):
         return wrapper
 
     return decorator
+
+
+def _case_title(item: pytest.Item) -> str:
+    """提取测试用例标题（优先 docstring 首行）"""
+    obj = getattr(item, "obj", None)
+    doc = getattr(obj, "__doc__", None)
+    if isinstance(doc, str):
+        for line in doc.strip().splitlines():
+            title = line.strip()
+            if title:
+                return title
+    return item.name
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo):
+    """
+    输出审查式结果日志：
+    - 审查项名称
+    - 是否通过（✅️/❌/⏭️）
+    """
+    outcome = yield
+    rep = outcome.get_result()
+
+    if rep.when != "call":
+        return
+
+    title = _case_title(item)
+    if rep.passed:
+        print(f"  {title}✅️")
+    elif rep.skipped:
+        print(f"  {title}⏭️")
+    else:
+        print(f"  {title}❌")

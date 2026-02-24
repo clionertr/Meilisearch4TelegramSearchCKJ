@@ -13,6 +13,7 @@ import json
 import sys
 import time
 from datetime import datetime
+from typing import Any
 
 from tests.integration.config import (
     PROJECT_ROOT,
@@ -47,9 +48,37 @@ TEST_MESSAGES = [
     "🔍 搜索测试 emoji 消息 👍🎉🔥",
 ]
 
+# 每次运行都会发送一组“探针消息”，用于强保证校验
+PROBE_MARKER_PREFIX = "e2eprobe"
+PROBE_KEYWORD_PREFIX = "e2eauditkw"
+
+
+def _build_probe_messages(marker: str, keyword: str) -> list[str]:
+    """构造本次运行专属探针消息"""
+    return [
+        f"[{marker}] E2E EN probe message for search format audit. keyword={keyword}",
+        f"[{marker}] E2E 中文探针：搜索结果格式审核，关键词 {keyword}",
+        f"[{marker}] E2E pagination and highlight verification message. keyword={keyword}",
+    ]
+
 
 def _print(msg: str) -> None:
     print(f"[test_group_setup] {msg}", flush=True)
+
+
+def _build_client():
+    """构造 Telethon 客户端（字符串会话优先）"""
+    from telethon import TelegramClient
+    from telethon.sessions import StringSession
+
+    from tg_search.config.settings import APP_HASH, APP_ID, SESSION_STRING
+
+    if SESSION_STRING:
+        return TelegramClient(StringSession(SESSION_STRING), APP_ID, APP_HASH)
+
+    session_dir = PROJECT_ROOT / "session"
+    session_file = str(session_dir / "user_bot_session")
+    return TelegramClient(session_file, APP_ID, APP_HASH)
 
 
 async def create_test_group() -> dict:
@@ -59,20 +88,7 @@ async def create_test_group() -> dict:
     Returns:
         包含 group_id, group_title, message_ids 等信息的字典
     """
-    # 延迟导入，因为不是所有场景都需要 Telethon
-    from telethon import TelegramClient
-    from telethon.sessions import StringSession
-
-    from tg_search.config.settings import APP_HASH, APP_ID, SESSION_STRING
-
-    # 创建 Telethon 客户端
-    if SESSION_STRING:
-        client = TelegramClient(StringSession(SESSION_STRING), APP_ID, APP_HASH)
-    else:
-        # 使用文件会话
-        session_dir = PROJECT_ROOT / "session"
-        session_file = str(session_dir / "user_bot_session")
-        client = TelegramClient(session_file, APP_ID, APP_HASH)
+    client = _build_client()
 
     await client.start()
     _print("Telethon client started")
@@ -143,6 +159,63 @@ async def create_test_group() -> dict:
         await client.disconnect()
 
 
+async def _resolve_group_entity(client: Any, group_data: dict) -> Any:
+    """根据 group_id 或 group_title 解析群组实体"""
+    group_id = group_data.get("group_id")
+    group_title = group_data.get("group_title")
+
+    if group_id is not None:
+        try:
+            return await client.get_entity(group_id)
+        except Exception:
+            _print(f"get_entity({group_id}) failed, fallback to iter_dialogs")
+
+    if group_title:
+        async for dialog in client.iter_dialogs(limit=100):
+            if getattr(dialog.entity, "title", None) == group_title:
+                return dialog.entity
+
+    raise RuntimeError(f"Cannot resolve target group: id={group_id}, title={group_title}")
+
+
+async def append_probe_messages(group_data: dict) -> dict:
+    """
+    向测试群组发送本次运行专属探针消息，并写入 marker/keyword。
+
+    这些消息用于后续测试强校验，避免历史索引数据导致“假通过”。
+    """
+    client = _build_client()
+    await client.start()
+    _print("Telethon client started for probe message injection")
+
+    try:
+        marker = f"{PROBE_MARKER_PREFIX}{int(time.time())}"
+        keyword = f"{PROBE_KEYWORD_PREFIX}{int(time.time())}"
+        probe_messages = _build_probe_messages(marker, keyword)
+
+        target = await _resolve_group_entity(client, group_data)
+        probe_message_ids: list[int] = []
+
+        _print(f"Injecting probe messages into group: {group_data.get('group_title')} (ID: {group_data.get('group_id')})")
+        for i, text in enumerate(probe_messages, start=1):
+            msg = await client.send_message(target, text)
+            probe_message_ids.append(msg.id)
+            _print(f"  Probe {i}/{len(probe_messages)} sent: {text[:80]}...")
+            await asyncio.sleep(0.4)
+
+        group_data["probe_marker"] = marker
+        group_data["probe_keyword"] = keyword
+        group_data["probe_messages"] = probe_messages
+        group_data["probe_message_ids"] = probe_message_ids
+        group_data["probe_message_count"] = len(probe_message_ids)
+        group_data["last_probe_at"] = datetime.now().isoformat()
+
+        _print(f"Probe messages injected: {len(probe_message_ids)} (marker={marker})")
+        return group_data
+    finally:
+        await client.disconnect()
+
+
 async def setup_test_groups(force: bool = False) -> dict:
     """
     准备测试群组。如果已有群组数据且不强制重建，直接复用。
@@ -157,10 +230,18 @@ async def setup_test_groups(force: bool = False) -> dict:
 
     if existing and not force:
         _print(f"Using existing test group: {existing.get('group_title')} (ID: {existing.get('group_id')})")
-        return existing
+        try:
+            updated = await append_probe_messages(existing)
+            save_test_groups(updated)
+            _print(f"Test group info updated with probe data: {TEST_GROUPS_FILE}")
+            return updated
+        except Exception as e:
+            _print(f"Existing group unavailable for probe injection: {e}")
+            _print("Falling back to creating a new test group...")
 
     _print("Creating new test group...")
     group_data = await create_test_group()
+    group_data = await append_probe_messages(group_data)
     save_test_groups(group_data)
     _print(f"Test group info saved to {TEST_GROUPS_FILE}")
     return group_data
