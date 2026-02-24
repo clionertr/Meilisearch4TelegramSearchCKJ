@@ -103,6 +103,7 @@ async def send_code(
         session = await auth_store.create_session(
             phone_number=phone,
             phone_code_hash=sent_code.phone_code_hash,
+            telegram_session_string=client.session.save(),
         )
 
         logger.info(f"Verification code sent to {mask_phone_number(phone)}")
@@ -167,9 +168,9 @@ async def signin(
             detail="TOO_MANY_ATTEMPTS",
         )
 
-    # 创建新的 Telegram 客户端进行登录
+    # 使用发送验证码时的会话上下文继续登录，否则 phone_code_hash 可能失效
     client = TelegramClient(
-        StringSession(),
+        StringSession(session.telegram_session_string),
         APP_ID,
         APP_HASH,
         proxy=PROXY,

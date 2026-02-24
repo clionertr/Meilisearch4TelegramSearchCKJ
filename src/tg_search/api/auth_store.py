@@ -25,6 +25,7 @@ class AuthSession:
     auth_session_id: str
     phone_number: str
     phone_code_hash: str
+    telegram_session_string: str
     expires_at: datetime
     created_at: datetime = field(default_factory=datetime.utcnow)
     attempts: int = 0
@@ -96,6 +97,7 @@ class AuthStore:
         self,
         phone_number: str,
         phone_code_hash: str,
+        telegram_session_string: str,
     ) -> AuthSession:
         """
         创建登录会话
@@ -103,6 +105,7 @@ class AuthStore:
         Args:
             phone_number: 手机号
             phone_code_hash: Telegram 返回的验证码哈希
+            telegram_session_string: 发送验证码时的 Telegram StringSession
 
         Returns:
             AuthSession 对象
@@ -115,6 +118,7 @@ class AuthStore:
                 auth_session_id=auth_session_id,
                 phone_number=phone_number,
                 phone_code_hash=phone_code_hash,
+                telegram_session_string=telegram_session_string,
                 expires_at=datetime.utcnow() + timedelta(seconds=self._session_ttl),
             )
 

@@ -70,6 +70,12 @@ const Login: React.FC = () => {
                 setStep('password');
             } else if (detail === 'CODE_INVALID') {
                 setError('Invalid verification code');
+            } else if (detail === 'CODE_EXPIRED' || detail === 'SESSION_NOT_FOUND') {
+                setStep('code');
+                setCode('');
+                setPassword('');
+                setCountdown(0);
+                setError('Verification session expired. Please resend the code and try again.');
             } else if (detail?.includes('FLOOD_WAIT')) {
                 setError(`Too many attempts. Please wait ${detail.split('_').pop()} seconds.`);
             } else {
