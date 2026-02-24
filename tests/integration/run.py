@@ -184,8 +184,9 @@ def main() -> int:
 
     import pytest as _pytest
 
-    test_file = str(Path(__file__).parent / "test_api_e2e.py")
-    pytest_args = args.pytest_args.split() + [test_file]
+    # 运行整个 tests/integration/ 目录，发现所有 test_*.py 文件
+    test_dir = str(Path(__file__).parent)
+    pytest_args = args.pytest_args.split() + [test_dir]
 
     print(f"  pytest {' '.join(pytest_args)}\n")
 

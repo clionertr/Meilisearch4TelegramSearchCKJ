@@ -60,13 +60,14 @@
 - 写操作必须结构化日志（变更字段、旧值摘要、新值摘要、version）
 
 ## 4. 任务拆分（每个任务 30-60 分钟）
+- [ ] T-P0-CS-07 增加集成测试并接入 `uv run tests/integration/run.py`。
 - [ ] T-P0-CS-01 定义 `GlobalConfig` Pydantic 模型（含默认值）。
 - [ ] T-P0-CS-02 创建 `system_config` 索引初始化逻辑。
 - [ ] T-P0-CS-03 实现 `load_config` + 10s 内存缓存。
 - [ ] T-P0-CS-04 实现 `save_config` + `version` 递增控制。
 - [ ] T-P0-CS-05 实现 section 级更新辅助函数。
 - [ ] T-P0-CS-06 增加单元测试（初始化/重启恢复/并发写/坏文档回退）。
-- [ ] T-P0-CS-07 增加集成测试并接入 `uv run tests/integration/run.py`。
+
 
 ## 5. E2E 测试用例清单
 1. 首次启动读配置 -> 自动初始化。

@@ -58,6 +58,8 @@ _DEFAULT_SWITCHES: dict[str, bool] = {
     # Phase 6: 错误处理
     "error_empty_query": True,
     "error_invalid_limit": True,
+    # Config Store E2E
+    "config_store_e2e": True,
 }
 
 
