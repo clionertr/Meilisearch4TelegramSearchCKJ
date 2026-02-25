@@ -24,6 +24,11 @@
 - 新增 `ServiceContainer`（`src/tg_search/services/container.py`），在 API lifespan / BotHandler / `main.run()` 共享同一 service 实例
 - `ConfigPolicyService` 新增 `DomainError` 错误模型与 `subscribe()` 推送机制，配置写后即时通知运行时消费者
 - 新增 SLA 真实环境回归：`tests/integration/test_service_layer_architecture_e2e.py`（共享容器注入 + `<1s` 配置可见性）
+- 落地 **ObservabilityService** (`src/tg_search/services/observability_service.py`)，统一 `/status`、`/search/stats`、`/storage/stats` 与 Bot `/ping` 状态采集
+- API `/api/v1/status`、`/api/v1/search/stats`、`/api/v1/storage/stats` 改为调用 ObservabilityService 快照
+- Bot `/ping` 改为仅负责文本渲染，Meili 不可用时返回统一“服务不可用”文案
+- 新增可观测性回归测试：`tests/unit/test_observability_service.py` + `tests/integration/test_observability_service_e2e.py`
+- 新增可观测性配置：`OBS_SNAPSHOT_TIMEOUT_SEC`、`OBS_SNAPSHOT_WARN_MS`
 
 ### 2026-02-24
 - 新增 **ConfigStore** 配置持久化模块 (`config/config_store.py`)，基于 MeiliSearch 实现全局配置读写
@@ -165,6 +170,8 @@ graph TD
     I --> I1["config_policy_service.py<br/>策略服务"];
     I --> I2["search_service.py<br/>统一搜索服务"];
     I --> I3["contracts.py<br/>Service DTO"];
+    I --> I4["observability_service.py<br/>统一可观测性服务"];
+    I --> I5["container.py<br/>Service 容器"];
     G --> G1["app.py<br/>FastAPI应用"];
     G --> G2["routes/<br/>API路由"];
     G --> G3["models.py<br/>Pydantic模型"];
@@ -233,7 +240,9 @@ Meilisearch4TelegramSearchCKJ/
 │       │   ├── __init__.py
 │       │   ├── contracts.py     # 领域 DTO
 │       │   ├── search_service.py  # 统一搜索服务
-│       │   └── config_policy_service.py  # 策略服务
+│       │   ├── config_policy_service.py  # 策略服务
+│       │   ├── observability_service.py  # 统一可观测性服务
+│       │   └── container.py     # Service 容器
 │       └── api/                 # REST API 模块 (v0.2.0)
 │           ├── __init__.py
 │           ├── app.py           # FastAPI 应用构建
@@ -268,6 +277,7 @@ Meilisearch4TelegramSearchCKJ/
 │   │   ├── test_logger.py       # 日志测试
 │   │   ├── test_meilisearch.py  # MeiliSearch 测试
 │   │   ├── test_meilisearch_handler.py # MeiliSearch 客户端测试
+│   │   ├── test_observability_service.py # ObservabilityService 单测
 │   │   └── test_utils.py        # 工具函数测试
 │   └── integration/             # 集成测试
 │       ├── conftest.py
@@ -282,6 +292,7 @@ Meilisearch4TelegramSearchCKJ/
 │       ├── test_dialog_sync.py      # Dialog Sync 集成测试
 │       ├── test_dialog_sync_e2e.py  # Dialog Sync E2E 测试
 │       ├── test_group_setup.py      # 测试组配置
+│       ├── test_observability_service_e2e.py  # Observability E2E 测试
 │       └── test_storage.py          # Storage 集成测试
 └── webui-example/               # 前端管理界面 (React + TypeScript)
     ├── src/
@@ -360,6 +371,8 @@ ruff format src/
 | `SESSION_STRING` | - | Telethon 会话字符串 |
 | `LOGGING_LEVEL` | `25` | 控制台日志级别 (INFO=20, NOTICE=25, WARNING=30) |
 | `LOGGING2FILE_LEVEL` | `30` | 文件日志级别 |
+| `OBS_SNAPSHOT_TIMEOUT_SEC` | `0.8` | 统一可观测性快照采集超时（秒） |
+| `OBS_SNAPSHOT_WARN_MS` | `800` | 可观测性快照慢采集告警阈值（毫秒） |
 | `BATCH_MSG_UNM` | `200` | 批量上传消息数 |
 
 #### 可选（API 相关）

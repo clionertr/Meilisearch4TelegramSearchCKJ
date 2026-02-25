@@ -8,7 +8,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
 
-from tg_search.api.deps import MeiliSearchAsync, get_meili_async, get_search_service
+from tg_search.api.deps import MeiliSearchAsync, get_meili_async, get_observability_service, get_search_service
 from tg_search.api.models import (
     ApiResponse,
     ChatInfo,
@@ -18,6 +18,7 @@ from tg_search.api.models import (
     UserInfo,
 )
 from tg_search.services.contracts import SearchHit, SearchQuery
+from tg_search.services.observability_service import ObservabilityService
 from tg_search.services.search_service import SearchService
 
 
@@ -102,15 +103,17 @@ async def search_messages(
     description="获取 MeiliSearch 索引统计信息",
 )
 async def get_search_stats(
-    meili: MeiliSearchAsync = Depends(get_meili_async),
+    observability: ObservabilityService = Depends(get_observability_service),
 ) -> ApiResponse[SearchStats]:
     """获取搜索统计信息。"""
-    stats = await meili.get_index_stats()
+    snapshot = await observability.index_snapshot(source="api.search.stats")
 
     search_stats = SearchStats(
-        total_documents=stats.number_of_documents,
-        index_size_bytes=0,  # IndexStats 可能没有此属性
-        is_indexing=stats.is_indexing,
+        total_documents=snapshot.total_documents,
+        index_size_bytes=snapshot.database_size or 0,
+        last_update=snapshot.last_update,
+        is_indexing=snapshot.is_indexing,
+        notes=snapshot.notes,
     )
 
     return ApiResponse(data=search_stats)

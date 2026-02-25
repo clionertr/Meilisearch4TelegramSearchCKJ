@@ -119,6 +119,7 @@ class SearchStats(BaseModel):
     index_size_bytes: int
     last_update: Optional[datetime] = None
     is_indexing: bool = False
+    notes: List[str] = Field(default_factory=list)
 
 
 # ============ 状态相关 ============
@@ -133,6 +134,7 @@ class SystemStatus(BaseModel):
     telegram_connected: bool
     indexed_messages: int
     memory_usage_mb: float
+    notes: List[str] = Field(default_factory=list)
     version: str = "0.2.0"
 
 

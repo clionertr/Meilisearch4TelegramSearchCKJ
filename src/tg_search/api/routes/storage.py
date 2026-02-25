@@ -7,10 +7,9 @@ Storage API 路由 (P1-ST)
 from fastapi import APIRouter, Depends, Request
 
 from tg_search.api.deps import (
-    MeiliSearchAsync,
     get_app_state,
     get_config_store,
-    get_meili_async,
+    get_observability_service,
 )
 from tg_search.api.models import (
     ApiResponse,
@@ -20,6 +19,7 @@ from tg_search.api.models import (
     MediaCleanupData,
     StorageStatsData,
 )
+from tg_search.services.observability_service import ObservabilityService
 
 router = APIRouter()
 
@@ -31,27 +31,20 @@ router = APIRouter()
     description="获取当前存储统计信息（index_bytes 来自 MeiliSearch databaseSize）",
 )
 async def get_storage_stats(
-    meili: MeiliSearchAsync = Depends(get_meili_async),
+    observability: ObservabilityService = Depends(get_observability_service),
 ) -> ApiResponse[StorageStatsData]:
     """
     AC-2: 返回 200 且包含 index_bytes/total_bytes。
     AC-3: media_bytes=null 且 media_supported=false。
     """
-    notes = ["media storage is disabled in current architecture"]
-
-    try:
-        all_stats = await meili.get_all_stats()
-        index_bytes = all_stats.get("databaseSize")
-    except Exception:
-        index_bytes = None
-        notes.append("failed to retrieve databaseSize from MeiliSearch")
+    snapshot = await observability.storage_snapshot(source="api.storage.stats")
 
     data = StorageStatsData(
-        total_bytes=index_bytes,
-        index_bytes=index_bytes,
-        media_supported=False,
-        cache_supported=False,
-        notes=notes,
+        total_bytes=snapshot.total_bytes,
+        index_bytes=snapshot.index_bytes,
+        media_supported=snapshot.media_supported,
+        cache_supported=snapshot.cache_supported,
+        notes=snapshot.notes,
     )
     return ApiResponse(data=data)
 

@@ -1,4 +1,4 @@
-"""Service-layer contracts."""
+"""Service-layer contracts for runtime policies, search, and observability snapshots."""
 
 from __future__ import annotations
 
@@ -90,3 +90,46 @@ class SearchPage(BaseModel):
     total_hits: int
     limit: int
     offset: int
+
+class IndexSnapshot(BaseModel):
+    """Canonical Meili index snapshot."""
+
+    total_documents: int = 0
+    is_indexing: bool = False
+    database_size: int | None = None
+    last_update: datetime | None = None
+    meili_connected: bool = False
+    notes: list[str] = Field(default_factory=list)
+    errors: list[str] = Field(default_factory=list)
+
+
+class SystemSnapshot(BaseModel):
+    """Runtime/system snapshot used by API `/status` and Bot `/ping`."""
+
+    uptime_seconds: float = 0.0
+    meili_connected: bool = False
+    telegram_connected: bool = False
+    bot_running: bool = False
+    indexed_messages: int = 0
+    memory_usage_mb: float = 0.0
+    notes: list[str] = Field(default_factory=list)
+    errors: list[str] = Field(default_factory=list)
+
+
+class StorageSnapshot(BaseModel):
+    """Storage snapshot for `/storage/stats`."""
+
+    total_bytes: int | None = None
+    index_bytes: int | None = None
+    media_supported: bool = False
+    cache_supported: bool = False
+    notes: list[str] = Field(default_factory=list)
+    errors: list[str] = Field(default_factory=list)
+
+
+class ProgressSnapshot(BaseModel):
+    """Progress snapshot for `/status/progress` and push-event consistency checks."""
+
+    all_progress: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    active_count: int = 0
+    notes: list[str] = Field(default_factory=list)

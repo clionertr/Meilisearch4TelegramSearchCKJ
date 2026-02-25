@@ -16,6 +16,7 @@
 - **黑白名单**: 灵活的频道/群组/用户同步控制
 - **统一策略真源**: 白名单/黑名单运行时统一存储于 MeiliSearch `system_config.policy`
 - **统一搜索服务**: Bot 与 API 共享 `SearchService`（统一过滤、高亮解析、分页和缓存策略）
+- **统一可观测性快照**: `/status`、`/search/stats`、`/storage/stats` 与 Bot `/ping` 统一走 ObservabilityService
 
 ## 架构概览
 
@@ -92,6 +93,8 @@ python -m tg_search --mode bot-only
 | `WHITE_LIST` | `[1]` | 策略服务冷启动白名单默认值（运行时真源为 ConfigStore） |
 | `BLACK_LIST` | `[]` | 策略服务冷启动黑名单默认值（运行时真源为 ConfigStore） |
 | `POLICY_REFRESH_TTL_SEC` | `10` | Telegram 监听端策略刷新间隔（秒） |
+| `OBS_SNAPSHOT_TIMEOUT_SEC` | `0.8` | 可观测性快照采集超时（秒） |
+| `OBS_SNAPSHOT_WARN_MS` | `800` | 可观测性慢采集告警阈值（毫秒） |
 | `OWNER_IDS` | `[]` | Bot 管理员 ID |
 | `SEARCH_CACHE` | `True` | 是否启用统一搜索缓存 |
 | `CACHE_EXPIRE_SECONDS` | `7200` | 搜索缓存 TTL（秒） |
@@ -188,6 +191,35 @@ curl -s "http://localhost:8000/api/v1/search?q=release&date_from=2026-02-01T00:0
 说明：
 - `foo_bar` 等含下划线关键词支持稳定翻页（不再依赖 `split("_")`）。
 - Bot 展示优先使用 `formatted_text`（高亮命中）。
+
+### 10) 查看统一系统快照（含降级 notes）
+
+```bash
+curl -s "http://localhost:8000/api/v1/status" \
+  -H "X-API-Key: <your_api_key>" | jq '.data | {meili_connected,indexed_messages,memory_usage_mb,notes}'
+```
+
+### 11) 查看统一索引/存储快照
+
+```bash
+curl -s "http://localhost:8000/api/v1/search/stats" \
+  -H "X-API-Key: <your_api_key>" | jq '.data | {total_documents,index_size_bytes,last_update,is_indexing,notes}'
+
+curl -s "http://localhost:8000/api/v1/storage/stats" \
+  -H "X-API-Key: <your_api_key>" | jq '.data | {index_bytes,total_bytes,media_supported,notes}'
+```
+
+### 12) Bot 健康检查
+
+```text
+/ping
+```
+
+当 Meili 暂时不可用时，Bot 会返回统一文案：
+
+```text
+Pong!
+服务不可用：MeiliSearch 暂时不可达，请稍后重试。
 
 ## 监控与日志点
 

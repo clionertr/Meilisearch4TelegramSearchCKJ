@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from tg_search.config.config_store import ConfigStore
     from tg_search.core.meilisearch import MeiliSearchClient
     from tg_search.services.config_policy_service import ConfigPolicyService
+    from tg_search.services.observability_service import ObservabilityService
     from tg_search.services.search_service import SearchService
 
 
@@ -186,6 +187,35 @@ async def get_search_service(request: Request) -> "SearchService":
     if app_state.search_service is None:
         raise HTTPException(status_code=503, detail="SearchService not initialized")
     return app_state.search_service
+
+
+async def get_observability_service(request: Request) -> "ObservabilityService":
+    """获取 ObservabilityService。"""
+    from tg_search.services.observability_service import ObservabilityService  # noqa: F401
+
+    app_state = await get_app_state(request)
+
+    # Primary path: service container wiring.
+    if app_state.service_container is not None:
+        service = getattr(app_state.service_container, "observability_service", None)
+        if service is not None:
+            return service
+
+    # Fallback path: direct AppState reference.
+    if app_state.observability_service is not None:
+        return app_state.observability_service
+
+    # Last-resort fallback for unit tests / partially initialized app state.
+    if app_state.meili_client is not None:
+        from tg_search.services.observability_service import ObservabilityService
+
+        app_state.observability_service = ObservabilityService(
+            app_state.meili_client,
+            progress_registry=app_state.progress_registry,
+        )
+        return app_state.observability_service
+
+    raise HTTPException(status_code=503, detail="ObservabilityService not initialized")
 
 
 def parse_bearer_token(authorization: Optional[str]) -> Optional[str]:

@@ -40,13 +40,13 @@ class ObservabilityService:
 - 服务应支持无 Telegram 客户端场景（API-only）
 
 ## 4. 任务拆分（每个任务 30-60 分钟）
-- [ ] T-P1-OBS-01 定义 `SystemSnapshot/IndexSnapshot/StorageSnapshot/ProgressSnapshot` DTO。
-- [ ] T-P1-OBS-02 抽离 API `/status` 逻辑到 ObservabilityService。
-- [ ] T-P1-OBS-03 抽离 API `/search/stats` 逻辑到 ObservabilityService。
-- [ ] T-P1-OBS-04 抽离 API `/storage/stats` 逻辑到 ObservabilityService。
-- [ ] T-P1-OBS-05 改造 Bot `/ping` 调用 ObservabilityService 并只保留文本渲染。
-- [ ] T-P1-OBS-06 增加异常降级与统一日志。
-- [ ] T-P1-OBS-07 增加单元与集成回归测试（正常/故障/降级路径）。
+- [x] T-P1-OBS-01 定义 `SystemSnapshot/IndexSnapshot/StorageSnapshot/ProgressSnapshot` DTO。
+- [x] T-P1-OBS-02 抽离 API `/status` 逻辑到 ObservabilityService。
+- [x] T-P1-OBS-03 抽离 API `/search/stats` 逻辑到 ObservabilityService。
+- [x] T-P1-OBS-04 抽离 API `/storage/stats` 逻辑到 ObservabilityService。
+- [x] T-P1-OBS-05 改造 Bot `/ping` 调用 ObservabilityService 并只保留文本渲染。
+- [x] T-P1-OBS-06 增加异常降级与统一日志。
+- [x] T-P1-OBS-07 增加单元与集成回归测试（正常/故障/降级路径）。
 
 ## 5. E2E 测试用例清单
 1. 正常场景下 Bot `/ping` 与 API `/status` 的文档数一致。
@@ -61,3 +61,20 @@ class ObservabilityService:
 - ADR-OBS-003：Bot 文本展示与 API JSON 展示解耦，数据对象共享。
 - ADR-OBS-004：WebSocket 仍保留事件推送角色，但数据来源统一到进度快照接口与 registry。
 
+### 2026-02-25 实现落地记录
+- 新增 `src/tg_search/services/observability_service.py`，统一提供 `system/index/storage/progress` 四类快照接口。
+- `src/tg_search/services/contracts.py` 新增快照 DTO：`SystemSnapshot`、`IndexSnapshot`、`StorageSnapshot`、`ProgressSnapshot`。
+- API 路由改造为统一依赖注入：
+  - `/api/v1/status` -> `ObservabilityService.system_snapshot`
+  - `/api/v1/status/progress` -> `ObservabilityService.progress_snapshot`
+  - `/api/v1/search/stats` -> `ObservabilityService.index_snapshot`
+  - `/api/v1/storage/stats` -> `ObservabilityService.storage_snapshot`
+- Bot `/ping` 改造为仅渲染展示层文本，状态采集统一走 ObservabilityService；Meili 不可用时返回固定文案“服务不可用”。
+- 统一日志字段已落地：`trace_id/source/snapshot_type/duration_ms`，并补充慢采集告警阈值（`OBS_SNAPSHOT_WARN_MS`）。
+- 新增配置：
+  - `OBS_SNAPSHOT_TIMEOUT_SEC`（快照采集超时，默认 `0.8s`）
+  - `OBS_SNAPSHOT_WARN_MS`（慢采集告警阈值，默认 `800ms`）
+- 测试落地：
+  - 单元：`tests/unit/test_observability_service.py`
+  - 真实环境 E2E：`tests/integration/test_observability_service_e2e.py`
+  - 并回归通过：`tests/integration/test_storage.py`、`tests/integration/test_service_layer_architecture_e2e.py`
