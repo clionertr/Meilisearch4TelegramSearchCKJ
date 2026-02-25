@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from tg_search.config.settings import validate_config
 from tg_search.core.bot import BotHandler
 from tg_search.main import run
+from tg_search.services.container import build_service_container
 
 nest_asyncio = importlib.import_module("nest_asyncio")
 flask = importlib.import_module("flask")
@@ -31,7 +32,8 @@ def run_async_code():
 
     async def async_bot_task():
         try:
-            bot_handler = BotHandler(run)
+            services = build_service_container()
+            bot_handler = BotHandler(lambda: run(services=services), services=services)
             await bot_handler.run()
         except Exception as e:
             print(f"Error running bot: {str(e)}")

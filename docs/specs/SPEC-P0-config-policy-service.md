@@ -99,7 +99,7 @@ class PolicySection(BaseModel):
 - Bot：`src/tg_search/core/bot.py` 的两条策略命令调用 Service，保留原命令名（兼容现有用户）。
 - 下载链路：
   - `src/tg_search/main.py` 在启动下载前从 Service 获取策略。
-  - `src/tg_search/core/telegram.py` 不再长期缓存白黑名单，改为可刷新策略读取或由调用方注入快照。
+  - `src/tg_search/core/telegram.py` 采用“TTL 拉取 + Service 推送快照”双通道更新，保证同进程写后快速可见。
 
 ### 5.6 校验与错误语义
 - 统一校验器：
@@ -107,6 +107,10 @@ class PolicySection(BaseModel):
   - 元素去重后处理；
   - 超出 int64 或明显非法值返回校验错误。
 - API 侧错误映射：
+  - Service 统一抛 `DomainError(code, message, detail)`；
+  - `policy_invalid_ids` -> `422`
+  - `policy_store_unavailable` -> `503`
+  - `policy_version_conflict` -> `409`
   - 参数不合法：`422`
   - 配置存储不可用：`503`
   - 并发写冲突（若启用 expected_version）：`409`
@@ -126,7 +130,7 @@ class PolicySection(BaseModel):
 - [x] T-P0-CPS-05 改造 Bot 两条策略命令，移除直写 Meili `config` 索引路径。
 - [x] T-P0-CPS-06 改造 `download_and_listen` 与 `TelegramUserBot` 的策略读取入口。
 - [x] T-P0-CPS-07 补齐单元测试：幂等、去重、校验、版本冲突。
-- [ ] T-P0-CPS-08 补齐集成/E2E：Bot 写 API 读、API 写下载生效、重启保持。
+- [ ] T-P0-CPS-08 补齐集成/E2E：Bot 写 API 读、API 写下载生效、重启保持。（已完成 API 写 -> 运行时 `<1s` 可见）
 - [x] T-P0-CPS-09 清理 legacy `config` 的**策略字段**读取/写入路径与文档说明（消息 offset 路径保留）。
 
 ## 7. 测试计划（对齐 `tests/TESTING_GUIDELINES.md`）
@@ -174,4 +178,5 @@ RUN_INTEGRATION_TESTS=true pytest tests/integration -v -m "integration and meili
   - 变更审计日志输出 `source/action/target/before_size/after_size/version`；
   - Telegram 侧策略刷新输出 TTL 与列表规模（debug）。
 - 单元测试已覆盖：`tests/unit/test_config_policy_service.py`，并更新 `tests/unit/test_api.py` 的策略服务注入夹具。
+- 新增 E2E：`tests/integration/test_service_layer_architecture_e2e.py` 覆盖共享容器注入与 API 写策略后运行时 `<1s` 可见。
 - 待补：`tests/integration/` 中的 Bot/API/下载一致性端到端回归（T-P0-CPS-08）。

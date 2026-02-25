@@ -5,7 +5,6 @@ FastAPI 应用构建模块
 """
 
 import os
-import time
 from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import AsyncGenerator
@@ -62,20 +61,18 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.error(f"Failed to initialize MeiliSearch client: {e}")
         # 允许 API 启动，但 meili_client 为 None
 
-    # 初始化 ConfigStore（P0-Config-Store）
+    # 初始化统一 ServiceContainer（P0-SLA-02）
     if app_state.meili_client is not None:
         try:
-            from tg_search.config.config_store import ConfigStore
-            from tg_search.services.config_policy_service import ConfigPolicyService
+            from tg_search.services.container import build_service_container
 
-            app_state.config_store = ConfigStore(app_state.meili_client)
-            logger.info("ConfigStore initialized successfully")
-
-            app_state.config_policy_service = ConfigPolicyService(app_state.config_store)
-            logger.info("ConfigPolicyService initialized successfully")
+            app_state.service_container = build_service_container(meili_client=app_state.meili_client)
+            app_state.config_store = app_state.service_container.config_store
+            app_state.config_policy_service = app_state.service_container.config_policy_service
+            logger.info("ServiceContainer initialized successfully")
         except Exception as e:
-            logger.error(f"Failed to initialize ConfigStore/ConfigPolicyService: {e}")
-            # 允许 API 启动，但配置相关服务不可用
+            logger.error(f"Failed to initialize ServiceContainer: {e}")
+            # 允许 API 启动，但 service 层不可用
 
     # 初始化 dialog available 缓存（Fix-4：绑定到 app 生命周期）
     from tg_search.api.routes.dialogs import _AvailableCache
@@ -100,18 +97,27 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             from tg_search.core.bot import BotHandler
             from tg_search.main import run
 
-            async def run_bot():
-                """运行 Bot 的包装函数"""
-                try:
-                    bot_handler = BotHandler(lambda: run(progress_registry=app_state.progress_registry))
-                    await bot_handler.run()
-                except asyncio.CancelledError:
-                    logger.info("Bot task was cancelled")
-                except Exception as e:
-                    logger.error(f"Bot error: {e}")
+            if app_state.service_container is None:
+                logger.error("Skip bot autostart because ServiceContainer is not available")
+            else:
+                async def run_bot():
+                    """运行 Bot 的包装函数"""
+                    try:
+                        bot_handler = BotHandler(
+                            lambda: run(
+                                progress_registry=app_state.progress_registry,
+                                services=app_state.service_container,
+                            ),
+                            services=app_state.service_container,
+                        )
+                        await bot_handler.run()
+                    except asyncio.CancelledError:
+                        logger.info("Bot task was cancelled")
+                    except Exception as e:
+                        logger.error(f"Bot error: {e}")
 
-            app_state.bot_task = asyncio.create_task(run_bot())
-            logger.info("Bot started as background task")
+                app_state.bot_task = asyncio.create_task(run_bot())
+                logger.info("Bot started as background task")
         except Exception as e:
             logger.error(f"Failed to start Bot: {e}")
 

@@ -13,8 +13,6 @@ from tg_search.config.settings import (
     APP_ID,
     CACHE_EXPIRE_SECONDS,
     MAX_PAGE,
-    MEILI_HOST,
-    MEILI_PASS,
     OWNER_IDS,
     PROXY,
     RESULTS_PER_PAGE,
@@ -22,10 +20,9 @@ from tg_search.config.settings import (
     TOKEN,
     IPv6,
 )
-from tg_search.config.config_store import ConfigStore
 from tg_search.core.logger import setup_logger
-from tg_search.core.meilisearch import MeiliSearchClient
-from tg_search.services.config_policy_service import ConfigPolicyService
+from tg_search.services import DomainError
+from tg_search.services.container import ServiceContainer, build_service_container
 from tg_search.utils.formatters import sizeof_fmt
 
 MAX_RESULTS = MAX_PAGE * RESULTS_PER_PAGE
@@ -51,7 +48,12 @@ def set_permission(func):
 
 
 class BotHandler:
-    def __init__(self, main):
+    def __init__(
+        self,
+        main,
+        *,
+        services: ServiceContainer | None = None,
+    ):
         self.logger = setup_logger()
         proxy: Any = PROXY
         self.bot_client = TelegramClient(
@@ -63,12 +65,22 @@ class BotHandler:
             auto_reconnect=True,
             connection_retries=5,
         )
-        self.meili = MeiliSearchClient(MEILI_HOST, MEILI_PASS)
-        self.config_store = ConfigStore(self.meili)
-        self.policy_service = ConfigPolicyService(self.config_store)
+        self.services = services or build_service_container()
+        self.meili = self.services.meili_client
+        self.policy_service = self.services.config_policy_service
         self.search_results_cache = {}
         self.main = main
         self.download_task = None
+
+    @staticmethod
+    def _domain_error_to_text(exc: DomainError) -> str:
+        if exc.code == "policy_invalid_ids":
+            return "参数错误：请输入非空整数列表，如 [123, 456]"
+        if exc.code == "policy_version_conflict":
+            return "写入冲突，请稍后重试"
+        if exc.code == "policy_store_unavailable":
+            return "服务暂不可用，请稍后重试"
+        return f"操作失败：{exc.message}"
 
     async def initialize(self):
         await cast(Awaitable[Any], self.bot_client.start(bot_token=TOKEN))
@@ -205,9 +217,9 @@ class BotHandler:
             query = ast.literal_eval(event.pattern_match.group(1))
             result = await self.policy_service.set_whitelist(query, source="bot")
             await event.reply(f"白名单设置为: {result.updated_list}")
-        except (ValueError, RuntimeError) as e:
-            await event.reply(f"Error: {e}")
-            self.logger.error(f"Error: {e}")
+        except DomainError as exc:
+            await event.reply(self._domain_error_to_text(exc))
+            self.logger.error(f"Policy command failed: {exc.code}: {exc.message}")
         except Exception as e:
             await event.reply(f"Error: {e}")
             self.logger.error(f"Error: {e}")
@@ -220,9 +232,9 @@ class BotHandler:
             query = ast.literal_eval(event.pattern_match.group(1))
             result = await self.policy_service.set_blacklist(query, source="bot")
             await event.reply(f"黑名单设置为: {result.updated_list}")
-        except (ValueError, RuntimeError) as e:
-            await event.reply(f"Error: {e}")
-            self.logger.error(f"Error: {e}")
+        except DomainError as exc:
+            await event.reply(self._domain_error_to_text(exc))
+            self.logger.error(f"Policy command failed: {exc.code}: {exc.message}")
         except Exception as e:
             await event.reply(f"Error: {e}")
             self.logger.error(f"Error: {e}")

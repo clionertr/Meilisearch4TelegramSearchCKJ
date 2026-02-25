@@ -16,6 +16,9 @@
 - 下载与监听链路改为读取统一策略（白/黑名单），并增加策略刷新日志与 TTL 配置
 - 新增 `src/tg_search/services/` 包和单测 `tests/unit/test_config_policy_service.py`
 - 更新 README 与 `.env.example`：明确“静态配置来自 `.env`，动态策略来自 ConfigStore.policy”
+- 新增 `ServiceContainer`（`src/tg_search/services/container.py`），在 API lifespan / BotHandler / `main.run()` 共享同一 service 实例
+- `ConfigPolicyService` 新增 `DomainError` 错误模型与 `subscribe()` 推送机制，配置写后即时通知运行时消费者
+- 新增 SLA 真实环境回归：`tests/integration/test_service_layer_architecture_e2e.py`（共享容器注入 + `<1s` 配置可见性）
 
 ### 2026-02-24
 - 新增 **ConfigStore** 配置持久化模块 (`config/config_store.py`)，基于 MeiliSearch 实现全局配置读写

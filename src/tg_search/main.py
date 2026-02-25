@@ -4,17 +4,15 @@ from collections.abc import Awaitable
 from typing import Any, cast
 
 from tg_search.config.settings import (
-    MEILI_HOST,
-    MEILI_PASS,
     POLICY_REFRESH_TTL_SEC,
     validate_config,
 )
-from tg_search.config.config_store import ConfigStore
 from tg_search.core.bot import BotHandler
 from tg_search.core.logger import setup_logger
 from tg_search.core.meilisearch import MeiliSearchClient
 from tg_search.core.telegram import TelegramUserBot
 from tg_search.services.config_policy_service import ConfigPolicyService
+from tg_search.services.container import ServiceContainer, build_service_container
 from tg_search.utils.message_tracker import (
     get_latest_msg_id4_meili,
     read_config_from_meili,
@@ -104,20 +102,27 @@ async def download_and_listen(
         logger.error(f"下载任务出错: {e}")
 
 
-async def main(progress_registry: Any | None = None):
+async def main(
+    progress_registry: Any | None = None,
+    *,
+    services: ServiceContainer | None = None,
+):
     _maybe_validate_config()
 
-    meili = MeiliSearchClient(MEILI_HOST, MEILI_PASS)
-    config_store = ConfigStore(meili)
-    policy_service = ConfigPolicyService(config_store)
+    service_container = services or build_service_container()
+    meili = service_container.meili_client
+    policy_service = service_container.config_policy_service
 
     async def _load_policy_lists() -> tuple[list[int], list[int]]:
-        return await policy_service.get_policy_lists(refresh=False)
+        return await policy_service.get_policy_lists(refresh=True)
 
     user_bot_client = TelegramUserBot(
         meili,
         policy_loader=_load_policy_lists,
         policy_ttl_sec=POLICY_REFRESH_TTL_SEC,
+    )
+    unsubscribe_policy = policy_service.subscribe(
+        lambda policy: user_bot_client.apply_policy_snapshot(policy.white_list, policy.black_list)
     )
     try:
         await user_bot_client.start()
@@ -136,18 +141,24 @@ async def main(progress_registry: Any | None = None):
     except Exception as e:
         logger.error(f"Error running bot: {str(e)}")
     finally:
+        unsubscribe_policy()
         await user_bot_client.cleanup()
 
 
-async def run(progress_registry: Any | None = None):
+async def run(
+    progress_registry: Any | None = None,
+    *,
+    services: ServiceContainer | None = None,
+):
     try:
         _maybe_validate_config()
-        await main(progress_registry)
+        await main(progress_registry, services=services)
     except KeyboardInterrupt:
         logger.info("Bot stopped by user")
 
 
 if __name__ == "__main__":
     _maybe_validate_config()
-    bot_handler = BotHandler(run)
+    services = build_service_container()
+    bot_handler = BotHandler(lambda: run(services=services), services=services)
     asyncio.run(bot_handler.run())

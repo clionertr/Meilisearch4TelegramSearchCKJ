@@ -49,8 +49,16 @@ async def start_client(
         # 导入并启动主函数
         from tg_search.main import run
 
+        if app_state.service_container is None:
+            raise HTTPException(status_code=503, detail="ServiceContainer not initialized")
+
         # 在后台任务中运行
-        app_state.bot_task = asyncio.create_task(run(progress_registry=app_state.progress_registry))
+        app_state.bot_task = asyncio.create_task(
+            run(
+                progress_registry=app_state.progress_registry,
+                services=app_state.service_container,
+            )
+        )
         logger.info("Telegram client started via API")
 
         response = ClientControlResponse(
@@ -59,6 +67,8 @@ async def start_client(
         )
         return ApiResponse(data=response)
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to start Telegram client: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to start client: {str(e)}")

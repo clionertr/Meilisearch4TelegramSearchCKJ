@@ -7,6 +7,16 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
+class DomainError(Exception):
+    """Structured domain error used by service layer."""
+
+    def __init__(self, code: str, message: str, detail: str | None = None) -> None:
+        self.code = code
+        self.message = message
+        self.detail = detail
+        super().__init__(message if detail is None else f"{message}: {detail}")
+
+
 class PolicyConfig(BaseModel):
     """Canonical runtime policy snapshot."""
 

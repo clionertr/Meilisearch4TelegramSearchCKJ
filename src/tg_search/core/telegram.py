@@ -268,6 +268,12 @@ class TelegramUserBot:
         # 消息缓存，用于优化性能
         self.cache_size_limit = 1000
 
+    def apply_policy_snapshot(self, white_list: list[int], black_list: list[int]) -> None:
+        """Apply a policy snapshot immediately (push path)."""
+        self.white_list = list(white_list)
+        self.black_list = list(black_list)
+        self._policy_loaded_at = time.monotonic()
+
     async def start(self):
         """启动客户端"""
         try:
@@ -339,9 +345,7 @@ class TelegramUserBot:
 
         try:
             white_list, black_list = await self._policy_loader()
-            self.white_list = list(white_list)
-            self.black_list = list(black_list)
-            self._policy_loaded_at = time.monotonic()
+            self.apply_policy_snapshot(list(white_list), list(black_list))
             logger.debug(
                 "Policy refreshed: white=%d black=%d ttl_sec=%d",
                 len(self.white_list),

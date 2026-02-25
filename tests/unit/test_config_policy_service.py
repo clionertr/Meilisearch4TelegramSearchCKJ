@@ -8,6 +8,7 @@ import pytest
 
 from tg_search.config.config_store import GlobalConfig
 from tg_search.services.config_policy_service import ConfigPolicyService
+from tg_search.services.contracts import DomainError
 
 pytestmark = [pytest.mark.unit]
 
@@ -83,12 +84,14 @@ async def test_set_blacklist_replaces_entire_list():
 
 
 @pytest.mark.asyncio
-async def test_invalid_ids_raise_value_error():
+async def test_invalid_ids_raise_domain_error():
     store = FakeConfigStore()
     service = ConfigPolicyService(store, bootstrap_white_list=[], bootstrap_black_list=[])
 
-    with pytest.raises(ValueError):
+    with pytest.raises(DomainError, match="ids must not be empty") as exc:
         await service.add_whitelist([], source="api")
+    assert exc.value.code == "policy_invalid_ids"
 
-    with pytest.raises(ValueError):
+    with pytest.raises(DomainError, match="integers only") as exc:
         await service.add_blacklist([1, "2"], source="api")  # type: ignore[list-item]
+    assert exc.value.code == "policy_invalid_ids"

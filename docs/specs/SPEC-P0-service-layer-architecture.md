@@ -77,10 +77,10 @@ graph LR
 **推荐顺序**：SLA-01/02/03/04 -> SearchService -> ConfigPolicyService -> RuntimeControlService -> ObservabilityService -> SLA-09/10
 
 ## 4. 任务拆分（每个任务 30-60 分钟）
-- [ ] T-P0-SLA-01 新建 `services` 包与 `contracts.py`（通用 DTO、错误模型）。
-- [ ] T-P0-SLA-02 定义 Service 初始化入口（API lifespan + BotHandler `ServiceContainer` 注入，见 3.6）。
-- [ ] T-P0-SLA-03 建立 Presentation 适配约束（路由/命令只保留 parse + render）。
-- [ ] T-P0-SLA-04 增加分层静态检查（简单 import-lint 或代码审查规则）。
+- [x] T-P0-SLA-01 新建 `services` 包与 `contracts.py`（通用 DTO、错误模型）。
+- [x] T-P0-SLA-02 定义 Service 初始化入口（API lifespan + BotHandler `ServiceContainer` 注入，见 3.6）。
+- [x] T-P0-SLA-03 建立 Presentation 适配约束（已在配置策略链路落地：`api/routes/config.py` + `core/bot.py`）。
+- [x] T-P0-SLA-04 增加分层静态检查（`tests/unit/test_service_layer_import_lint.py`）。
 - [ ] T-P0-SLA-05 完成搜索能力切换到 `SearchService` -> 细化任务见 [SPEC-P0-search-service](./SPEC-P0-search-service.md) 第 4 节。
 - [ ] T-P0-SLA-06 完成配置能力切换到 `ConfigPolicyService` -> 细化任务见 [SPEC-P0-config-policy-service](./SPEC-P0-config-policy-service.md) 第 4 节。
 - [ ] T-P0-SLA-07 完成运行控制切换到 `RuntimeControlService` -> 细化任务见 [SPEC-P0-runtime-control-service](./SPEC-P0-runtime-control-service.md) 第 4 节。
@@ -90,7 +90,7 @@ graph LR
 
 ## 5. E2E 测试用例清单
 1. API `GET /search` 与 Bot `/search` 对同一关键词返回一致的总命中与排序规则。
-2. Bot 修改白名单后，API `GET /config` 立即可见且重启后仍保留。
+2. Bot/API 修改白名单后，另一入口与运行时消费者在 `<1s` 内可见，且重启后仍保留。
 3. API `POST /client/start` 后，Bot `/start_client` 返回 `already_running` 语义。
 4. Bot `/ping` 与 API `/status` 的核心统计字段来自同一快照源，字段值一致（允许展示格式不同）。
 5. 注入 Service 层异常后，API 返回稳定错误码，Bot 返回稳定用户提示。
@@ -100,3 +100,6 @@ graph LR
 - ADR-SLA-002：Service 返回领域对象，不返回 FastAPI/Telethon 绑定对象。
 - ADR-SLA-003：短期允许保留旧工具函数（如 `message_tracker`）做兼容读取，后续单独清理。
 - ADR-SLA-004：统一错误模型后，HTTP 错误码与 Bot 文案映射可独立演进，业务规则仅维护一份。
+- 2026-02-25 增补：新增 `ServiceContainer`（`src/tg_search/services/container.py`）并在 API/Bot/download 启动链路共享实例。
+- 2026-02-25 增补：`ConfigPolicyService` 新增 `subscribe()` 推送机制，策略写后同步更新运行时缓存，避免 TTL 导致秒级漂移。
+- 2026-02-25 增补：新增真实环境 E2E `tests/integration/test_service_layer_architecture_e2e.py` 覆盖“共享容器注入”和“策略写后 `<1s` 可见”。

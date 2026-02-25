@@ -3,14 +3,15 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import time
-from collections.abc import Sequence
+from collections.abc import Awaitable, Callable, Sequence
 from typing import Literal
 
 from tg_search.config import settings
 from tg_search.config.config_store import ConfigStore, GlobalConfig
 from tg_search.core.logger import setup_logger
-from tg_search.services.contracts import PolicyChangeResult, PolicyConfig
+from tg_search.services.contracts import DomainError, PolicyChangeResult, PolicyConfig
 
 logger = setup_logger()
 
@@ -18,19 +19,22 @@ logger = setup_logger()
 def _normalize_ids(ids: Sequence[int]) -> list[int]:
     """Validate and de-duplicate IDs while preserving order."""
     if not isinstance(ids, Sequence) or isinstance(ids, (str, bytes)):
-        raise ValueError("ids must be a list of integers")
+        raise DomainError("policy_invalid_ids", "ids must be a list of integers")
     if len(ids) == 0:
-        raise ValueError("ids must not be empty")
+        raise DomainError("policy_invalid_ids", "ids must not be empty")
 
     deduped: list[int] = []
     seen: set[int] = set()
     for raw in ids:
         if isinstance(raw, bool) or not isinstance(raw, int):
-            raise ValueError("ids must contain integers only")
+            raise DomainError("policy_invalid_ids", "ids must contain integers only")
         if raw not in seen:
             seen.add(raw)
             deduped.append(raw)
     return deduped
+
+
+PolicySubscriber = Callable[[PolicyConfig], Awaitable[None] | None]
 
 
 class ConfigPolicyService:
@@ -53,12 +57,60 @@ class ConfigPolicyService:
         self._bootstrap_black_list = list(
             bootstrap_black_list if bootstrap_black_list is not None else settings.BLACK_LIST
         )
+        self._subscribers: set[PolicySubscriber] = set()
 
     async def _load_config(self, refresh: bool = False) -> GlobalConfig:
-        return await asyncio.to_thread(self._store.load_config, refresh)
+        try:
+            return await asyncio.to_thread(self._store.load_config, refresh)
+        except Exception as exc:
+            raise DomainError("policy_store_unavailable", "policy store unavailable", detail=str(exc)) from exc
 
     async def _save_config(self, patch: dict, expected_version: int) -> GlobalConfig:
-        return await asyncio.to_thread(self._store.save_config, patch, expected_version)
+        try:
+            return await asyncio.to_thread(self._store.save_config, patch, expected_version)
+        except ValueError as exc:
+            raise DomainError("policy_version_conflict", "policy version conflict", detail=str(exc)) from exc
+        except Exception as exc:
+            raise DomainError("policy_store_unavailable", "policy store unavailable", detail=str(exc)) from exc
+
+    def subscribe(self, subscriber: PolicySubscriber) -> Callable[[], None]:
+        """Register a runtime policy subscriber for immediate push updates."""
+        self._subscribers.add(subscriber)
+
+        def _unsubscribe() -> None:
+            self._subscribers.discard(subscriber)
+
+        return _unsubscribe
+
+    async def _notify_subscribers(self, policy: PolicyConfig) -> None:
+        if not self._subscribers:
+            return
+
+        coroutines: list[Awaitable[None]] = []
+        for subscriber in tuple(self._subscribers):
+            try:
+                maybe_awaitable = subscriber(policy)
+            except Exception as exc:
+                logger.warning(
+                    "[ConfigPolicyService] subscriber raised synchronously: %s: %s",
+                    type(exc).__name__,
+                    exc,
+                )
+                continue
+            if inspect.isawaitable(maybe_awaitable):
+                coroutines.append(maybe_awaitable)
+
+        if not coroutines:
+            return
+
+        results = await asyncio.gather(*coroutines, return_exceptions=True)
+        for result in results:
+            if isinstance(result, Exception):
+                logger.warning(
+                    "[ConfigPolicyService] subscriber raised asynchronously: %s: %s",
+                    type(result).__name__,
+                    result,
+                )
 
     async def ensure_initialized(self) -> None:
         """Bootstrap policy section once when document policy is empty."""
@@ -74,15 +126,22 @@ class ConfigPolicyService:
             has_bootstrap_values = bool(self._bootstrap_white_list or self._bootstrap_black_list)
 
             if (not has_policy_values) and has_bootstrap_values:
-                cfg = await self._save_config(
-                    {
-                        "policy": {
-                            "white_list": list(self._bootstrap_white_list),
-                            "black_list": list(self._bootstrap_black_list),
-                        }
-                    },
-                    expected_version=cfg.version,
-                )
+                try:
+                    cfg = await self._save_config(
+                        {
+                            "policy": {
+                                "white_list": list(self._bootstrap_white_list),
+                                "black_list": list(self._bootstrap_black_list),
+                            }
+                        },
+                        expected_version=cfg.version,
+                    )
+                except DomainError as exc:
+                    # Another worker may win bootstrap race; reload latest in that case.
+                    if exc.code == "policy_version_conflict":
+                        cfg = await self._load_config(refresh=True)
+                    else:
+                        raise
                 logger.info(
                     "[ConfigPolicyService] bootstrap initialized: white=%d black=%d version=%d",
                     len(cfg.policy.white_list),
@@ -155,21 +214,17 @@ class ConfigPolicyService:
                 added = [item for item in updated if item not in current]
                 removed = [item for item in current if item not in set(updated)]
             else:
-                raise ValueError(f"unsupported action: {action}")
+                raise DomainError("policy_invalid_action", f"unsupported action: {action}")
 
             if target == "white_list":
                 white = updated
             else:
                 black = updated
 
-            try:
-                next_cfg = await self._save_config(
-                    {"policy": {"white_list": white, "black_list": black}},
-                    expected_version=cfg.version,
-                )
-            except ValueError as exc:
-                # ConfigStore uses ValueError for optimistic lock conflict.
-                raise RuntimeError("policy version conflict") from exc
+            next_cfg = await self._save_config(
+                {"policy": {"white_list": white, "black_list": black}},
+                expected_version=cfg.version,
+            )
 
             logger.info(
                 "[ConfigPolicyService] source=%s action=%s target=%s before_size=%d after_size=%d version=%d",
@@ -180,6 +235,8 @@ class ConfigPolicyService:
                 len(updated),
                 next_cfg.version,
             )
+
+            await self._notify_subscribers(self._to_policy_config(next_cfg, source="config_store"))
 
             return PolicyChangeResult(
                 updated_list=updated,

@@ -61,8 +61,10 @@ def run_bot_only():
     """仅运行 Bot（原有行为）"""
     from tg_search.core.bot import BotHandler
     from tg_search.main import run
+    from tg_search.services.container import build_service_container
 
-    bot_handler = BotHandler(run)
+    services = build_service_container()
+    bot_handler = BotHandler(lambda: run(services=services), services=services)
     asyncio.run(bot_handler.run())
 
 

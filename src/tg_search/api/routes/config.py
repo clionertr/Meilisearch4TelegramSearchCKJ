@@ -9,16 +9,30 @@ from fastapi import APIRouter, Depends, HTTPException
 from tg_search.api.deps import get_config_policy_service
 from tg_search.api.models import ApiResponse, ConfigModel, ListUpdateRequest, ListUpdateResponse
 from tg_search.config import settings
+from tg_search.services import DomainError
 from tg_search.services.config_policy_service import ConfigPolicyService
 
 router = APIRouter()
 
 
-def _to_http_error(exc: Exception) -> HTTPException:
-    msg = str(exc).lower()
-    if "version conflict" in msg:
-        return HTTPException(status_code=409, detail="Policy update conflict, please retry")
-    return HTTPException(status_code=422, detail=str(exc))
+_DOMAIN_ERROR_STATUS: dict[str, int] = {
+    "policy_invalid_ids": 422,
+    "policy_version_conflict": 409,
+    "policy_store_unavailable": 503,
+    "policy_invalid_action": 400,
+}
+
+
+def _to_http_error(exc: DomainError) -> HTTPException:
+    status_code = _DOMAIN_ERROR_STATUS.get(exc.code, 400)
+    return HTTPException(
+        status_code=status_code,
+        detail={
+            "error_code": exc.code,
+            "message": exc.message,
+            "detail": exc.detail,
+        },
+    )
 
 
 @router.get(
@@ -58,9 +72,7 @@ async def add_to_whitelist(
     """添加 ID 到白名单"""
     try:
         result = await policy_service.add_whitelist(request.ids, source="api")
-    except ValueError as exc:
-        raise _to_http_error(exc) from exc
-    except RuntimeError as exc:
+    except DomainError as exc:
         raise _to_http_error(exc) from exc
 
     response = ListUpdateResponse(updated_list=result.updated_list, added=result.added, removed=result.removed)
@@ -80,9 +92,7 @@ async def remove_from_whitelist(
     """从白名单移除 ID"""
     try:
         result = await policy_service.remove_whitelist(request.ids, source="api")
-    except ValueError as exc:
-        raise _to_http_error(exc) from exc
-    except RuntimeError as exc:
+    except DomainError as exc:
         raise _to_http_error(exc) from exc
 
     response = ListUpdateResponse(updated_list=result.updated_list, added=result.added, removed=result.removed)
@@ -102,9 +112,7 @@ async def add_to_blacklist(
     """添加 ID 到黑名单"""
     try:
         result = await policy_service.add_blacklist(request.ids, source="api")
-    except ValueError as exc:
-        raise _to_http_error(exc) from exc
-    except RuntimeError as exc:
+    except DomainError as exc:
         raise _to_http_error(exc) from exc
 
     response = ListUpdateResponse(updated_list=result.updated_list, added=result.added, removed=result.removed)
@@ -124,9 +132,7 @@ async def remove_from_blacklist(
     """从黑名单移除 ID"""
     try:
         result = await policy_service.remove_blacklist(request.ids, source="api")
-    except ValueError as exc:
-        raise _to_http_error(exc) from exc
-    except RuntimeError as exc:
+    except DomainError as exc:
         raise _to_http_error(exc) from exc
 
     response = ListUpdateResponse(updated_list=result.updated_list, added=result.added, removed=result.removed)
