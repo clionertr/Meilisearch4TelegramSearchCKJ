@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { aiConfigApi, AiConfigData } from '@/api/ai_config';
 import { extractApiErrorMessage } from '@/api/error';
+import { Skeleton } from '@/components/common/Skeleton';
 
 const AIConfig: React.FC = () => {
     const navigate = useNavigate();
@@ -119,8 +120,17 @@ const AIConfig: React.FC = () => {
                 </div>
 
                 {loading && (
-                    <div className="flex items-center justify-center py-12">
-                        <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" />
+                    <div className="p-4 space-y-6">
+                        {/* API Settings section skeleton */}
+                        <div className="space-y-3">
+                            <Skeleton variant="text" width="6rem" className="h-4" />
+                            <Skeleton variant="card" height="9rem" />
+                        </div>
+                        {/* Model Selection section skeleton */}
+                        <div className="space-y-3">
+                            <Skeleton variant="text" width="8rem" className="h-4" />
+                            <Skeleton variant="card" height="5rem" />
+                        </div>
                     </div>
                 )}
 

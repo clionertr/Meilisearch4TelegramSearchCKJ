@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Skeleton } from '@/components/common/Skeleton';
 import { useStorageStats } from '@/hooks/queries/useStorage';
 import { useSystemStatus } from '@/hooks/queries/useStatus';
 import { formatBytes } from '@/utils/formatters';
@@ -44,8 +45,14 @@ const Settings: React.FC = () => {
       </div>
 
       {loading && (
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" />
+        <div className="p-4 space-y-4">
+          {/* Storage card skeleton */}
+          <Skeleton variant="card" height="10rem" />
+          {/* System status 2-col grid skeleton */}
+          <div className="grid grid-cols-2 gap-3">
+            <Skeleton variant="card" height="5rem" />
+            <Skeleton variant="card" height="5rem" />
+          </div>
         </div>
       )}
 
@@ -126,8 +133,8 @@ const Settings: React.FC = () => {
               key={t}
               onClick={() => setTheme(t)}
               className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold capitalize transition-all ${theme === t
-                  ? 'bg-white dark:bg-white/10 text-primary shadow-sm dark:text-white'
-                  : 'text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'
+                ? 'bg-white dark:bg-white/10 text-primary shadow-sm dark:text-white'
+                : 'text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'
                 }`}
             >
               <span className="material-symbols-outlined text-[18px]">

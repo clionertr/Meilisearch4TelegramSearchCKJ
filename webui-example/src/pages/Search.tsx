@@ -36,11 +36,15 @@ const Search: React.FC = () => {
         error
     } = useSearchQuery(debouncedQuery, 20, debouncedFilters);
 
+    // True while the debounce timer is running (query typed but not yet sent)
+    const isPending = query.trim() !== debouncedQuery.trim();
+
     const allResults = useMemo(() => {
         return data?.pages.flatMap(page => page.data.data.hits) || [];
     }, [data]);
 
-    const totalResults = data?.pages[0]?.data.data.total_hits || 0;
+    // Only show total from the active debounced query's response to avoid stale count
+    const totalResults = debouncedQuery ? (data?.pages[0]?.data.data.total_hits || 0) : 0;
 
     return (
         <div className="flex flex-col h-screen relative bg-background-light dark:bg-background-dark overflow-hidden">
@@ -106,7 +110,7 @@ const Search: React.FC = () => {
 
             {/* Results Info */}
             <div className="px-4 py-2 flex items-center justify-between text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                {isLoading ? (
+                {(isLoading || isPending) ? (
                     <Skeleton variant="text" width="6rem" className="h-4" />
                 ) : (
                     <span>{debouncedQuery ? `${totalResults} matches found` : 'Enter keywords to search'}</span>
@@ -122,7 +126,7 @@ const Search: React.FC = () => {
                     </div>
                 )}
 
-                {isLoading && (
+                {(isLoading || isPending) && (
                     <div className="space-y-4 pt-2">
                         {[1, 2, 3].map(i => (
                             <Skeleton key={i} variant="card" height="9rem" />
@@ -130,8 +134,9 @@ const Search: React.FC = () => {
                     </div>
                 )}
 
-                {!isLoading && (
+                {!isLoading && !isPending && (
                     <motion.div
+                        key={debouncedQuery}
                         initial="hidden" animate="show"
                         variants={{
                             hidden: { opacity: 0 },
