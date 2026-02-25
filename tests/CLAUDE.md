@@ -28,6 +28,8 @@
 | `test_auth_store.py` | 认证存储测试 |
 | `test_config_policy_service.py` | ConfigPolicyService 单元测试（幂等/校验/初始化） |
 | `test_config_route_error_mapping.py` | 配置路由的领域错误映射测试 |
+| `test_runtime_control_service.py` | RuntimeControlService 单元测试（状态机/并发/API-only） |
+| `test_control_route_error_mapping.py` | 控制路由的领域错误映射测试 |
 | `test_configparser.py` | 配置解析测试 |
 | `test_dashboard.py` | Dashboard 单元测试 |
 | `test_logger.py` | 日志配置测试 |
@@ -52,6 +54,7 @@
 | `test_dashboard_e2e.py` | Dashboard E2E 测试 |
 | `test_dialog_sync.py` | Dialog Sync 集成测试 |
 | `test_dialog_sync_e2e.py` | Dialog Sync E2E 测试 |
+| `test_runtime_control_service_e2e.py` | Runtime Control E2E 测试（Bot/API 一致性 + 并发 + API-only） |
 | `test_group_setup.py` | 测试组配置 |
 | `test_observability_service_e2e.py` | ObservabilityService 真实环境 E2E 测试 |
 | `test_service_layer_architecture_e2e.py` | Service 层容器注入与配置可见性 E2E 测试 |

@@ -1,5 +1,9 @@
 # 功能名称：P0-统一运行控制服务（RuntimeControlService）
 
+> 状态：Implemented (2026-02-25)  
+> 优先级：P0  
+> 关联规格：[`SPEC-P0-service-layer-architecture.md`](./SPEC-P0-service-layer-architecture.md)
+
 ## 1. 业务目标（一句话）
 统一 Bot 与 API 对下载/监听任务的启停与状态查询逻辑，确保单实例内运行状态唯一且可观测。
 
@@ -16,7 +20,7 @@
 - API 使用 `AppState.bot_task` 管理任务。
 - 两套状态并行存在，容易出现“一个入口显示运行，另一个入口显示未运行”。
 
-### 3.2 Service 接口（建议）
+### 3.2 Service 接口（已落地）
 ```python
 class RuntimeControlService:
     async def start(self, source: str) -> RuntimeActionResult: ...
@@ -39,13 +43,13 @@ class RuntimeControlService:
 - 任务取消后资源释放必须可验证（telegram client cleanup 被调用）
 
 ## 4. 任务拆分（每个任务 30-60 分钟）
-- [ ] T-P0-RCS-01 定义 `RuntimeActionResult/RuntimeStatus` DTO。
-- [ ] T-P0-RCS-02 新建 RuntimeControlService 并实现统一 start/stop/status。
-- [ ] T-P0-RCS-03 将 API `/client/*` 改为调用 RuntimeControlService。
-- [ ] T-P0-RCS-04 将 Bot `/start_client` `/stop_client` 改为调用 RuntimeControlService。
-- [ ] T-P0-RCS-05 去除 BotHandler 内部独立 `download_task` 状态源。
-- [ ] T-P0-RCS-06 加入并发场景测试（start-start、stop-stop、start-stop 竞争）。
-- [ ] T-P0-RCS-07 回归测试 API-only 模式与错误映射。
+- [x] T-P0-RCS-01 定义 `RuntimeActionResult/RuntimeStatus` DTO。
+- [x] T-P0-RCS-02 新建 RuntimeControlService 并实现统一 start/stop/status。
+- [x] T-P0-RCS-03 将 API `/client/*` 改为调用 RuntimeControlService。
+- [x] T-P0-RCS-04 将 Bot `/start_client` `/stop_client` 改为调用 RuntimeControlService。
+- [x] T-P0-RCS-05 去除 BotHandler 内部独立 `download_task` 状态源。
+- [x] T-P0-RCS-06 加入并发场景测试（start-start、stop-stop、start-stop 竞争）。
+- [x] T-P0-RCS-07 回归测试 API-only 模式与错误映射。
 
 ## 5. E2E 测试用例清单
 1. API 启动后，Bot 再启动返回 `already_running`。
@@ -60,3 +64,24 @@ class RuntimeControlService:
 - ADR-RCS-003：source 字段用于审计（`api`/`bot`），便于排查冲突操作。
 - ADR-RCS-004：临界区使用 `asyncio.Lock`，单进程场景足够，分布式扩展另开专题。
 
+### 6.1 实现落点（2026-02-25）
+- 新增 `RuntimeControlService`：`src/tg_search/services/runtime_control_service.py`。
+- `contracts.py` 新增运行时 DTO：`RuntimeActionResult`、`RuntimeStatus`、`RuntimeState`。
+- `ServiceContainer` 扩展 `runtime_control_service` 并通过闭包绑定 `main.run()`。
+- API `routes/control.py` 切换为调用 Service，不再直接读写 `AppState.bot_task`。
+- Bot `core/bot.py` 切换 `/start_client` `/stop_client` 到 Service，不再持有 `download_task`。
+- `api/deps.py` 新增 `get_runtime_control_service()`，`api/app.py` 在 lifespan 注入/回收 service。
+
+### 6.2 可观测性补充
+- `RuntimeControlService` 记录 `start/stop` 幂等命中日志（already_running/already_stopped）。
+- API-only 拒绝启动时输出 warning 日志，便于排查部署模式错误。
+- `status()` 增加耗时采样日志：`>50ms` 输出 warning，常态输出 debug。
+- 控制路由新增 `control.start/control.stop/control.status` 结构化日志字段。
+
+### 6.3 验证记录
+- 单元测试：
+  - `tests/unit/test_runtime_control_service.py`（状态机、并发、API-only、异常回收）
+  - `tests/unit/test_control_route_error_mapping.py`（DomainError -> HTTP 映射）
+- 真实环境 E2E：
+  - `tests/integration/test_runtime_control_service_e2e.py`（Bot/API 一致性 + 并发 + API-only + 强制取消重启）
+  - `tests/integration/test_service_layer_architecture_e2e.py`（共享容器注入回归）

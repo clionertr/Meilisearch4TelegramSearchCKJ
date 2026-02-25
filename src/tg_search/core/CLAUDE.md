@@ -38,19 +38,14 @@
 ```python
 # main.py 启动流程
 async def main():
-    # 1. 创建 MeiliSearch 客户端
-    meili = MeiliSearchClient(MEILI_HOST, MEILI_PASS)
-
+    # 1. 构建 ServiceContainer（Meili + ConfigPolicy + RuntimeControl）
     # 2. 创建 Telegram 用户客户端
-    user_bot_client = TelegramUserBot(meili)
-    await user_bot_client.start()
-
-    # 3. 下载并监听消息
-    await download_and_listen(user_bot_client, meili)
+    # 3. 下载并监听消息（策略由 ConfigPolicyService 提供）
 
 # __main__.py 入口
 def main():
-    bot_handler = BotHandler(run)
+    services = build_service_container()
+    bot_handler = BotHandler(lambda: run(services=services), services=services)
     asyncio.run(bot_handler.run())
 ```
 
@@ -66,8 +61,8 @@ def main():
 |------|------|------|
 | `/start` | 显示帮助信息 | 公开 |
 | `/help` | 显示帮助信息 | 公开 |
-| `/start_client` | 启动消息监听与下载 | 管理员 |
-| `/stop_client` | 停止消息监听与下载 | 管理员 |
+| `/start_client` | 通过 RuntimeControlService 启动消息监听与下载 | 管理员 |
+| `/stop_client` | 通过 RuntimeControlService 停止消息监听与下载 | 管理员 |
 | `/search <query>` | 关键词搜索 | 管理员 |
 | `/set_white_list2meili <list>` | 通过 ConfigPolicyService 设置白名单（覆盖） | 管理员 |
 | `/set_black_list2meili <list>` | 通过 ConfigPolicyService 设置黑名单（覆盖） | 管理员 |
@@ -79,8 +74,8 @@ def main():
 
 ```python
 class BotHandler:
-    def __init__(self, main: Callable):
-        """初始化 Bot 处理器"""
+    def __init__(self, main: Callable, *, services: ServiceContainer | None = None):
+        """初始化 Bot 处理器（注入共享 ServiceContainer）"""
 
     async def initialize(self):
         """初始化 Bot 客户端，注册事件处理器"""
@@ -226,10 +221,9 @@ def setup_logger() -> logging.Logger:
 ```python
 # bot.py 依赖
 from tg_search.config.settings import APP_ID, APP_HASH, TOKEN, ...
-from tg_search.config.config_store import ConfigStore
 from tg_search.core.logger import setup_logger
-from tg_search.core.meilisearch import MeiliSearchClient
-from tg_search.services.config_policy_service import ConfigPolicyService
+from tg_search.services.container import ServiceContainer
+from tg_search.services import ConfigPolicyService, RuntimeControlService
 from tg_search.utils.formatters import sizeof_fmt
 
 # telegram.py 依赖

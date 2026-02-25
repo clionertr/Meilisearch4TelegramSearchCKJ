@@ -199,6 +199,8 @@ class AppState:
         self.service_container: Optional[Any] = None
         # 统一可观测性服务（在 lifespan 中初始化，P1-OBS）
         self.observability_service: Optional[Any] = None
+        # 统一运行控制服务（在 lifespan 中初始化，P0-RCS）
+        self.runtime_control_service: Optional[Any] = None
         # Dialog available 缓存（绑定到 app 生命周期，Fix-4）
         self.dialog_available_cache: Optional[Any] = None
 

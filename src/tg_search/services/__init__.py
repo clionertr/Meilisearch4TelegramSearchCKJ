@@ -8,6 +8,8 @@ from tg_search.services.contracts import (
     PolicyChangeResult,
     PolicyConfig,
     ProgressSnapshot,
+    RuntimeActionResult,
+    RuntimeStatus,
     SearchHit,
     SearchPage,
     SearchQuery,
@@ -15,11 +17,13 @@ from tg_search.services.contracts import (
     SystemSnapshot,
 )
 from tg_search.services.observability_service import ObservabilityService
+from tg_search.services.runtime_control_service import RuntimeControlService
 from tg_search.services.search_service import SearchService
 
 __all__ = [
     "ConfigPolicyService",
     "ObservabilityService",
+    "RuntimeControlService",
     "SearchService",
     "ServiceContainer",
     "build_service_container",
@@ -33,4 +37,6 @@ __all__ = [
     "IndexSnapshot",
     "StorageSnapshot",
     "ProgressSnapshot",
+    "RuntimeActionResult",
+    "RuntimeStatus",
 ]

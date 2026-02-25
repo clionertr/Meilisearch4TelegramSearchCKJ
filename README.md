@@ -101,6 +101,8 @@ python -m tg_search --mode bot-only
 | `SEARCH_PRESENTATION_MAX_HITS` | `50` | Bot/API 展示层预取窗口上限 |
 | `SEARCH_CALLBACK_TOKEN_TTL_SEC` | `7200` | Bot 分页短 token TTL（秒） |
 | `API_KEY` | - | REST API 认证密钥 |
+| `API_ONLY` | `false` | 是否仅启动 API（开启后运行控制 start 会统一拒绝） |
+| `DISABLE_BOT_AUTOSTART` | `false` | 是否禁用 API 启动时自动拉起 Bot |
 | `CORS_ORIGINS` | `http://localhost:5173,...` | 允许的 CORS 源 |
 | `SESSION_STRING` | - | Telethon 会话字符串（Docker 环境） |
 
@@ -161,7 +163,35 @@ curl -s -X POST "http://localhost:8000/api/v1/client/start" \
   -H "X-API-Key: <your_api_key>" | jq
 ```
 
-### 6) 查看下载进度
+```bash
+curl -s -X POST "http://localhost:8000/api/v1/client/stop" \
+  -H "X-API-Key: <your_api_key>" | jq
+```
+
+### 6) 查看运行控制状态（统一状态机）
+
+```bash
+curl -s "http://localhost:8000/api/v1/client/status" \
+  -H "X-API-Key: <your_api_key>" | jq
+```
+
+典型返回字段：
+- `is_running`: 当前是否有下载/监听任务运行
+- `state`: `stopped|starting|running|stopping`
+- `api_only_mode`: 当前是否 API-only
+- `last_action_source`: 最近一次动作来源（`api` / `bot` / `bot_auto`）
+- `last_error`: 最近一次运行控制错误（无则 `null`）
+
+### 7) Bot 侧启停与 API 语义一致
+
+```text
+/start_client
+/stop_client
+```
+
+说明：当任务已在运行时，Bot 与 API 都返回 `already_running` 语义；当任务未运行时都返回 `already_stopped` 语义。
+
+### 8) 查看下载进度
 
 ```bash
 curl -s "http://localhost:8000/api/v1/status/progress" \

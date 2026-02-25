@@ -29,6 +29,11 @@
 - Bot `/ping` 改为仅负责文本渲染，Meili 不可用时返回统一“服务不可用”文案
 - 新增可观测性回归测试：`tests/unit/test_observability_service.py` + `tests/integration/test_observability_service_e2e.py`
 - 新增可观测性配置：`OBS_SNAPSHOT_TIMEOUT_SEC`、`OBS_SNAPSHOT_WARN_MS`
+- 落地 **RuntimeControlService** (`src/tg_search/services/runtime_control_service.py`)，统一 Bot/API 的任务启停状态机与并发锁
+- API `/api/v1/client/*` 与 Bot `/start_client` `/stop_client` 切换为同一运行控制 service，移除 `BotHandler.download_task` 状态源
+- 新增运行控制 E2E：`tests/integration/test_runtime_control_service_e2e.py`（并发、API-only、一致性、强制取消后重启）
+- 新增运行控制单测：`tests/unit/test_runtime_control_service.py`、`tests/unit/test_control_route_error_mapping.py`
+- 控制链路新增结构化日志：`control.start/control.stop/control.status`，并增加 `status()>50ms` 慢查询告警
 
 ### 2026-02-24
 - 新增 **ConfigStore** 配置持久化模块 (`config/config_store.py`)，基于 MeiliSearch 实现全局配置读写
@@ -172,6 +177,7 @@ graph TD
     I --> I3["contracts.py<br/>Service DTO"];
     I --> I4["observability_service.py<br/>统一可观测性服务"];
     I --> I5["container.py<br/>Service 容器"];
+    I --> I6["runtime_control_service.py<br/>运行控制服务"];
     G --> G1["app.py<br/>FastAPI应用"];
     G --> G2["routes/<br/>API路由"];
     G --> G3["models.py<br/>Pydantic模型"];
@@ -239,10 +245,11 @@ Meilisearch4TelegramSearchCKJ/
 │       ├── services/            # Service 层
 │       │   ├── __init__.py
 │       │   ├── contracts.py     # 领域 DTO
-│       │   ├── search_service.py  # 统一搜索服务
-│       │   ├── config_policy_service.py  # 策略服务
-│       │   ├── observability_service.py  # 统一可观测性服务
-│       │   └── container.py     # Service 容器
+│       │   ├── search_service.py          # 统一搜索服务
+│       │   ├── runtime_control_service.py # 运行控制服务
+│       │   ├── config_policy_service.py   # 策略服务
+│       │   ├── observability_service.py   # 统一可观测性服务
+│       │   └── container.py               # Service 容器
 │       └── api/                 # REST API 模块 (v0.2.0)
 │           ├── __init__.py
 │           ├── app.py           # FastAPI 应用构建
@@ -274,6 +281,8 @@ Meilisearch4TelegramSearchCKJ/
 │   │   ├── test_auth_store.py   # 认证存储测试
 │   │   ├── test_configparser.py # 配置解析测试
 │   │   ├── test_dashboard.py    # Dashboard 单元测试
+│   │   ├── test_runtime_control_service.py # Runtime Control 单元测试
+│   │   ├── test_control_route_error_mapping.py # Control 路由错误映射测试
 │   │   ├── test_logger.py       # 日志测试
 │   │   ├── test_meilisearch.py  # MeiliSearch 测试
 │   │   ├── test_meilisearch_handler.py # MeiliSearch 客户端测试
@@ -291,6 +300,7 @@ Meilisearch4TelegramSearchCKJ/
 │       ├── test_dashboard_e2e.py    # Dashboard E2E 测试
 │       ├── test_dialog_sync.py      # Dialog Sync 集成测试
 │       ├── test_dialog_sync_e2e.py  # Dialog Sync E2E 测试
+│       ├── test_runtime_control_service_e2e.py # Runtime Control E2E 测试
 │       ├── test_group_setup.py      # 测试组配置
 │       ├── test_observability_service_e2e.py  # Observability E2E 测试
 │       └── test_storage.py          # Storage 集成测试
@@ -435,6 +445,12 @@ ruff format src/
 | GET | `/api/v1/client/status` | 客户端状态 |
 | POST | `/api/v1/client/start` | 启动下载 |
 | POST | `/api/v1/client/stop` | 停止下载 |
+
+`GET /api/v1/client/status` 返回统一运行控制快照：
+- `is_running`：是否运行中
+- `state`：`stopped|starting|running|stopping`
+- `last_action_source`：最近动作来源（`api` / `bot` / `bot_auto`）
+- `last_error`：最近一次错误（无则 `null`）
 
 ### 存储端点 (需要认证, P1-ST)
 

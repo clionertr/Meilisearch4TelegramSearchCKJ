@@ -59,6 +59,67 @@ class FakePolicyService:
         return SimpleNamespace(updated_list=list(self.black_list), added=[], removed=removed, version=self.version)
 
 
+class FakeRuntimeControlService:
+    """In-memory runtime control service for API route unit tests."""
+
+    def __init__(self, *, api_only_getter):
+        self._api_only_getter = api_only_getter
+        self._is_running = False
+        self._last_action_source: str | None = None
+        self._last_error: str | None = None
+
+    async def start(self, source: str):
+        from tg_search.services.contracts import DomainError
+
+        self._last_action_source = source
+        if self._api_only_getter():
+            raise DomainError("runtime_api_only_mode", "Cannot start runtime task in API-only mode")
+        if self._is_running:
+            return SimpleNamespace(
+                status="already_running",
+                message="Runtime task is already running",
+                state="running",
+                last_action_source=self._last_action_source,
+                last_error=self._last_error,
+            )
+        self._is_running = True
+        return SimpleNamespace(
+            status="started",
+            message="Runtime task started successfully",
+            state="running",
+            last_action_source=self._last_action_source,
+            last_error=self._last_error,
+        )
+
+    async def stop(self, source: str):
+        self._last_action_source = source
+        if not self._is_running:
+            return SimpleNamespace(
+                status="already_stopped",
+                message="Runtime task is not running",
+                state="stopped",
+                last_action_source=self._last_action_source,
+                last_error=self._last_error,
+            )
+        self._is_running = False
+        return SimpleNamespace(
+            status="stopped",
+            message="Runtime task stopped successfully",
+            state="stopped",
+            last_action_source=self._last_action_source,
+            last_error=self._last_error,
+        )
+
+    async def status(self):
+        return SimpleNamespace(
+            state="running" if self._is_running else "stopped",
+            is_running=self._is_running,
+            last_action_source=self._last_action_source,
+            last_error=self._last_error,
+            api_only_mode=bool(self._api_only_getter()),
+        )
+
+
 @pytest.fixture
 def mock_app_state():
     """创建模拟的 AppState"""
@@ -146,6 +207,9 @@ async def test_client(mock_meili_client):
                 app.state.app_state.meili_client = mock_meili_client
                 app.state.app_state.config_policy_service = FakePolicyService()
                 app.state.app_state.search_service = SearchService(mock_meili_client, cache_enabled=False)
+                app.state.app_state.runtime_control_service = FakeRuntimeControlService(
+                    api_only_getter=lambda: app.state.app_state.api_only
+                )
                 yield client
 
 

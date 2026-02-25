@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from tg_search.core.meilisearch import MeiliSearchClient
     from tg_search.services.config_policy_service import ConfigPolicyService
     from tg_search.services.observability_service import ObservabilityService
+    from tg_search.services.runtime_control_service import RuntimeControlService
     from tg_search.services.search_service import SearchService
 
 
@@ -216,6 +217,25 @@ async def get_observability_service(request: Request) -> "ObservabilityService":
         return app_state.observability_service
 
     raise HTTPException(status_code=503, detail="ObservabilityService not initialized")
+
+
+async def get_runtime_control_service(request: Request) -> "RuntimeControlService":
+    """获取 RuntimeControlService。"""
+    from tg_search.services.runtime_control_service import RuntimeControlService  # noqa: F401
+
+    app_state = await get_app_state(request)
+    runtime = getattr(app_state, "runtime_control_service", None)
+    if runtime is not None:
+        return runtime
+
+    # 向后兼容：如果 AppState 尚未显式设置，尝试从容器读取。
+    if app_state.service_container is not None:
+        runtime = getattr(app_state.service_container, "runtime_control_service", None)
+        if runtime is not None:
+            app_state.runtime_control_service = runtime
+            return runtime
+
+    raise HTTPException(status_code=503, detail="RuntimeControlService not initialized")
 
 
 def parse_bearer_token(authorization: Optional[str]) -> Optional[str]:

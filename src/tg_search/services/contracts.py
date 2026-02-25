@@ -1,4 +1,4 @@
-"""Service-layer contracts for runtime policies, search, and observability snapshots."""
+"""Service-layer contracts for runtime policies, runtime-control services, search, and observability snapshots."""
 
 from __future__ import annotations
 
@@ -133,3 +133,24 @@ class ProgressSnapshot(BaseModel):
     all_progress: dict[str, dict[str, Any]] = Field(default_factory=dict)
     active_count: int = 0
     notes: list[str] = Field(default_factory=list)
+
+RuntimeState = Literal["stopped", "starting", "running", "stopping"]
+
+class RuntimeActionResult(BaseModel):
+    """Mutation result for runtime start/stop actions."""
+
+    status: Literal["started", "stopped", "already_running", "already_stopped"]
+    message: str
+    state: RuntimeState
+    last_action_source: str | None = None
+    last_error: str | None = None
+
+
+class RuntimeStatus(BaseModel):
+    """Canonical runtime task status snapshot."""
+
+    state: RuntimeState
+    is_running: bool
+    last_action_source: str | None = None
+    last_error: str | None = None
+    api_only_mode: bool = False
