@@ -130,7 +130,7 @@ class PolicySection(BaseModel):
 - [x] T-P0-CPS-05 改造 Bot 两条策略命令，移除直写 Meili `config` 索引路径。
 - [x] T-P0-CPS-06 改造 `download_and_listen` 与 `TelegramUserBot` 的策略读取入口。
 - [x] T-P0-CPS-07 补齐单元测试：幂等、去重、校验、版本冲突。
-- [ ] T-P0-CPS-08 补齐集成/E2E：Bot 写 API 读、API 写下载生效、重启保持。（已完成 API 写 -> 运行时 `<1s` 可见）
+- [x] T-P0-CPS-08 补齐集成/E2E：Bot 写 API 读、API 写下载生效、重启保持。（已完成 API 写 -> 运行时 `<1s` 可见）
 - [x] T-P0-CPS-09 清理 legacy `config` 的**策略字段**读取/写入路径与文档说明（消息 offset 路径保留）。
 
 ## 7. 测试计划（对齐 `tests/TESTING_GUIDELINES.md`）

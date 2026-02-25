@@ -81,12 +81,12 @@ graph LR
 - [x] T-P0-SLA-02 定义 Service 初始化入口（API lifespan + BotHandler `ServiceContainer` 注入，见 3.6）。
 - [x] T-P0-SLA-03 建立 Presentation 适配约束（已在配置策略链路落地：`api/routes/config.py` + `core/bot.py`）。
 - [x] T-P0-SLA-04 增加分层静态检查（`tests/unit/test_service_layer_import_lint.py`）。
-- [ ] T-P0-SLA-05 完成搜索能力切换到 `SearchService` -> 细化任务见 [SPEC-P0-search-service](./SPEC-P0-search-service.md) 第 4 节。
-- [ ] T-P0-SLA-06 完成配置能力切换到 `ConfigPolicyService` -> 细化任务见 [SPEC-P0-config-policy-service](./SPEC-P0-config-policy-service.md) 第 4 节。
+- [x] T-P0-SLA-05 完成搜索能力切换到 `SearchService` -> 细化任务见 [SPEC-P0-search-service](./SPEC-P0-search-service.md) 第 4 节。
+- [x] T-P0-SLA-06 完成配置能力切换到 `ConfigPolicyService` -> 细化任务见 [SPEC-P0-config-policy-service](./SPEC-P0-config-policy-service.md) 第 4 节。
 - [ ] T-P0-SLA-07 完成运行控制切换到 `RuntimeControlService` -> 细化任务见 [SPEC-P0-runtime-control-service](./SPEC-P0-runtime-control-service.md) 第 4 节。
 - [ ] T-P0-SLA-08 完成状态聚合切换到 `ObservabilityService` -> 细化任务见 [SPEC-P1-observability-service](./SPEC-P1-observability-service.md) 第 4 节。
 - [ ] T-P0-SLA-09 增加回归测试，确保 Bot/API 行为一致。
-- [ ] T-P0-SLA-10 更新 `CLAUDE.md` 模块结构图与目录结构，增加 `services/` 层描述。
+- [x] T-P0-SLA-10 更新 `CLAUDE.md` 模块结构图与目录结构，增加 `services/` 层描述。
 
 ## 5. E2E 测试用例清单
 1. API `GET /search` 与 Bot `/search` 对同一关键词返回一致的总命中与排序规则。

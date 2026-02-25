@@ -138,6 +138,20 @@ curl -s -X POST "http://localhost:8000/api/v1/config/blacklist" \
 /set_black_list2meili [-1002222222222]
 ```
 
+### 5) 启停下载任务 (API)
+
+```bash
+curl -s -X POST "http://localhost:8000/api/v1/client/start" \
+  -H "X-API-Key: <your_api_key>" | jq
+```
+
+### 6) 查看下载进度
+
+```bash
+curl -s "http://localhost:8000/api/v1/status/progress" \
+  -H "X-API-Key: <your_api_key>" | jq
+```
+
 ## REST API
 
 API 端点一览：

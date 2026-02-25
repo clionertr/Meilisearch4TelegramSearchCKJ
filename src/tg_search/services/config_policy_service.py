@@ -69,6 +69,7 @@ class ConfigPolicyService:
         try:
             return await asyncio.to_thread(self._store.save_config, patch, expected_version)
         except ValueError as exc:
+            logger.warning("[ConfigPolicyService] Version conflict writing policy, reverting: %s", exc)
             raise DomainError("policy_version_conflict", "policy version conflict", detail=str(exc)) from exc
         except Exception as exc:
             raise DomainError("policy_store_unavailable", "policy store unavailable", detail=str(exc)) from exc

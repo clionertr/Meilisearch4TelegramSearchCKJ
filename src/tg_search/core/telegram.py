@@ -273,6 +273,12 @@ class TelegramUserBot:
         self.white_list = list(white_list)
         self.black_list = list(black_list)
         self._policy_loaded_at = time.monotonic()
+        logger.info(
+            "[Config policy pushed: white=%d, black=%d, apply_time=%.2f]",
+            len(self.white_list),
+            len(self.black_list),
+            self._policy_loaded_at,
+        )
 
     async def start(self):
         """启动客户端"""
