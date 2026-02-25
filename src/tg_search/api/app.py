@@ -66,12 +66,16 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     if app_state.meili_client is not None:
         try:
             from tg_search.config.config_store import ConfigStore
+            from tg_search.services.config_policy_service import ConfigPolicyService
 
             app_state.config_store = ConfigStore(app_state.meili_client)
             logger.info("ConfigStore initialized successfully")
+
+            app_state.config_policy_service = ConfigPolicyService(app_state.config_store)
+            logger.info("ConfigPolicyService initialized successfully")
         except Exception as e:
-            logger.error(f"Failed to initialize ConfigStore: {e}")
-            # 允许 API 启动，但 config_store 为 None
+            logger.error(f"Failed to initialize ConfigStore/ConfigPolicyService: {e}")
+            # 允许 API 启动，但配置相关服务不可用
 
     # 初始化 dialog available 缓存（Fix-4：绑定到 app 生命周期）
     from tg_search.api.routes.dialogs import _AvailableCache

@@ -15,6 +15,50 @@ import pytest
 pytestmark = [pytest.mark.unit]
 
 
+class FakePolicyService:
+    """In-memory policy service for API route unit tests."""
+
+    def __init__(self):
+        from tg_search.config import settings
+
+        self.white_list = list(settings.WHITE_LIST)
+        self.black_list = list(settings.BLACK_LIST)
+        self.version = 0
+
+    async def get_policy(self, refresh: bool = False):
+        return SimpleNamespace(
+            white_list=list(self.white_list),
+            black_list=list(self.black_list),
+            version=self.version,
+            updated_at=datetime.utcnow().isoformat(),
+            source="config_store",
+        )
+
+    async def add_whitelist(self, ids, source: str = "api"):
+        added = [item for item in ids if item not in self.white_list]
+        self.white_list.extend(added)
+        self.version += 1
+        return SimpleNamespace(updated_list=list(self.white_list), added=added, removed=[], version=self.version)
+
+    async def remove_whitelist(self, ids, source: str = "api"):
+        removed = [item for item in ids if item in self.white_list]
+        self.white_list = [item for item in self.white_list if item not in set(ids)]
+        self.version += 1
+        return SimpleNamespace(updated_list=list(self.white_list), added=[], removed=removed, version=self.version)
+
+    async def add_blacklist(self, ids, source: str = "api"):
+        added = [item for item in ids if item not in self.black_list]
+        self.black_list.extend(added)
+        self.version += 1
+        return SimpleNamespace(updated_list=list(self.black_list), added=added, removed=[], version=self.version)
+
+    async def remove_blacklist(self, ids, source: str = "api"):
+        removed = [item for item in ids if item in self.black_list]
+        self.black_list = [item for item in self.black_list if item not in set(ids)]
+        self.version += 1
+        return SimpleNamespace(updated_list=list(self.black_list), added=[], removed=removed, version=self.version)
+
+
 @pytest.fixture
 def mock_app_state():
     """创建模拟的 AppState"""
@@ -98,6 +142,7 @@ async def test_client(mock_meili_client):
             async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
                 # lifespan 会被执行，app_state 会被创建；确保 meili_client 为 mock
                 app.state.app_state.meili_client = mock_meili_client
+                app.state.app_state.config_policy_service = FakePolicyService()
                 yield client
 
 

@@ -11,6 +11,7 @@ __all__ = [
     "SyncConfig",
     "StorageConfig",
     "AiConfig",
+    "PolicySection",
     "DialogSyncState",
 ]
 
@@ -23,6 +24,7 @@ def __getattr__(name: str):
             ConfigStore,
             DialogSyncState,
             GlobalConfig,
+            PolicySection,
             StorageConfig,
             SyncConfig,
         )
@@ -33,6 +35,7 @@ def __getattr__(name: str):
             "SyncConfig": SyncConfig,
             "StorageConfig": StorageConfig,
             "AiConfig": AiConfig,
+            "PolicySection": PolicySection,
             "DialogSyncState": DialogSyncState,
         }
         return _exports[name]
