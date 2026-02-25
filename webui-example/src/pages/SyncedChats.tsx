@@ -2,6 +2,9 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SyncedDialogItem } from '@/api/dialogs';
 import { useSyncedDialogs, useToggleDialogSyncState } from '@/hooks/queries/useDialogs';
+import { Skeleton } from '@/components/common/Skeleton';
+import { EmptyState } from '@/components/common/EmptyState';
+import { motion } from 'framer-motion';
 
 const SyncedChats: React.FC = () => {
     const navigate = useNavigate();
@@ -50,51 +53,82 @@ const SyncedChats: React.FC = () => {
                 </div>
             </div>
 
-            {loading && (
-                <div className="flex items-center justify-center py-12">
-                    <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" />
+            {loading ? (
+                <div className="px-4 space-y-3 mt-4">
+                    {[1, 2, 3, 4, 5].map(i => (
+                        <div key={i} className="flex items-center gap-4 p-4 rounded-2xl bg-white dark:bg-card-dark border border-slate-200 dark:border-white/5 shadow-sm">
+                            <Skeleton variant="avatar" className="w-12 h-12" />
+                            <div className="flex-1 space-y-2 py-1">
+                                <Skeleton variant="text" width="60%" />
+                                <Skeleton variant="text" width="40%" />
+                            </div>
+                            <Skeleton variant="button" className="w-16 h-8 rounded-lg" />
+                        </div>
+                    ))}
                 </div>
-            )}
-
-            {error && !loading && (
+            ) : error ? (
                 <div className="mx-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg text-sm mb-3">
                     {error}
                 </div>
-            )}
-
-            <div className="px-4 space-y-3">
-                {dialogs.map((dialog, idx) => {
-                    const isActive = dialog.sync_state === 'active';
-                    return (
-                        <div key={dialog.id} className={`flex items-center gap-4 p-4 rounded-2xl bg-white dark:bg-card-dark border border-slate-200 dark:border-white/5 shadow-sm ${!isActive ? 'opacity-80' : ''}`}>
-                            <div className="relative">
-                                <div className={`w-12 h-12 rounded-full bg-gradient-to-tr ${gradients[idx % gradients.length]} flex items-center justify-center text-white font-bold text-lg ${!isActive ? 'grayscale' : ''}`}>
-                                    {dialog.title.charAt(0).toUpperCase()}
-                                </div>
-                                <div className={`absolute -bottom-0.5 -right-0.5 w-4 h-4 ${isActive ? 'bg-green-500' : 'bg-slate-400'} border-2 border-white dark:border-card-dark rounded-full`}></div>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <h3 className={`font-bold text-sm truncate ${isActive ? 'dark:text-white' : 'text-slate-600 dark:text-slate-300'}`}>{dialog.title}</h3>
-                                <div className="flex items-center gap-1.5 mt-0.5">
-                                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-tight ${isActive ? 'bg-green-500/10 text-green-500' : 'bg-slate-200 dark:bg-white/10 text-slate-500 dark:text-slate-400'}`}>
-                                        {isActive ? 'Real-time' : 'Sync paused'}
-                                    </span>
-                                    <span className="text-[10px] text-slate-400">{dialog.type}</span>
-                                </div>
-                            </div>
-                            <button
-                                onClick={() => handleToggleState(dialog)}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${isActive
-                                    ? 'bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 dark:text-white'
-                                    : 'bg-slate-100 dark:bg-white/5 text-primary hover:bg-slate-200 dark:hover:bg-white/10'
-                                    }`}
+            ) : dialogs.length === 0 ? (
+                <div className="px-4 mt-8">
+                    <EmptyState
+                        icon="cloud_sync"
+                        title="No synced chats yet"
+                        description="You haven't selected any chats to sync. Start syncing to make your messages searchable."
+                        actionLabel="Start Syncing"
+                        onAction={() => navigate('/select-chats')}
+                    />
+                </div>
+            ) : (
+                <motion.div
+                    initial="hidden" animate="show"
+                    variants={{
+                        hidden: { opacity: 0 },
+                        show: { opacity: 1, transition: { staggerChildren: 0.05 } }
+                    }}
+                    className="px-4 space-y-3"
+                >
+                    {dialogs.map((dialog, idx) => {
+                        const isActive = dialog.sync_state === 'active';
+                        return (
+                            <motion.div
+                                key={dialog.id}
+                                variants={{
+                                    hidden: { opacity: 0, y: 10 },
+                                    show: { opacity: 1, y: 0 }
+                                }}
+                                className={`flex items-center gap-4 p-4 rounded-2xl bg-white dark:bg-card-dark border border-slate-200 dark:border-white/5 shadow-sm ${!isActive ? 'opacity-80' : ''}`}
                             >
-                                {isActive ? 'Pause' : 'Resume'}
-                            </button>
-                        </div>
-                    );
-                })}
-            </div>
+                                <div className="relative">
+                                    <div className={`w-12 h-12 rounded-full bg-gradient-to-tr ${gradients[idx % gradients.length]} flex items-center justify-center text-white font-bold text-lg ${!isActive ? 'grayscale' : ''}`}>
+                                        {dialog.title.charAt(0).toUpperCase()}
+                                    </div>
+                                    <div className={`absolute -bottom-0.5 -right-0.5 w-4 h-4 ${isActive ? 'bg-green-500' : 'bg-slate-400'} border-2 border-white dark:border-card-dark rounded-full`}></div>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <h3 className={`font-bold text-sm truncate ${isActive ? 'dark:text-white' : 'text-slate-600 dark:text-slate-300'}`}>{dialog.title}</h3>
+                                    <div className="flex items-center gap-1.5 mt-0.5">
+                                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-tight ${isActive ? 'bg-green-500/10 text-green-500' : 'bg-slate-200 dark:bg-white/10 text-slate-500 dark:text-slate-400'}`}>
+                                            {isActive ? 'Real-time' : 'Sync paused'}
+                                        </span>
+                                        <span className="text-[10px] text-slate-400">{dialog.type}</span>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => handleToggleState(dialog)}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${isActive
+                                        ? 'bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 dark:text-white'
+                                        : 'bg-slate-100 dark:bg-white/5 text-primary hover:bg-slate-200 dark:hover:bg-white/10'
+                                        }`}
+                                >
+                                    {isActive ? 'Pause' : 'Resume'}
+                                </button>
+                            </motion.div>
+                        );
+                    })}
+                </motion.div>
+            )}
 
             <button
                 onClick={() => navigate('/select-chats')}

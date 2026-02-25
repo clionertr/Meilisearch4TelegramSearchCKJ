@@ -5,6 +5,9 @@ import { Highlight } from '@/components/common/Highlight';
 import { useSearchQuery, SearchFilters } from '@/hooks/queries/useSearch';
 import { DateFilter } from '@/components/search/DateFilter';
 import { SenderFilter } from '@/components/search/SenderFilter';
+import { Skeleton } from '@/components/common/Skeleton';
+import { EmptyState } from '@/components/common/EmptyState';
+import { motion } from 'framer-motion';
 
 const Search: React.FC = () => {
     const navigate = useNavigate();
@@ -104,7 +107,7 @@ const Search: React.FC = () => {
             {/* Results Info */}
             <div className="px-4 py-2 flex items-center justify-between text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 {isLoading ? (
-                    <span>Searching...</span>
+                    <Skeleton variant="text" width="6rem" className="h-4" />
                 ) : (
                     <span>{debouncedQuery ? `${totalResults} matches found` : 'Enter keywords to search'}</span>
                 )}
@@ -119,35 +122,61 @@ const Search: React.FC = () => {
                     </div>
                 )}
 
-                {allResults.map((result) => (
-                    <div key={result.id} className="bg-surface-light dark:bg-surface-dark rounded-2xl p-4 shadow-sm border border-transparent dark:border-divider-dark/50">
-                        <div className="flex items-start gap-3 mb-3">
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-indigo-600 flex items-center justify-center shrink-0 shadow-lg shadow-indigo-500/20">
-                                <span className="text-white font-bold text-sm">
-                                    {(result.chat.title || result.chat.username || 'NA').substring(0, 2).toUpperCase()}
-                                </span>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <div className="flex justify-between items-start">
-                                    <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate">
-                                        {result.chat.title || result.chat.username || `Chat ${result.chat.id}`}
-                                    </h3>
-                                    <span className="text-xs text-slate-400 whitespace-nowrap">
-                                        {new Date(result.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                    </span>
-                                </div>
-                                <p className="text-xs text-primary truncate">
-                                    Sender: {result.from_user?.username || `User ${result.from_user?.id ?? 'Unknown'}`}
-                                </p>
-                            </div>
-                        </div>
-                        <div className="relative pl-4 border-l-2 border-slate-200 dark:border-divider-dark space-y-2.5">
-                            <div className="text-sm text-slate-800 dark:text-slate-200 bg-primary/10 dark:bg-primary/5 -ml-4 pl-4 pr-2 py-2 rounded-r-lg border-l-2 border-primary">
-                                <Highlight html={result.formatted_text || result.text} />
-                            </div>
-                        </div>
+                {isLoading && (
+                    <div className="space-y-4 pt-2">
+                        {[1, 2, 3].map(i => (
+                            <Skeleton key={i} variant="card" height="9rem" />
+                        ))}
                     </div>
-                ))}
+                )}
+
+                {!isLoading && (
+                    <motion.div
+                        initial="hidden" animate="show"
+                        variants={{
+                            hidden: { opacity: 0 },
+                            show: { opacity: 1, transition: { staggerChildren: 0.05 } }
+                        }}
+                        className="space-y-4"
+                    >
+                        {allResults.map((result) => (
+                            <motion.div
+                                key={result.id}
+                                variants={{
+                                    hidden: { opacity: 0, y: 10 },
+                                    show: { opacity: 1, y: 0 }
+                                }}
+                                className="bg-surface-light dark:bg-surface-dark rounded-2xl p-4 shadow-sm border border-transparent dark:border-divider-dark/50"
+                            >
+                                <div className="flex items-start gap-3 mb-3">
+                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-indigo-600 flex items-center justify-center shrink-0 shadow-lg shadow-indigo-500/20">
+                                        <span className="text-white font-bold text-sm">
+                                            {(result.chat.title || result.chat.username || 'NA').substring(0, 2).toUpperCase()}
+                                        </span>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex justify-between items-start">
+                                            <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate">
+                                                {result.chat.title || result.chat.username || `Chat ${result.chat.id}`}
+                                            </h3>
+                                            <span className="text-xs text-slate-400 whitespace-nowrap">
+                                                {new Date(result.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            </span>
+                                        </div>
+                                        <p className="text-xs text-primary truncate">
+                                            Sender: {result.from_user?.username || `User ${result.from_user?.id ?? 'Unknown'}`}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="relative pl-4 border-l-2 border-slate-200 dark:border-divider-dark space-y-2.5">
+                                    <div className="text-sm text-slate-800 dark:text-slate-200 bg-primary/10 dark:bg-primary/5 -ml-4 pl-4 pr-2 py-2 rounded-r-lg border-l-2 border-primary">
+                                        <Highlight html={result.formatted_text || result.text} />
+                                    </div>
+                                </div>
+                            </motion.div>
+                        ))}
+                    </motion.div>
+                )}
 
                 {hasNextPage && (
                     <button
@@ -160,8 +189,12 @@ const Search: React.FC = () => {
                 )}
 
                 {debouncedQuery && !isLoading && allResults.length === 0 && (
-                    <div className="text-center py-10 text-slate-500">
-                        No results found for "{debouncedQuery}"
+                    <div className="mt-8">
+                        <EmptyState
+                            icon="search_off"
+                            title="No results found"
+                            description={`We couldn't find any matches for "${debouncedQuery}". Try different keywords or adjust your filters.`}
+                        />
                     </div>
                 )}
             </div>

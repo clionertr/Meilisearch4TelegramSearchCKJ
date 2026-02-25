@@ -12,6 +12,8 @@ import SelectChats from '@/pages/SelectChats';
 import Storage from '@/pages/Storage';
 import AIConfig from '@/pages/AIConfig';
 import { ProtectedRoute } from '@/components/common/ProtectedRoute';
+import { PageTransition } from '@/components/common/PageTransition';
+import { AnimatePresence, MotionConfig } from 'framer-motion';
 import { useStatusWebSocket } from '@/hooks/useWebSocket';
 import { ProgressData, useStatusStore } from '@/store/statusStore';
 import { AUTH_EXPIRED_EVENT } from '@/api/client';
@@ -54,18 +56,20 @@ const AppContent: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background-light dark:bg-background-dark max-w-md mx-auto relative shadow-2xl overflow-hidden">
-      <Routes>
-        <Route path="/login" element={<Login />} />
+      <AnimatePresence mode="wait" initial={false}>
+        <Routes location={location} key={location.pathname}>
+          <Route path="/login" element={<PageTransition><Login /></PageTransition>} />
 
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-        <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-        <Route path="/search" element={<ProtectedRoute><Search /></ProtectedRoute>} />
-        <Route path="/synced-chats" element={<ProtectedRoute><SyncedChats /></ProtectedRoute>} />
-        <Route path="/select-chats" element={<ProtectedRoute><SelectChats /></ProtectedRoute>} />
-        <Route path="/storage" element={<ProtectedRoute><Storage /></ProtectedRoute>} />
-        <Route path="/ai-config" element={<ProtectedRoute><AIConfig /></ProtectedRoute>} />
-      </Routes>
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<ProtectedRoute><PageTransition><Dashboard /></PageTransition></ProtectedRoute>} />
+          <Route path="/settings" element={<ProtectedRoute><PageTransition><Settings /></PageTransition></ProtectedRoute>} />
+          <Route path="/search" element={<ProtectedRoute><PageTransition><Search /></PageTransition></ProtectedRoute>} />
+          <Route path="/synced-chats" element={<ProtectedRoute><PageTransition><SyncedChats /></PageTransition></ProtectedRoute>} />
+          <Route path="/select-chats" element={<ProtectedRoute><PageTransition><SelectChats /></PageTransition></ProtectedRoute>} />
+          <Route path="/storage" element={<ProtectedRoute><PageTransition><Storage /></PageTransition></ProtectedRoute>} />
+          <Route path="/ai-config" element={<ProtectedRoute><PageTransition><AIConfig /></PageTransition></ProtectedRoute>} />
+        </Routes>
+      </AnimatePresence>
       {showBottomNav && <BottomNav />}
     </div>
   );
@@ -74,22 +78,24 @@ const AppContent: React.FC = () => {
 const App: React.FC = () => {
   return (
     <QueryClientProvider client={queryClient}>
-      <HashRouter>
-        <AppContent />
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            duration: 3000,
-            className: '',
-            style: {
-              borderRadius: '12px',
-              padding: '12px 16px',
-              fontSize: '14px',
-              fontWeight: '500',
-            },
-          }}
-        />
-      </HashRouter>
+      <MotionConfig reducedMotion="user">
+        <HashRouter>
+          <AppContent />
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              duration: 3000,
+              className: '',
+              style: {
+                borderRadius: '12px',
+                padding: '12px 16px',
+                fontSize: '14px',
+                fontWeight: '500',
+              },
+            }}
+          />
+        </HashRouter>
+      </MotionConfig>
     </QueryClientProvider>
   );
 };

@@ -108,10 +108,10 @@ const AIConfig: React.FC = () => {
     };
 
     return (
-        <div className="bg-background-dark text-white min-h-screen">
-            <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden max-w-[430px] mx-auto bg-background-dark border-x border-white/5 pb-32">
-                <div className="flex items-center p-4 pb-2 justify-between sticky top-0 z-30 bg-background-dark/80 backdrop-blur-xl border-b border-white/5">
-                    <button onClick={() => navigate(-1)} className="flex items-center justify-center w-10 h-10 rounded-full active:bg-white/10 transition-colors">
+        <div className="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white min-h-screen">
+            <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden mx-auto bg-background-light dark:bg-background-dark pb-32">
+                <div className="flex items-center p-4 pb-2 justify-between sticky top-0 z-30 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-xl border-b border-slate-200 dark:border-white/5">
+                    <button onClick={() => navigate(-1)} className="flex items-center justify-center w-10 h-10 rounded-full hover:bg-black/5 dark:hover:bg-white/5 active:bg-black/10 dark:active:bg-white/10 transition-colors">
                         <span className="material-symbols-outlined text-2xl">arrow_back_ios_new</span>
                     </button>
                     <h2 className="text-lg font-bold leading-tight tracking-tight flex-1 text-center">AI Configuration</h2>
@@ -133,12 +133,12 @@ const AIConfig: React.FC = () => {
                 {!loading && (
                     <div className="p-4 space-y-6">
                         <section className="space-y-4">
-                            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 px-1">API Settings</h3>
-                            <div className="p-4 rounded-2xl bg-card-dark border border-white/5 space-y-4">
+                            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 px-1">API Settings</h3>
+                            <div className="p-4 rounded-2xl bg-white dark:bg-card-dark border border-slate-200 dark:border-white/5 space-y-4 shadow-sm">
                                 <div className="space-y-2">
-                                    <label className="text-xs font-medium text-slate-400 block px-1">API Endpoint URL</label>
+                                    <label className="text-xs font-medium text-slate-500 dark:text-slate-400 block px-1">API Endpoint URL</label>
                                     <input
-                                        className="w-full bg-button-secondary-dark border-white/10 rounded-xl px-4 py-3 text-sm focus:ring-primary focus:border-primary placeholder:text-slate-600 outline-none"
+                                        className="w-full bg-slate-100 dark:bg-button-secondary-dark border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary placeholder:text-slate-400 dark:placeholder:text-slate-600 outline-none"
                                         placeholder="https://api.openai.com/v1"
                                         type="text"
                                         value={baseUrl}
@@ -146,10 +146,10 @@ const AIConfig: React.FC = () => {
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-xs font-medium text-slate-400 block px-1">API Key</label>
+                                    <label className="text-xs font-medium text-slate-500 dark:text-slate-400 block px-1">API Key</label>
                                     <div className="relative">
                                         <input
-                                            className="w-full bg-button-secondary-dark border-white/10 rounded-xl px-4 py-3 text-sm focus:ring-primary focus:border-primary placeholder:text-slate-600 outline-none"
+                                            className="w-full bg-slate-100 dark:bg-button-secondary-dark border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary placeholder:text-slate-400 dark:placeholder:text-slate-600 outline-none"
                                             placeholder={config?.api_key_set ? 'Key is set (leave empty to clear)' : 'Enter your API key'}
                                             type={showApiKey ? 'text' : 'password'}
                                             value={apiKey}
@@ -163,7 +163,7 @@ const AIConfig: React.FC = () => {
                                         </button>
                                     </div>
                                     {config?.api_key_set && apiKey.length === 0 && (
-                                        <p className="text-[11px] text-amber-300 px-1">Save with empty key will clear the current API key.</p>
+                                        <p className="text-[11px] text-amber-600 dark:text-amber-300 px-1">Save with empty key will clear the current API key.</p>
                                     )}
                                 </div>
                                 <div className="flex items-center justify-between p-1">
@@ -172,7 +172,7 @@ const AIConfig: React.FC = () => {
                                             <span className={`material-symbols-outlined text-sm ${testResult.ok ? 'text-green-500' : 'text-red-500'}`}>
                                                 {testResult.ok ? 'check_circle' : 'error'}
                                             </span>
-                                            <span className="text-xs text-slate-300">
+                                            <span className="text-xs text-slate-600 dark:text-slate-300">
                                                 {testResult.message}
                                                 {testResult.latency !== undefined && ` (${testResult.latency}ms)`}
                                             </span>
@@ -191,13 +191,13 @@ const AIConfig: React.FC = () => {
                         </section>
 
                         <section className="space-y-4">
-                            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 px-1">Model Selection</h3>
-                            <div className="p-4 rounded-2xl bg-card-dark border border-white/5 space-y-4">
+                            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 px-1">Model Selection</h3>
+                            <div className="p-4 rounded-2xl bg-white dark:bg-card-dark border border-slate-200 dark:border-white/5 space-y-4 shadow-sm">
                                 <div className="space-y-2">
-                                    <label className="text-xs font-medium text-slate-400 block px-1">Model Name</label>
+                                    <label className="text-xs font-medium text-slate-500 dark:text-slate-400 block px-1">Model Name</label>
                                     <div className="relative">
                                         <input
-                                            className="w-full bg-button-secondary-dark border-white/10 rounded-xl px-4 py-3 text-sm focus:ring-primary focus:border-primary placeholder:text-slate-600 outline-none"
+                                            className="w-full bg-slate-100 dark:bg-button-secondary-dark border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary placeholder:text-slate-400 dark:placeholder:text-slate-600 outline-none"
                                             placeholder="e.g. gpt-4o"
                                             type="text"
                                             value={model}
@@ -217,11 +217,11 @@ const AIConfig: React.FC = () => {
                     </div>
                 )}
 
-                <div className="fixed bottom-0 left-0 right-0 max-w-[430px] mx-auto p-4 bg-background-dark/80 backdrop-blur-xl border-t border-white/5 z-40 pb-10">
+                <div className="fixed bottom-0 left-0 right-0 p-4 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-xl border-t border-slate-200 dark:border-white/5 z-40 pb-10">
                     <button
                         onClick={handleSave}
                         disabled={saving || loading}
-                        className="w-full h-14 bg-primary text-background-dark font-bold rounded-2xl flex items-center justify-center shadow-lg active:scale-[0.98] transition-all disabled:opacity-50"
+                        className="w-full h-14 bg-primary text-white font-bold rounded-2xl flex items-center justify-center shadow-lg active:scale-[0.98] transition-all disabled:opacity-50"
                     >
                         {saving ? 'Saving...' : 'Save Configuration'}
                     </button>

@@ -19,6 +19,9 @@
 | SPEC-P0-toast-notification.md | 2026-02-25 | `react-hot-toast` 安装，`toast.ts` 封装，`alert()` 替换，Toaster 挂载 App.tsx | WebUI 全局 Toast 通知系统 |
 | SPEC-P0-dashboard-core.md | 2026-02-25 | 搜索框跳转、StatusCard KPI、SyncProgress WebSocket 进度、Header/FAB 功能化 | Dashboard 核心功能修复 |
 | SPEC-P0-logout-entry.md | 2026-02-25 | Settings 页 Logout 按钮、`authApi.logout()` + `useAuthStore.logout()` + `navigate('/login')` | 退出登录入口 |
+| SPEC-P1-skeleton-empty-states.md | 2026-02-25 | `<Skeleton>`, `<EmptyState>` | WebUI 界面过渡态 |
+| SPEC-P1-dark-light-toggle.md | 2026-02-25 | `useTheme` Hook, localStorage, App.tsx 适配 | WebUI 外观设置 |
+| SPEC-P1-page-transitions.md | 2026-02-25 | `framer-motion`, `PageTransition` | WebUI 路由和列表动画 |
 
 ---
 

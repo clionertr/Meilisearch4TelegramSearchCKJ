@@ -6,6 +6,7 @@ import React from 'react';
 import { useSystemStatus } from '@/hooks/queries/useStatus';
 import { useSyncedDialogsCount } from '@/hooks/queries/useDashboardStatus';
 import { useSearchStats } from '@/hooks/queries/useDashboardStatus';
+import { Skeleton } from '@/components/common/Skeleton';
 
 interface KpiCardProps {
     label: string;
@@ -23,7 +24,7 @@ const KpiCard: React.FC<KpiCardProps> = ({ label, value, icon, iconColor = 'text
         </div>
         <div>
             {isLoading ? (
-                <div className="h-6 w-16 bg-slate-200 dark:bg-slate-700 rounded animate-pulse" />
+                <Skeleton variant="text" width="4rem" className="my-1" />
             ) : isError ? (
                 <p className="text-sm font-bold text-red-500">—</p>
             ) : (

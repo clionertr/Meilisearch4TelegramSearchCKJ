@@ -412,13 +412,13 @@ graph TD
 | 搜索筛选器 | ✅ [SPEC-P2-search-filters-theme.md](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/docs/specs/SPEC-P2-search-filters-theme.md) | Date + Sender 筛选 |
 | 死代码清理 | ✅ 已完成归档 → [COMPLETED_SPECS.md](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/docs/specs/completed/COMPLETED_SPECS.md) | geminiService 等 |
 | 工具函数整理 | ✅ 已完成归档 → [COMPLETED_SPECS.md](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/docs/specs/completed/COMPLETED_SPECS.md) | formatBytes 去重等 |
-| **页面过渡动画** | ✅ [SPEC-P1-page-transitions.md](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/docs/specs/SPEC-P1-page-transitions.md) | framer-motion 路由过渡 + stagger |
+| **页面过渡动画** | ✅ 已完成归档 → [COMPLETED_SPECS.md](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/docs/specs/completed/COMPLETED_SPECS.md) | framer-motion 路由过渡 + stagger |
 | **Toast 通知系统** | ✅ [SPEC-P0-toast-notification.md](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/docs/specs/SPEC-P0-toast-notification.md) | 替代 `alert()` |
-| **骨架屏/加载状态** | ✅ [SPEC-P1-skeleton-empty-states.md](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/docs/specs/SPEC-P1-skeleton-empty-states.md) | Skeleton + EmptyState |
+| **骨架屏/加载状态** | ✅ 已完成归档 → [COMPLETED_SPECS.md](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/docs/specs/completed/COMPLETED_SPECS.md) | Skeleton + EmptyState |
 | **空状态设计** | ✅ ↑ 同上 | 含空状态设计 |
 | **Dashboard 核心功能** | ✅ [SPEC-P0-dashboard-core.md](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/docs/specs/SPEC-P0-dashboard-core.md) | 搜索跳转 + 进度展示 + 状态概览 |
 | **退出登录** | ✅ [SPEC-P0-logout-entry.md](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/docs/specs/SPEC-P0-logout-entry.md) | Settings 页退出入口 |
-| **暗色/亮色模式切换** | ✅ [SPEC-P1-dark-light-toggle.md](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/docs/specs/SPEC-P1-dark-light-toggle.md) | Dark/Light/System 三选项 |
+| **暗色/亮色模式切换** | ✅ 已完成归档 → [COMPLETED_SPECS.md](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/docs/specs/completed/COMPLETED_SPECS.md) | Dark/Light/System 三选项 |
 | **国际化 (i18n)** | ✅ [SPEC-P3-i18n.md](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/docs/specs/SPEC-P3-i18n.md) | react-i18next 中/英双语 |
 | **可访问性 (a11y)** | ✅ [SPEC-P3-a11y.md](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/docs/specs/SPEC-P3-a11y.md) | WCAG 2.1 AA |
 | **响应式布局** | ✅ [SPEC-P3-responsive-layout.md](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/docs/specs/SPEC-P3-responsive-layout.md) | 平板双栏 / 桌面三栏 |

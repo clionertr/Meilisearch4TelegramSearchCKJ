@@ -6,6 +6,7 @@ import BriefCard from '@/components/dashboard/BriefCard';
 import ActivityList from '@/components/dashboard/ActivityList';
 import StatusCard from '@/components/dashboard/StatusCard';
 import SyncProgress from '@/components/SyncProgress';
+import { Skeleton } from '@/components/common/Skeleton';
 
 const Dashboard: React.FC = () => {
     const navigate = useNavigate();
@@ -69,19 +70,28 @@ const Dashboard: React.FC = () => {
 
             <BriefCard brief={brief} />
 
-            {loading && (
-                <div className="flex items-center justify-center py-12">
-                    <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" />
-                </div>
-            )}
-
-            {error && !loading && (
+            {loading ? (
+                <section className="px-4 flex flex-col gap-3">
+                    <div className="px-4 flex items-center justify-between mb-2 -mx-4">
+                        <Skeleton variant="text" width="8rem" className="h-6" />
+                    </div>
+                    {[1, 2, 3, 4].map(i => (
+                        <div key={i} className="flex gap-3 p-4 bg-surface-light dark:bg-surface-dark rounded-2xl">
+                            <Skeleton variant="avatar" />
+                            <div className="flex-1 space-y-2 py-1">
+                                <Skeleton variant="text" width="60%" />
+                                <Skeleton variant="text" width="100%" />
+                            </div>
+                        </div>
+                    ))}
+                </section>
+            ) : error ? (
                 <div className="mx-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg text-sm">
                     {error}
                 </div>
+            ) : (
+                <ActivityList activities={activities} />
             )}
-
-            {!loading && <ActivityList activities={activities} />}
 
             <div className="fixed bottom-24 right-6 z-40">
                 <button

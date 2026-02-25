@@ -2,6 +2,8 @@ import React from 'react';
 import { DashboardActivityItem } from '@/api/dashboard';
 import { formatTime, getInitial } from '@/utils/formatters';
 import { gradients } from '@/utils/constants';
+import { EmptyState } from '@/components/common/EmptyState';
+import { motion } from 'framer-motion';
 
 interface ActivityListProps {
     activities: DashboardActivityItem[];
@@ -15,13 +17,32 @@ const ActivityList: React.FC<ActivityListProps> = ({ activities }) => {
                 <span className="text-xs text-slate-400">{activities.length} chats</span>
             </div>
             {activities.length === 0 ? (
-                <div className="px-4 py-8 text-center text-slate-400 text-sm">
-                    No activity in the last 24 hours
+                <div className="px-4">
+                    <EmptyState
+                        icon="inbox"
+                        title="No recent activity"
+                        description="There has been no activity in your synced chats in the last 24 hours."
+                        className="py-12"
+                    />
                 </div>
             ) : (
-                <div className="flex flex-col divide-y divide-gray-100 dark:divide-white/5 bg-surface-light dark:bg-surface-dark rounded-none sm:rounded-2xl mx-0 sm:mx-4 shadow-sm">
+                <motion.div
+                    initial="hidden" animate="show"
+                    variants={{
+                        hidden: { opacity: 0 },
+                        show: { opacity: 1, transition: { staggerChildren: 0.05 } }
+                    }}
+                    className="flex flex-col divide-y divide-gray-100 dark:divide-white/5 bg-surface-light dark:bg-surface-dark rounded-none sm:rounded-2xl mx-0 sm:mx-4 shadow-sm"
+                >
                     {activities.map((activity, idx) => (
-                        <div key={activity.chat_id} className="group flex gap-3 p-4 hover:bg-gray-50 dark:hover:bg-white/[0.02] cursor-pointer transition-colors">
+                        <motion.div
+                            key={activity.chat_id}
+                            variants={{
+                                hidden: { opacity: 0, y: 10 },
+                                show: { opacity: 1, y: 0 }
+                            }}
+                            className="group flex gap-3 p-4 hover:bg-gray-50 dark:hover:bg-white/[0.02] cursor-pointer transition-colors"
+                        >
                             <div className="relative shrink-0">
                                 <div className={`w-12 h-12 rounded-full ${gradients[idx % gradients.length]} flex items-center justify-center text-white text-lg font-bold ring-2 ring-gray-100 dark:ring-white/10`}>
                                     {getInitial(activity.chat_title)}
@@ -46,9 +67,9 @@ const ActivityList: React.FC<ActivityListProps> = ({ activities }) => {
                                     </span>
                                 </div>
                             )}
-                        </div>
+                        </motion.div>
                     ))}
-                </div>
+                </motion.div>
             )}
         </section>
     );
