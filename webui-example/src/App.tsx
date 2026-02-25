@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Toaster } from 'react-hot-toast';
 import BottomNav from '@/components/BottomNav';
 import Dashboard from '@/pages/Dashboard';
 import Login from '@/pages/Login';
@@ -75,9 +76,23 @@ const App: React.FC = () => {
     <QueryClientProvider client={queryClient}>
       <HashRouter>
         <AppContent />
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            duration: 3000,
+            className: '',
+            style: {
+              borderRadius: '12px',
+              padding: '12px 16px',
+              fontSize: '14px',
+              fontWeight: '500',
+            },
+          }}
+        />
       </HashRouter>
     </QueryClientProvider>
   );
 };
+
 
 export default App;

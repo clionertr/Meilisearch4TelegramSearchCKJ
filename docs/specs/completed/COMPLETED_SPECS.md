@@ -16,6 +16,9 @@
 | SPEC-P1-observability-service.md | 2025-02-25 | `ObservabilityService` 落地 | 统一可观测性快照采集 |
 | SPEC-P1-docs-utils-cleanup.md | 2025-02-25 | formatBytes 去重、README 更新 | 文档/工具函数整理 |
 | SPEC-P3-dead-code-cleanup.md | 2025-02-25 | geminiService 移除、旧类型清理 | 死代码清理 |
+| SPEC-P0-toast-notification.md | 2026-02-25 | `react-hot-toast` 安装，`toast.ts` 封装，`alert()` 替换，Toaster 挂载 App.tsx | WebUI 全局 Toast 通知系统 |
+| SPEC-P0-dashboard-core.md | 2026-02-25 | 搜索框跳转、StatusCard KPI、SyncProgress WebSocket 进度、Header/FAB 功能化 | Dashboard 核心功能修复 |
+| SPEC-P0-logout-entry.md | 2026-02-25 | Settings 页 Logout 按钮、`authApi.logout()` + `useAuthStore.logout()` + `navigate('/login')` | 退出登录入口 |
 
 ---
 

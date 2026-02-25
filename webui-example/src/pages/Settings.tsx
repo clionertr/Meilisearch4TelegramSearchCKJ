@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useStorageStats } from '@/hooks/queries/useStorage';
 import { useSystemStatus } from '@/hooks/queries/useStatus';
 import { formatBytes } from '@/utils/formatters';
+import { authApi } from '@/api/auth';
+import { useAuthStore } from '@/store/authStore';
+import toast from '@/components/Toast/toast';
 
 const Settings: React.FC = () => {
   const navigate = useNavigate();
@@ -12,6 +15,18 @@ const Settings: React.FC = () => {
 
   const loading = storageLoading || statusLoading;
   const error = storageError?.message || statusError?.message;
+
+  const handleLogout = async () => {
+    if (!confirm('Are you sure you want to logout?')) return;
+    try {
+      await authApi.logout();
+    } catch {
+      // Backend failure is acceptable — always clear local credentials
+    }
+    useAuthStore.getState().logout();
+    toast.success('Logged out successfully');
+    navigate('/login');
+  };
 
   return (
     <div className="pb-24">
@@ -129,6 +144,17 @@ const Settings: React.FC = () => {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Logout */}
+      <div className="px-4 pb-6 pt-2">
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-red-300 dark:border-red-500/40 text-red-500 dark:text-red-400 font-semibold hover:bg-red-50 dark:hover:bg-red-500/10 active:scale-[0.98] transition-all"
+        >
+          <span className="material-symbols-outlined text-xl">logout</span>
+          Logout
+        </button>
       </div>
     </div>
   );

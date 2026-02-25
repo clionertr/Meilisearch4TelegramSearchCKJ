@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { extractApiErrorMessage } from '@/api/error';
 import { Highlight } from '@/components/common/Highlight';
 import { useSearchQuery, SearchFilters } from '@/hooks/queries/useSearch';
@@ -8,8 +8,10 @@ import { SenderFilter } from '@/components/search/SenderFilter';
 
 const Search: React.FC = () => {
     const navigate = useNavigate();
-    const [query, setQuery] = useState('');
-    const [debouncedQuery, setDebouncedQuery] = useState('');
+    const [searchParams] = useSearchParams();
+    const initialQuery = searchParams.get('q') ?? '';
+    const [query, setQuery] = useState(initialQuery);
+    const [debouncedQuery, setDebouncedQuery] = useState(initialQuery);
     const [filters, setFilters] = useState<SearchFilters>({});
     const [debouncedFilters, setDebouncedFilters] = useState<SearchFilters>({});
     const [dateRangeType, setDateRangeType] = useState<string>('anytime');

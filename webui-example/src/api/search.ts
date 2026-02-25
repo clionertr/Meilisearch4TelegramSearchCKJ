@@ -40,6 +40,13 @@ export interface SearchResponse {
   processing_time_ms: number;
 }
 
+export interface SearchStatsResponse {
+  total_documents: number;
+  index_size_bytes: number;
+  is_indexing: boolean;
+}
+
 export const searchApi = {
   search: (params: SearchRequest) => api.get<{ data: SearchResponse }>('/search', { params }),
+  getStats: () => api.get<{ data: SearchStatsResponse }>('/search/stats'),
 };

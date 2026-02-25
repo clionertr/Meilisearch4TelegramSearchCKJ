@@ -113,13 +113,13 @@
 |----------|------|:---------:|
 | **搜索筛选器不可用** | Search 页的 Date / Sender 筛选 Chip 是纯静态 UI，无实际功能 | P0 |
 | **排序按钮无功能** | "Sort by Relevance" 按钮无逻辑 | P1 |
-| **Dashboard 搜索框无功能** | 搜索输入框不跳转到 Search 页 | P0 |
-| **Header 按钮无功能** | 菜单 (☰) 按钮和设置按钮无事件 | P1 |
+| ~~**Dashboard 搜索框无功能**~~ | ~~搜索输入框不跳转到 Search 页~~ | ✅ 已通过 SPEC-P0-dashboard-core 实现 |
+| **Header 按钮无功能** | 菜单 (☰) 按钮无事件；~~设置按钮无事件~~ | 🟡 设置按钮已通过 SPEC-P0-dashboard-core 实现 |
 | **Profile 页不存在** | BottomNav 中有 Profile tab 但无对应路由 | P1 |
-| **FAB 按钮无功能** | Dashboard 和 Search 页的浮动按钮无逻辑 | P2 |
-| **WebSocket 进度条无可视化** | 有 store 但无 UI 展示同步进度 | P0 |
+| **FAB 按钮无功能** | ~~Dashboard~~ 和 Search 页的浮动按钮无逻辑 | 🟡 Dashboard FAB 已实现 |
+| ~~**WebSocket 进度条无可视化**~~ | ~~有 store 但无 UI 展示同步进度~~ | ✅ 已通过 SPEC-P0-dashboard-core 实现 |
 | **暗色/亮色模式切换** | `<html class="dark">` 写死，用户无法切换 | P1 |
-| **退出登录入口** | 无明显的退出登录按钮 | P0 |
+| ~~**退出登录入口**~~ | ~~无明显的退出登录按钮~~ | ✅ 已通过 SPEC-P0-logout-entry 实现 |
 
 ### 3.2 页面级功能评估
 
@@ -145,12 +145,12 @@
 - ActivityList 有良好的渐变色头像
 
 **缺失**：
-- 搜索框无功能
-- 无系统状态概览（MeiliSearch / Telegram 连接状态）
-- 无同步进度实时显示
-- 无统计数据卡片（索引消息总数、已同步聊天数等）
-- Header 按钮全部无功能
-- FAB 按钮 (`chat_add_on`) 无功能
+- ~~搜索框无功能~~ (✅ 已实现跳转)
+- ~~无系统状态概览~~ (✅ 已实现 StatusCard)
+- ~~无同步进度实时显示~~ (✅ 已实现 SyncProgress)
+- ~~无统计数据卡片~~ (✅ 已实现 StatusCard)
+- ~~Header 按钮全部无功能~~ (✅ 设置按钮已实现)
+- ~~FAB 按钮 (`chat_add_on`) 无功能~~ (✅ 已实现跳转)
 <!-- slide -->
 ### Search 页 — ⭐ 5.5/10
 
@@ -178,9 +178,9 @@
 - AI Config / Synced Chats 配置卡片设计良好
 
 **缺失**：
-- 设置齿轮按钮无功能
+- 设置齿轮按钮无功能 (✅ 部分实现)
 - more_horiz 按钮无功能
-- 无退出登录入口
+- ~~无退出登录入口~~ (✅ 已在底部实现)
 - 无暗色模式切换
 - 无版本信息
 - 无语言切换
@@ -197,7 +197,7 @@
 **缺失**：
 - 环形图表组件 (`DonutChart.tsx`) 存在但未使用
 - 无可视化存储占比（饼图/柱状图）
-- `alert()` 作为操作反馈 — 应使用 toast 通知
+- ~~`alert()` 作为操作反馈 — 应使用 toast 通知~~ (✅ 已通过 `react-hot-toast` 解决)
 - Media cleanup 提示"不可用"但按钮仍可点击
 <!-- slide -->
 ### SyncedChats 页 — ⭐ 6.5/10
@@ -248,7 +248,7 @@
 
 | 项目 | 现状 | 理想状态 |
 |------|------|----------|
-| 成功反馈 | `alert()` (Storage 页) | Toast 通知系统（右上角或底部弹出、3秒自动消失） |
+| 成功反馈 | ~~`alert()` (Storage 页)~~ | ✅ 已集成 `react-hot-toast` 系统 |
 | 错误展示 | 红色块状文本 `bg-red-100 border-red-400` | 统一 Toast / Banner 组件 + 错误代码映射 |
 | 确认对话框 | 无 | 敏感操作（清理缓存/删除同步）需二次确认 |
 | 加载状态 | 仅 `animate-spin` 圆环 | 骨架屏 + 加载进度文案 |

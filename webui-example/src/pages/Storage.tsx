@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStorageStats, useToggleAutoClean, useCleanupCache, useCleanupMedia } from '@/hooks/queries/useStorage';
 import { formatBytes } from '@/utils/formatters';
+import toast from '@/components/Toast/toast';
 
 const Storage: React.FC = () => {
     const navigate = useNavigate();
@@ -26,16 +27,22 @@ const Storage: React.FC = () => {
         cleanupCacheMutation.mutate(undefined, {
             onSuccess: (data) => {
                 const cleared = data?.targets_cleared ?? [];
-                alert(`Cache cleared: ${cleared.length > 0 ? cleared.join(', ') : 'no targets'}`);
-            }
+                toast.success(`Cache cleared: ${cleared.length > 0 ? cleared.join(', ') : 'no targets'}`);
+            },
+            onError: () => {
+                toast.error('Failed to clear cache');
+            },
         });
     };
 
     const handleCleanupMedia = () => {
         cleanupMediaMutation.mutate(undefined, {
             onSuccess: () => {
-                alert('Media cleanup is not available in current version');
-            }
+                toast.info('Media cleanup is not available in the current version');
+            },
+            onError: () => {
+                toast.error('Media cleanup failed');
+            },
         });
     };
 
