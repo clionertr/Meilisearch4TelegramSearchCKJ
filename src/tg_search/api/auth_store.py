@@ -106,7 +106,7 @@ class AuthStore:
 
     # 默认 TTL
     SESSION_TTL_SECONDS = 300  # 5 分钟（验证码有效期）
-    TOKEN_TTL_SECONDS = 86400  # 24 小时
+    TOKEN_TTL_SECONDS = 31536000  # 365 天
 
     def __init__(
         self,
