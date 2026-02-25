@@ -1,6 +1,6 @@
 # 功能名称：P0-统一配置策略服务（ConfigPolicyService）
 
-> 状态：Ready for implementation  
+> 状态：Implemented (2026-02-25)  
 > 优先级：P0  
 > 关联规格：[`SPEC-P0-service-layer-architecture.md`](./SPEC-P0-service-layer-architecture.md)
 
@@ -119,15 +119,15 @@ class PolicySection(BaseModel):
 - 审计日志字段最少包含：`source`（api/bot/bootstrap）、`action`、`before_size`、`after_size`、`version`。
 
 ## 6. 任务拆分（每项 30-60 分钟）
-- [ ] T-P0-CPS-01 在 `services/contracts.py` 定义 `PolicyConfig/PolicyChangeResult`。
-- [ ] T-P0-CPS-02 扩展 `ConfigStore` 模型，新增 `policy` section 与默认值。
-- [ ] T-P0-CPS-03 新建 `ConfigPolicyService` 并实现统一读写逻辑（含幂等处理）。
-- [ ] T-P0-CPS-04 在 API 依赖注入中注册 `ConfigPolicyService`，改造 `routes/config.py`。
-- [ ] T-P0-CPS-05 改造 Bot 两条策略命令，移除直写 Meili `config` 索引路径。
-- [ ] T-P0-CPS-06 改造 `download_and_listen` 与 `TelegramUserBot` 的策略读取入口。
-- [ ] T-P0-CPS-07 补齐单元测试：幂等、去重、校验、版本冲突。
+- [x] T-P0-CPS-01 在 `services/contracts.py` 定义 `PolicyConfig/PolicyChangeResult`。
+- [x] T-P0-CPS-02 扩展 `ConfigStore` 模型，新增 `policy` section 与默认值。
+- [x] T-P0-CPS-03 新建 `ConfigPolicyService` 并实现统一读写逻辑（含幂等处理）。
+- [x] T-P0-CPS-04 在 API 依赖注入中注册 `ConfigPolicyService`，改造 `routes/config.py`。
+- [x] T-P0-CPS-05 改造 Bot 两条策略命令，移除直写 Meili `config` 索引路径。
+- [x] T-P0-CPS-06 改造 `download_and_listen` 与 `TelegramUserBot` 的策略读取入口。
+- [x] T-P0-CPS-07 补齐单元测试：幂等、去重、校验、版本冲突。
 - [ ] T-P0-CPS-08 补齐集成/E2E：Bot 写 API 读、API 写下载生效、重启保持。
-- [ ] T-P0-CPS-09 清理 legacy `config` 读取/写入代码路径与文档说明。
+- [x] T-P0-CPS-09 清理 legacy `config` 的**策略字段**读取/写入路径与文档说明（消息 offset 路径保留）。
 
 ## 7. 测试计划（对齐 `tests/TESTING_GUIDELINES.md`）
 ### 7.1 单元测试（`tests/unit/`，marker=`unit`）
@@ -162,3 +162,16 @@ RUN_INTEGRATION_TESTS=true pytest tests/integration -v -m "integration and meili
 - ADR-CPS-002：为保持实现精简，取消 legacy 自动迁移，升级时由运维手动处理历史策略。
 - ADR-CPS-003：API 与 Bot 共享同一校验与写入逻辑，避免规则分叉。
 - ADR-CPS-004：外部契约稳定优先，`/api/v1/config` 响应 schema 保持兼容。
+
+## 10. 实现笔记（2026-02-25）
+- 已新增 Service 层实现：`src/tg_search/services/config_policy_service.py`、`src/tg_search/services/contracts.py`。
+- 已扩展 `ConfigStore`：`src/tg_search/config/config_store.py` 中新增 `policy` section，支持 `update_section("policy", ...)`。
+- API 配置端点已切换为 Service 依赖：`src/tg_search/api/routes/config.py`。
+- Bot 策略命令已切换为 Service：`src/tg_search/core/bot.py`。
+- 下载/监听链路已读取统一策略源：`src/tg_search/main.py` + `src/tg_search/core/telegram.py`。
+- 监控日志点已补充：
+  - `ConfigPolicyService.get_policy` 输出读取耗时、白黑名单规模、版本号；
+  - 变更审计日志输出 `source/action/target/before_size/after_size/version`；
+  - Telegram 侧策略刷新输出 TTL 与列表规模（debug）。
+- 单元测试已覆盖：`tests/unit/test_config_policy_service.py`，并更新 `tests/unit/test_api.py` 的策略服务注入夹具。
+- 待补：`tests/integration/` 中的 Bot/API/下载一致性端到端回归（T-P0-CPS-08）。

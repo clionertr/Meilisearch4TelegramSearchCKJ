@@ -26,6 +26,7 @@
 | `conftest.py` | 单元测试 fixtures（Mock MeiliSearch、TestClient 等） |
 | `test_api.py` | FastAPI 端点单元测试 (7 个测试类, 20+ 测试) |
 | `test_auth_store.py` | 认证存储测试 |
+| `test_config_policy_service.py` | ConfigPolicyService 单元测试（幂等/校验/初始化） |
 | `test_configparser.py` | 配置解析测试 |
 | `test_dashboard.py` | Dashboard 单元测试 |
 | `test_logger.py` | 日志配置测试 |

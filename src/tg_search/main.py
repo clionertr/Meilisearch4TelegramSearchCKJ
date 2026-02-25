@@ -6,6 +6,7 @@ from typing import Any, cast
 from tg_search.config.settings import (
     MEILI_HOST,
     MEILI_PASS,
+    POLICY_REFRESH_TTL_SEC,
     validate_config,
 )
 from tg_search.config.config_store import ConfigStore
@@ -113,10 +114,14 @@ async def main(progress_registry: Any | None = None):
     async def _load_policy_lists() -> tuple[list[int], list[int]]:
         return await policy_service.get_policy_lists(refresh=False)
 
-    user_bot_client = TelegramUserBot(meili, policy_loader=_load_policy_lists)
+    user_bot_client = TelegramUserBot(
+        meili,
+        policy_loader=_load_policy_lists,
+        policy_ttl_sec=POLICY_REFRESH_TTL_SEC,
+    )
     try:
         await user_bot_client.start()
-        logger.info("User Bot started")
+        logger.info("User Bot started (policy_refresh_ttl_sec=%d)", POLICY_REFRESH_TTL_SEC)
 
         # 创建并运行下载和监听任务
         download_task = asyncio.create_task(

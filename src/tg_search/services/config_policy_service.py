@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from collections.abc import Sequence
 from typing import Literal
 
@@ -102,9 +103,20 @@ class ConfigPolicyService:
         )
 
     async def get_policy(self, refresh: bool = False) -> PolicyConfig:
+        t0 = time.monotonic()
         await self.ensure_initialized()
         cfg = await self._load_config(refresh=refresh)
-        return self._to_policy_config(cfg, source="config_store")
+        policy = self._to_policy_config(cfg, source="config_store")
+        elapsed_ms = (time.monotonic() - t0) * 1000
+        logger.info(
+            "[ConfigPolicyService] get_policy refresh=%s white=%d black=%d version=%d duration_ms=%.1f",
+            refresh,
+            len(policy.white_list),
+            len(policy.black_list),
+            policy.version,
+            elapsed_ms,
+        )
+        return policy
 
     async def get_policy_lists(self, refresh: bool = False) -> tuple[list[int], list[int]]:
         policy = await self.get_policy(refresh=refresh)

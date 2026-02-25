@@ -67,15 +67,20 @@ MEILI_PASS = os.getenv("MEILI_MASTER_KEY", "")
 
 ## BOT 设置
 # 允许下载和监听的频道 ID/用户ID/群组ID
-# 若要下载所有消息，设置为空列表 []
+# 作为策略服务冷启动默认值；运行时以 ConfigStore.policy 为准
 WHITE_LIST = ast.literal_eval(os.getenv("WHITE_LIST", "[1]"))
 
 # 禁止下载和监听的频道 ID/用户ID/群组ID
 # 黑名单优先级更高：即使白名单不为空，也会拒绝黑名单内的 ID
+# 作为策略服务冷启动默认值；运行时以 ConfigStore.policy 为准
 BLACK_LIST = ast.literal_eval(os.getenv("BLACK_LIST", "[]"))
 
 # 机器人管理员ID，设置后，只有这些ID的用户可以使用机器人
 OWNER_IDS = ast.literal_eval(os.getenv("OWNER_IDS", "[]"))
+
+# 运行时策略刷新间隔（秒）
+# TelegramUserBot 会按该 TTL 从 ConfigPolicyService 刷新白/黑名单
+POLICY_REFRESH_TTL_SEC = int(os.getenv("POLICY_REFRESH_TTL_SEC", "10"))
 
 ## 登录设置 ##
 # 设置SESSION_STRING后，将使用此字符串登录，否则将使用文件登录

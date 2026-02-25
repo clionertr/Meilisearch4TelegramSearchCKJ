@@ -342,6 +342,12 @@ class TelegramUserBot:
             self.white_list = list(white_list)
             self.black_list = list(black_list)
             self._policy_loaded_at = time.monotonic()
+            logger.debug(
+                "Policy refreshed: white=%d black=%d ttl_sec=%d",
+                len(self.white_list),
+                len(self.black_list),
+                self._policy_ttl_sec,
+            )
         except Exception as e:
             logger.warning(f"Failed to refresh policy: {type(e).__name__}: {e}")
 

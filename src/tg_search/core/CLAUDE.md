@@ -69,8 +69,8 @@ def main():
 | `/start_client` | 启动消息监听与下载 | 管理员 |
 | `/stop_client` | 停止消息监听与下载 | 管理员 |
 | `/search <query>` | 关键词搜索 | 管理员 |
-| `/set_white_list2meili <list>` | 设置白名单到 MeiliSearch | 管理员 |
-| `/set_black_list2meili <list>` | 设置黑名单到 MeiliSearch | 管理员 |
+| `/set_white_list2meili <list>` | 通过 ConfigPolicyService 设置白名单（覆盖） | 管理员 |
+| `/set_black_list2meili <list>` | 通过 ConfigPolicyService 设置黑名单（覆盖） | 管理员 |
 | `/cc` | 清除搜索缓存 | 管理员 |
 | `/ping` | 检查服务状态 | 管理员 |
 | `/about` | 项目信息 | 公开 |
@@ -104,8 +104,14 @@ class BotHandler:
 
 ```python
 class TelegramUserBot:
-    def __init__(self, meili_client: MeiliSearchClient):
-        """初始化 Telegram 客户端"""
+    def __init__(
+        self,
+        meili_client: MeiliSearchClient,
+        *,
+        policy_loader: Callable[[], Awaitable[tuple[list[int], list[int]]]] | None = None,
+        policy_ttl_sec: int = 10
+    ):
+        """初始化 Telegram 客户端（支持按 TTL 刷新运行时策略）"""
 
     async def start(self):
         """启动客户端并注册事件处理器"""
@@ -220,10 +226,11 @@ def setup_logger() -> logging.Logger:
 ```python
 # bot.py 依赖
 from tg_search.config.settings import APP_ID, APP_HASH, TOKEN, ...
+from tg_search.config.config_store import ConfigStore
 from tg_search.core.logger import setup_logger
 from tg_search.core.meilisearch import MeiliSearchClient
+from tg_search.services.config_policy_service import ConfigPolicyService
 from tg_search.utils.formatters import sizeof_fmt
-from tg_search.utils.message_tracker import read_config_from_meili
 
 # telegram.py 依赖
 from tg_search.config.settings import APP_ID, APP_HASH, BATCH_MSG_UNM, ...
