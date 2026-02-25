@@ -1,19 +1,23 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# TeleMemory WebUI
 
-# Run and deploy your AI Studio app
+Telegram 消息搜索的 Web 管理界面，基于 React 19 + TypeScript + Vite 6 构建。
 
-This contains everything you need to run your app locally.
+## 功能
+- Telegram 登录（手机号 / Token）
+- CJK 全文搜索（无限滚动）
+- 同步会话管理
+- 存储统计 & 缓存清理
+- AI 配置管理
+- 实时进度推送（WebSocket）
 
-View your app in AI Studio: https://ai.studio/apps/drive/19TfGujus8x4Sj9i348MPG4VdqEtdir7f
+## 前置条件
+- Node.js 18+
+- 后端 API 运行在 http://localhost:8000
 
-## Run Locally
+## 运行
+npm install
+npm run dev    # http://localhost:3000
 
-**Prerequisites:**  Node.js
-
-
-1. Install dependencies:
-   `npm install`
-2. Run the app:
-   `npm run dev`
+## 技术栈
+React 19 / TypeScript 5.8 / Vite 6 / Tailwind CSS 4
+React Router 7 / Zustand 5 / TanStack React Query 5

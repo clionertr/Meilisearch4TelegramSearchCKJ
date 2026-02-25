@@ -93,21 +93,21 @@ export const formatBytes = (bytes: number | null | undefined): string => {
 
 ## 4. 任务拆分
 
-- [ ] **Task 1.1** — 📝 重写 README.md (20 min)
+- [x] **Task 1.1** — 📝 重写 README.md (20 min)
   - 按 3.1 模板重写
   - 确保与后端 CLAUDE.md 中的 WebUI 描述对齐
 
-- [ ] **Task 1.2** — 📝 更新 CLAUDE.md 目录树 (20 min)
+- [x] **Task 1.2** — 📝 更新 CLAUDE.md 目录树 (20 min)
   - 运行 `find webui-example/src -type f | sort` 获取真实结构
   - 更新"目录结构"部分
   - 更新"与后端 API 对接"表格（补充 dashboard、storage、ai_config、dialogs、config、status 对接关系）
 
-- [ ] **Task 1.3** — 🔧 提取 formatBytes 到 utils/formatters.ts (15 min)
+- [x] **Task 1.3** — 🔧 提取 formatBytes 到 utils/formatters.ts (15 min)
   - 在 `formatters.ts` 中添加 `formatBytes` 导出
   - 修改 `Settings.tsx`：删除内联定义，添加 import
   - 修改 `Storage.tsx`：删除内联定义，添加 import
 
-- [ ] **Task 1.4** — ✅ 验证 (10 min)
+- [x] **Task 1.4** — ✅ 验证 (10 min)
   - `npm run build` 零错误
   - `npx tsc --noEmit` 零错误
   - 确认页面中字节格式化显示正常

@@ -2,7 +2,7 @@
 
 > WebUI 前端 - React + TypeScript + Vite 构建的 Telegram 消息搜索界面
 
-**生成时间**: 2026-02-06（最近同步: 2026-02-17）
+**生成时间**: 2026-02-06（最近同步: 2026-02-25）
 
 [返回根目录](../CLAUDE.md)
 
@@ -33,8 +33,7 @@
 | 数据请求 | TanStack React Query 5 |
 | HTTP 客户端 | Axios |
 | WebSocket | react-use-websocket |
-| AI 服务 | @google/genai (Gemini) |
-| 样式 | Tailwind CSS |
+| 样式 | Tailwind CSS 4 |
 
 ---
 
@@ -46,39 +45,60 @@ webui-example/
 ├── package.json            # 依赖配置
 ├── vite.config.ts          # Vite 配置
 ├── index.html              # HTML 入口
-├── index.tsx               # React 入口
-├── App.tsx                 # 根组件 (路由配置)
-├── types.ts                # 全局类型定义
-├── components/             # 共享组件
-│   ├── BottomNav.tsx       # 底部导航栏
-│   └── DonutChart.tsx      # 环形图表组件
-├── pages/                  # 页面组件
-│   ├── Login.tsx           # 登录页 (手机号/验证码/2FA)
-│   ├── Dashboard.tsx       # 仪表板首页
-│   ├── Search.tsx          # 搜索页 (无限滚动)
-│   ├── Settings.tsx        # 设置页
-│   ├── Storage.tsx         # 存储统计页
-│   ├── SyncedChats.tsx     # 已同步聊天列表
-│   ├── SelectChats.tsx     # 选择同步聊天
-│   └── AIConfig.tsx        # AI 配置页
-├── services/               # 服务层
-│   └── geminiService.ts    # Gemini AI 服务封装
-└── src/                    # 核心模块
+└── src/
+    ├── main.tsx            # React 入口
+    ├── App.tsx             # 根组件 (路由配置)
+    ├── index.css           # 全局样式 (Tailwind CSS 4)
     ├── api/                # API 层
     │   ├── client.ts       # Axios 实例 + 拦截器
+    │   ├── error.ts        # 错误处理工具
     │   ├── auth.ts         # 认证 API
-    │   └── search.ts       # 搜索 API
+    │   ├── search.ts       # 搜索 API
+    │   ├── dashboard.ts    # 仪表板 API
+    │   ├── dialogs.ts      # 会话管理 API
+    │   ├── storage.ts      # 存储统计 API
+    │   ├── status.ts       # 系统状态 API
+    │   ├── config.ts       # 运行时配置 API
+    │   └── ai_config.ts    # AI 配置 API
+    ├── components/         # 共享组件
+    │   ├── BottomNav.tsx   # 底部导航栏
+    │   ├── DonutChart.tsx  # 环形图表组件
+    │   ├── common/
+    │   │   ├── ProtectedRoute.tsx  # 路由守卫
+    │   │   └── Highlight.tsx       # 搜索高亮组件
+    │   ├── dashboard/
+    │   │   ├── ActivityList.tsx    # 最近活动列表
+    │   │   └── BriefCard.tsx       # 概览卡片
+    │   ├── layout/
+    │   │   └── Header.tsx          # 页头组件
+    │   └── search/
+    │       ├── DateFilter.tsx      # 日期筛选器
+    │       └── SenderFilter.tsx    # 发送者筛选器
     ├── hooks/              # React Hooks
     │   ├── useAuth.ts      # 认证 Hook
     │   ├── useSearch.ts    # 搜索 Hook
-    │   └── useWebSocket.ts # WebSocket 状态 Hook
+    │   ├── useWebSocket.ts # WebSocket 状态 Hook
+    │   └── queries/        # TanStack Query Hooks
+    │       ├── useDashboard.ts  # 仪表板数据
+    │       ├── useDialogs.ts    # 会话列表
+    │       ├── useSearch.ts     # 搜索查询
+    │       ├── useStatus.ts     # 系统状态
+    │       └── useStorage.ts    # 存储统计
+    ├── pages/              # 页面组件
+    │   ├── Login.tsx       # 登录页 (手机号/验证码/2FA/Token)
+    │   ├── Dashboard.tsx   # 仪表板首页
+    │   ├── Search.tsx      # 搜索页 (无限滚动)
+    │   ├── Settings.tsx    # 设置页
+    │   ├── Storage.tsx     # 存储统计页
+    │   ├── SyncedChats.tsx # 已同步聊天列表
+    │   ├── SelectChats.tsx # 选择同步聊天
+    │   └── AIConfig.tsx    # AI 配置页
     ├── store/              # Zustand Store
     │   ├── authStore.ts    # 认证状态 (持久化)
     │   └── statusStore.ts  # 同步进度状态
-    └── components/         # 通用组件
-        └── common/
-            ├── ProtectedRoute.tsx  # 路由守卫
-            └── Highlight.tsx       # 搜索高亮组件
+    └── utils/              # 工具函数
+        ├── constants.ts    # 常量定义
+        └── formatters.ts   # 格式化工具 (formatTime, getInitial, formatBytes)
 ```
 
 ---
@@ -313,6 +333,12 @@ interface SearchResult {
 |----------|----------|------|
 | `src/api/auth.ts` | `api/routes/auth.py` | 认证接口 |
 | `src/api/search.ts` | `api/routes/search.py` | 搜索接口 |
+| `src/api/dashboard.ts` | `api/routes/dashboard.py` | 仪表板数据 |
+| `src/api/dialogs.ts` | `api/routes/dialogs.py` | 会话管理 |
+| `src/api/storage.ts` | `api/routes/storage.py` | 存储统计 |
+| `src/api/status.ts` | `api/routes/status.py` | 系统状态 |
+| `src/api/config.ts` | `api/routes/config.py` | 运行时配置 |
+| `src/api/ai_config.ts` | `api/routes/ai_config.py` | AI 配置 |
 | `src/hooks/useWebSocket.ts` | `api/routes/ws.py` | 实时状态 |
 
 ---

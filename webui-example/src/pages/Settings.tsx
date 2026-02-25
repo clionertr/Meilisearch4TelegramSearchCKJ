@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStorageStats } from '@/hooks/queries/useStorage';
 import { useSystemStatus } from '@/hooks/queries/useStatus';
+import { formatBytes } from '@/utils/formatters';
 
 const Settings: React.FC = () => {
   const navigate = useNavigate();
@@ -11,14 +12,6 @@ const Settings: React.FC = () => {
 
   const loading = storageLoading || statusLoading;
   const error = storageError?.message || statusError?.message;
-
-  const formatBytes = (bytes: number | null): string => {
-    if (bytes === null || bytes === undefined) return '—';
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-    return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
-  };
 
   return (
     <div className="pb-24">

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStorageStats, useToggleAutoClean, useCleanupCache, useCleanupMedia } from '@/hooks/queries/useStorage';
+import { formatBytes } from '@/utils/formatters';
 
 const Storage: React.FC = () => {
     const navigate = useNavigate();
@@ -11,14 +12,6 @@ const Storage: React.FC = () => {
     const toggleAutoCleanMutation = useToggleAutoClean();
     const cleanupCacheMutation = useCleanupCache();
     const cleanupMediaMutation = useCleanupMedia();
-
-    const formatBytes = (bytes: number | null | undefined): string => {
-        if (bytes === null || bytes === undefined) return '—';
-        if (bytes < 1024) return `${bytes} B`;
-        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-        if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-        return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
-    };
 
     const handleAutoCleanToggle = () => {
         const newState = !autoClean;
