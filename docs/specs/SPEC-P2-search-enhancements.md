@@ -32,6 +32,16 @@
 - **When** 点击结果卡片上的 "Open in Telegram" 链接
 - **Then** 打开 `https://t.me/c/{chat_id}/{msg_id}` 或对应格式的 Telegram 深链接
 
+### AC-5：自动建议（基于历史）
+- **Given** 用户在搜索框输入 "hel"
+- **When** 输入停顿 300ms 且搜索历史中包含 "hello world"
+- **Then** 下拉建议展示匹配的历史记录（前缀匹配），点击可填充并搜索
+
+### AC-6：自动建议空状态
+- **Given** 用户输入 "xyz" 且无匹配历史
+- **When** 下拉建议展示
+- **Then** 不展示建议下拉（自然隐藏）
+
 ---
 
 ## 3. 技术设计 & 非功能需求
@@ -79,6 +89,22 @@ export function getTelegramLink(chatId: number, msgId: number): string {
 - **隐私**：搜索历史仅存本地 localStorage
 - **降级**：无法构造 Telegram 链接时（缺少 chatId/msgId）隐藏链接
 
+### 3.5 自动建议
+
+基于搜索历史进行前缀匹配（纯前端实现，不调用后端）：
+
+```typescript
+// utils/searchHistory.ts
+export function getSuggestions(input: string): string[] {
+  if (!input.trim()) return getSearchHistory(); // 空输入显示全部历史
+  return getSearchHistory().filter(h =>
+    h.toLowerCase().startsWith(input.toLowerCase())
+  );
+}
+```
+
+触发时机：输入停顿 300ms 后计算建议（与搜索防抖共用），无匹配时隐藏下拉。
+
 ---
 
 ## 4. 任务拆分
@@ -101,8 +127,14 @@ export function getTelegramLink(chatId: number, msgId: number): string {
   - 创建 `utils/telegramLinks.ts`
   - 结果卡片增加 "Open in Telegram" 图标链接
 
-- [ ] **Task 1.5** — ✅ 验证 (20 min)
+- [ ] **Task 1.5** — 🔧 自动建议 UI (25 min)
+  - 在 `searchHistory.ts` 新增 `getSuggestions(input)` 前缀匹配
+  - 搜索框输入时展示匹配的历史建议下拉
+  - 点击建议项填充搜索框并触发搜索
+
+- [ ] **Task 1.6** — ✅ 验证 (20 min)
   - 搜索历史记录功能完整
+  - 自动建议前缀匹配正确
   - 虚拟滚动性能测试（模拟 500+ 条结果）
   - Telegram 链接正确跳转
   - `npm run build` 零错误
@@ -118,7 +150,9 @@ export function getTelegramLink(chatId: number, msgId: number): string {
 | T3 | Clear History | localStorage 中历史清空 |
 | T4 | 搜索结果超过 100 条时滚动 | DOM 节点数维持在 30 个以内 |
 | T5 | 点击 "Open in Telegram" | 新标签打开 Telegram 链接 |
-| T6 | `npm run build` | 零错误 |
+| T6 | 输入 "hel"，历史含 "hello world" | 建议下拉展示 "hello world" |
+| T7 | 输入 "xyz"，无匹配历史 | 不展示建议下拉 |
+| T8 | `npm run build` | 零错误 |
 
 ---
 

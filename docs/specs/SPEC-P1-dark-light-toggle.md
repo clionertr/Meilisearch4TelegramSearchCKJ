@@ -84,7 +84,7 @@ Settings 页新增 "Appearance" 区域，三选一按钮组：
 ### 3.4 依赖前置
 
 > [!IMPORTANT]
-> 本 SPEC 依赖 `SPEC-P0-tailwind-v4-unification` 完成。暗色模式必须为 class-based 策略（`@custom-variant dark`），否则切换不生效。
+> 本 SPEC 依赖 `SPEC-P0-tailwind-v4-unification`（✅ 已完成，见 [COMPLETED_SPECS.md](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/docs/specs/completed/COMPLETED_SPECS.md)）。暗色模式必须为 class-based 策略（`@custom-variant dark`），否则切换不生效。
 
 ### 3.5 非功能需求
 

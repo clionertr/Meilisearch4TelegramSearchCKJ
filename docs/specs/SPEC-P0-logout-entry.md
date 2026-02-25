@@ -22,13 +22,13 @@
 - **When** 弹出二次确认（如有 SPEC-P2-confirmation-dialog 则使用，否则用 `confirm()`）
 - **Then** 确认后：
   1. 调用 `POST /api/v1/auth/logout`
-  2. 清除 `localStorage` 中的 token
+  2. 调用 `useAuthStore.getState().logout()` 清除 zustand persist 存储（key: `telememory-auth`）
   3. 重定向到 `/login` 页
 
 ### AC-3：退出后不可访回
 - **Given** 用户已退出
 - **When** 手动输入 `/dashboard` URL
-- **Then** 路由守卫拦截，重定向到 `/login`
+- **Then** 路由守卫（`ProtectedRoute`）拦截，重定向到 `/login`
 
 ---
 
@@ -55,13 +55,22 @@
 export const logout = () => api.post('/auth/logout');
 
 // Settings.tsx
+import { useAuthStore } from '@/store/authStore';
+
 const handleLogout = async () => {
   if (!confirm('Are you sure you want to logout?')) return;
-  await logout();
-  localStorage.removeItem('auth_token');
+  try {
+    await logout();
+  } catch {
+    // 后端失败也继续清理本地凭据
+  }
+  useAuthStore.getState().logout(); // 清除 zustand persist (key: telememory-auth)
   navigate('/login');
 };
 ```
+
+> [!IMPORTANT]
+> 禁止硬编码 `localStorage.removeItem('auth_token')`。实际 persist key 是 `telememory-auth`，必须通过 `useAuthStore.getState().logout()` 统一清理。
 
 ### 3.3 非功能需求
 
@@ -78,7 +87,7 @@ const handleLogout = async () => {
 
 - [ ] **Task 1.2** — 🔧 Logout 逻辑实现 (15 min)
   - 调用 `POST /api/v1/auth/logout`
-  - 清除 `localStorage` token
+  - 调用 `useAuthStore.getState().logout()` 清除 zustand persist
   - 导航到 `/login`
   - 错误降级：后端失败也清除本地凭据
 
@@ -96,7 +105,7 @@ const handleLogout = async () => {
 | T2 | 点击 Logout → 确认 | 跳转到 `/login`，token 已清除 |
 | T3 | 点击 Logout → 取消 | 留在 Settings 页，token 保留 |
 | T4 | Logout 后访问 `/dashboard` | 被重定向到 `/login` |
-| T5 | 后端 `/logout` 返回 500 | 仍然清除本地 token 并跳转 |
+| T5 | 后端 `/logout` 返回 500 | 仍然清除 zustand persist 并跳转 |
 
 ---
 

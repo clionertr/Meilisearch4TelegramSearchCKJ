@@ -272,7 +272,7 @@
 
 | 问题 | 文件 | 影响 |
 |------|------|------|
-| Tailwind v4 `@theme` 与 v3 [tailwind.config.js](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/webui-example/tailwind.config.js) 共存 | [index.css](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/webui-example/src/index.css) + [tailwind.config.js](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/webui-example/tailwind.config.js) | 构建冲突风险 |
+| ~~Tailwind v4 `@theme` 与 v3 `tailwind.config.js` 共存~~ | ~~已解决~~ | ✅ 已通过 SPEC-P0-tailwind-v4-unification 完成，`tailwind.config.js` 已删除 |
 | [formatBytes()](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/webui-example/src/pages/Settings.tsx#15-22) 函数在 [Settings.tsx](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/webui-example/src/pages/Settings.tsx) 和 [Storage.tsx](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/webui-example/src/pages/Storage.tsx) 中重复定义 | 两个文件 | 代码重复 |
 | AIConfig 不使用 React Query，手动管理 `useEffect` + `useState` | [AIConfig.tsx](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/webui-example/src/pages/AIConfig.tsx) | 与全局数据获取模式不一致 |
 | `geminiService.ts` — `@google/genai` 依赖已计划移除 | `services/` | 死代码 |
@@ -408,25 +408,25 @@ graph TD
 
 | 缺口 | 已有 SPEC 覆盖？ | 说明 |
 |------|:----------------:|------|
-| Tailwind v4 统一 | ✅ [SPEC-P0-tailwind-v4-unification.md](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/docs/specs/SPEC-P0-tailwind-v4-unification.md) | Phase A 暗色变量统一 |
+| Tailwind v4 统一 | ✅ 已完成归档 → [COMPLETED_SPECS.md](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/docs/specs/completed/COMPLETED_SPECS.md) | Phase A 暗色变量统一 |
 | 搜索筛选器 | ✅ [SPEC-P2-search-filters-theme.md](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/docs/specs/SPEC-P2-search-filters-theme.md) | Date + Sender 筛选 |
-| 死代码清理 | ✅ [SPEC-P3-dead-code-cleanup.md](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/docs/specs/SPEC-P3-dead-code-cleanup.md) | geminiService 等 |
-| 工具函数整理 | ✅ [SPEC-P1-docs-utils-cleanup.md](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/docs/specs/SPEC-P1-docs-utils-cleanup.md) | formatBytes 去重等 |
-| **页面过渡动画** | ❌ 未覆盖 | — |
-| **Toast 通知系统** | ❌ 未覆盖 | 替代 `alert()` |
-| **骨架屏/加载状态** | ❌ 未覆盖 | — |
-| **空状态设计** | ❌ 未覆盖 | — |
-| **Dashboard 核心功能** | ❌ 未覆盖 | 搜索跳转 + 进度展示 + 状态概览 |
-| **退出登录** | ❌ 未覆盖 | — |
-| **暗色/亮色模式切换** | ❌ 未覆盖 | — |
-| **国际化 (i18n)** | ❌ 未覆盖 | — |
-| **可访问性 (a11y)** | ❌ 未覆盖 | — |
-| **响应式布局** | ❌ 未覆盖 | — |
-| **搜索历史/建议** | ❌ 未覆盖 | — |
-| **二次确认对话框** | ❌ 未覆盖 | — |
+| 死代码清理 | ✅ 已完成归档 → [COMPLETED_SPECS.md](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/docs/specs/completed/COMPLETED_SPECS.md) | geminiService 等 |
+| 工具函数整理 | ✅ 已完成归档 → [COMPLETED_SPECS.md](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/docs/specs/completed/COMPLETED_SPECS.md) | formatBytes 去重等 |
+| **页面过渡动画** | ✅ [SPEC-P1-page-transitions.md](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/docs/specs/SPEC-P1-page-transitions.md) | framer-motion 路由过渡 + stagger |
+| **Toast 通知系统** | ✅ [SPEC-P0-toast-notification.md](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/docs/specs/SPEC-P0-toast-notification.md) | 替代 `alert()` |
+| **骨架屏/加载状态** | ✅ [SPEC-P1-skeleton-empty-states.md](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/docs/specs/SPEC-P1-skeleton-empty-states.md) | Skeleton + EmptyState |
+| **空状态设计** | ✅ ↑ 同上 | 含空状态设计 |
+| **Dashboard 核心功能** | ✅ [SPEC-P0-dashboard-core.md](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/docs/specs/SPEC-P0-dashboard-core.md) | 搜索跳转 + 进度展示 + 状态概览 |
+| **退出登录** | ✅ [SPEC-P0-logout-entry.md](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/docs/specs/SPEC-P0-logout-entry.md) | Settings 页退出入口 |
+| **暗色/亮色模式切换** | ✅ [SPEC-P1-dark-light-toggle.md](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/docs/specs/SPEC-P1-dark-light-toggle.md) | Dark/Light/System 三选项 |
+| **国际化 (i18n)** | ✅ [SPEC-P3-i18n.md](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/docs/specs/SPEC-P3-i18n.md) | react-i18next 中/英双语 |
+| **可访问性 (a11y)** | ✅ [SPEC-P3-a11y.md](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/docs/specs/SPEC-P3-a11y.md) | WCAG 2.1 AA |
+| **响应式布局** | ✅ [SPEC-P3-responsive-layout.md](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/docs/specs/SPEC-P3-responsive-layout.md) | 平板双栏 / 桌面三栏 |
+| **搜索历史/建议** | ✅ [SPEC-P2-search-enhancements.md](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/docs/specs/SPEC-P2-search-enhancements.md) | 历史 + 自动建议 + 深链接 |
+| **二次确认对话框** | ✅ [SPEC-P2-confirmation-dialog.md](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/docs/specs/SPEC-P2-confirmation-dialog.md) | 替代 confirm() |
 | **下拉刷新** | ❌ 未覆盖 | — |
-| **虚拟滚动** | ❌ 未覆盖 | — |
-| **代码分割/懒加载** | ❌ 未覆盖 | — |
+| **虚拟滚动** | ✅ ↑ SPEC-P2-search-enhancements | react-virtuoso |
+| **代码分割/懒加载** | ✅ [SPEC-P2-code-splitting.md](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/docs/specs/SPEC-P2-code-splitting.md) | React.lazy + Vite chunks |
 | **全局离线提示** | ❌ 未覆盖 | — |
 | **Profile 页或移除** | ❌ 未覆盖 | — |
 
@@ -494,5 +494,5 @@ gantt
 | [SelectChats.tsx](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/webui-example/src/pages/SelectChats.tsx) | 177 | 无搜索/筛选/分组 |
 | [AIConfig.tsx](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/webui-example/src/pages/AIConfig.tsx) | 235 | 强制暗色、不使用 React Query、宽度不一致 |
 | [BottomNav.tsx](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/webui-example/src/components/BottomNav.tsx) | 47 | Profile 按钮无路由 |
-| [index.css](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/webui-example/src/index.css) | 32 | @theme 与 tailwind.config.js 冲突 |
-| [tailwind.config.js](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/webui-example/tailwind.config.js) | 29 | v3 配置 + v4 @theme 共存 |
+| [index.css](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/webui-example/src/index.css) | 32 | ~~@theme 与 tailwind.config.js 冲突~~ ✅ 已解决 |
+| ~~tailwind.config.js~~ | ~~29~~ | ✅ 已删除（SPEC-P0-tailwind-v4-unification 完成） |

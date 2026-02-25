@@ -55,27 +55,30 @@ Search 页从 URL query params 读取初始搜索词。
 
 ### 3.2 系统状态卡片
 
-利用现有 `GET /api/v1/status` + `GET /api/v1/search/stats`：
+利用现有 `GET /api/v1/status` + `GET /api/v1/search/stats` + `GET /api/v1/dialogs/synced`：
 
 ```typescript
 // hooks/queries/useDashboardStatus.ts
 const { data: status } = useQuery(['status'], fetchStatus);
 const { data: stats } = useQuery(['search-stats'], fetchSearchStats);
+const { data: synced } = useQuery(['synced-dialogs'], fetchSyncedDialogs);
 ```
 
 展示 3 个 KPI 卡片：
-- 📊 总索引消息数
-- 💬 已同步聊天数
-- 🟢/🔴 MeiliSearch 连接状态
+- 📊 总索引消息数（来源：`/search/stats`）
+- 💬 已同步聊天数（来源：`/dialogs/synced` 列表长度）
+- 🟢/🔴 MeiliSearch 连接状态（来源：`/status`）
 
 ### 3.3 WebSocket 进度条
 
-已有 `store/websocketStore.ts`，只需新增 UI 组件消费 store 数据：
+已有 `store/statusStore.ts`（`useStatusStore`），WebSocket 消息在 `App.tsx` 中通过 `useStatusWebSocket` + `updateTask` 写入 store。只需新增 UI 组件消费 store 数据：
 
 ```typescript
 // components/SyncProgress.tsx
-const progress = useWebSocketStore(s => s.progress);
-// 渲染进度条 + 当前聊天名
+import { useStatusStore } from '@/store/statusStore';
+const tasks = useStatusStore(s => s.tasks);
+const overallStatus = useStatusStore(s => s.overallStatus);
+// tasks: Record<dialog_id, ProgressData>，遍历展示进度条 + 当前聊天名
 ```
 
 ### 3.4 非功能需求
@@ -95,12 +98,12 @@ const progress = useWebSocketStore(s => s.progress);
 
 - [ ] **Task 1.2** — 🔧 系统状态 KPI 卡片 (30 min)
   - 创建 `hooks/queries/useDashboardStatus.ts`
-  - 调用 `/api/v1/status` + `/api/v1/search/stats`
+  - 调用 `/api/v1/status` + `/api/v1/search/stats` + `/api/v1/dialogs/synced`
   - 创建 `components/StatusCard.tsx`（3 个 KPI 卡片）
 
 - [ ] **Task 1.3** — 🔧 WebSocket 同步进度 UI (40 min)
   - 创建 `components/SyncProgress.tsx`
-  - 消费 `useWebSocketStore` 进度数据
+  - 消费 `useStatusStore` 的 `tasks`（`Record<dialog_id, ProgressData>`）
   - 进度条 + 当前聊天名 + 百分比
 
 - [ ] **Task 1.4** — 🔧 Header 按钮功能化 (15 min)
@@ -108,7 +111,7 @@ const progress = useWebSocketStore(s => s.progress);
   - 菜单按钮：暂时移除或为 `noop` + Tooltip "Coming soon"
 
 - [ ] **Task 1.5** — 🔧 FAB 按钮处理 (10 min)
-  - FAB `chat_add_on` → `navigate('/synced-chats/select')`
+  - FAB `chat_add_on` → `navigate('/select-chats')`
 
 - [ ] **Task 1.6** — ✅ 验证 (20 min)
   - Dashboard 搜索框 → Search 页带预填词

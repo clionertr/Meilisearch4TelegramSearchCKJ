@@ -48,6 +48,7 @@ import Login from './pages/Login';
 ```
 
 ```tsx
+{/* 路由路径以当前 App.tsx 为准，如后续调整为 /dashboard 则同步更新 */}
 <Suspense fallback={<PageSkeleton />}>
   <Routes>
     <Route path="/login" element={<Login />} />
