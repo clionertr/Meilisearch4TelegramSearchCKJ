@@ -27,11 +27,13 @@
 | `test_api.py` | FastAPI 端点单元测试 (7 个测试类, 20+ 测试) |
 | `test_auth_store.py` | 认证存储测试 |
 | `test_config_policy_service.py` | ConfigPolicyService 单元测试（幂等/校验/初始化） |
+| `test_config_route_error_mapping.py` | 配置路由的领域错误映射测试 |
 | `test_configparser.py` | 配置解析测试 |
 | `test_dashboard.py` | Dashboard 单元测试 |
 | `test_logger.py` | 日志配置测试 |
 | `test_meilisearch.py` | MeiliSearch 基础测试 |
 | `test_meilisearch_handler.py` | MeiliSearch 客户端测试 (4 个测试类) |
+| `test_service_layer_import_lint.py` | Service 层导入边界防腐检查 |
 | `test_utils.py` | 工具函数测试 (3 个测试类) |
 
 ### 集成测试 (`tests/integration/`)
@@ -50,6 +52,7 @@
 | `test_dialog_sync.py` | Dialog Sync 集成测试 |
 | `test_dialog_sync_e2e.py` | Dialog Sync E2E 测试 |
 | `test_group_setup.py` | 测试组配置 |
+| `test_service_layer_architecture_e2e.py` | Service 层容器注入与配置可见性 E2E 测试 |
 | `test_storage.py` | Storage API 集成测试 |
 
 ### 公共文件
