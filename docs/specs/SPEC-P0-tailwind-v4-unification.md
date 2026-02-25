@@ -30,9 +30,10 @@
 ### AC-4：v3 残留语法清理完成
 - **Given** 项目已迁移到 v4 CSS-first
 - **When** 执行：
-  - `grep -r "tailwind.config" webui-example/`
+  - `test ! -f webui-example/tailwind.config.js`
+  - `rg -n "tailwind\\.config" webui-example --glob '!**/node_modules/**' --glob '!**/dist/**' --glob '!**/*.md'`
   - `grep -r "@tailwind base\|@tailwind components\|@tailwind utilities" webui-example/src/`
-- **Then** 结果为空
+- **Then** 第一条返回成功，后两条无输出
 
 ---
 
@@ -109,7 +110,8 @@ graph LR
 | 4 | `grep -r "@custom-variant dark" webui-example/src/index.css` | 命中 1 条 |
 | 5 | 打开 `/login` 检查 `form-input` | 样式正常，聚焦态可见 |
 | 6 | 打开任意页面，保留 `<html class="dark">` | `dark:` 样式生效 |
-| 7 | `grep -r "@tailwind base\|@tailwind components\|@tailwind utilities" webui-example/src/` | 无结果 |
+| 7 | `rg -n "tailwind\\.config" webui-example --glob '!**/node_modules/**' --glob '!**/dist/**' --glob '!**/*.md'` | 无结果 |
+| 8 | `grep -r "@tailwind base\|@tailwind components\|@tailwind utilities" webui-example/src/` | 无结果 |
 
 ---
 

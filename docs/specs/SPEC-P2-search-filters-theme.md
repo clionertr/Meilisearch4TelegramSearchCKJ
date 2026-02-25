@@ -35,8 +35,9 @@
 ### AC-5：暗色变量统一
 - **Given** `index.css` 的 `@theme` 已补充暗色语义变量
 - **When** 执行：
-  - `grep -r '#192d33\|#325a67\|#233f48\|#162a30\|#1a3039\|#1e3a44\|#111e22\|#92bbc9\|#15262d\|#101d22' webui-example/src/`
-- **Then** 结果为空（所有暗色硬编码均替换为变量或已有语义色）
+  - `grep -R -n '#192d33\|#325a67\|#233f48\|#162a30\|#1a3039\|#1e3a44\|#111e22\|#92bbc9\|#15262d\|#101d22' webui-example/src/ --exclude='index.css'`
+  - `grep -n 'background-color:[[:space:]]*#101d22' webui-example/src/index.css`
+- **Then** 两条命令均无输出（变量定义允许保留在 `index.css`，但组件与样式规则中不允许继续硬编码）
 
 ---
 
@@ -224,7 +225,7 @@ Search 页面交互：
 
 | # | 测试用例 | 预期结果 |
 |---|---------|---------|
-| T11 | `grep` 暗色硬编码 hex | `src/` 下无命中 |
+| T11 | `grep -R -n '#192d33\|#325a67\|#233f48\|#162a30\|#1a3039\|#1e3a44\|#111e22\|#92bbc9\|#15262d\|#101d22' webui-example/src/ --exclude='index.css'` + `grep -n 'background-color:[[:space:]]*#101d22' webui-example/src/index.css` | 两条命令均无命中 |
 | T12 | 深色模式页面巡检 | 视觉不回退 |
 | T13 | `npm run build` | 零错误 |
 

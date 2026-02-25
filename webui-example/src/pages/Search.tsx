@@ -11,14 +11,16 @@ const Search: React.FC = () => {
     const [query, setQuery] = useState('');
     const [debouncedQuery, setDebouncedQuery] = useState('');
     const [filters, setFilters] = useState<SearchFilters>({});
+    const [debouncedFilters, setDebouncedFilters] = useState<SearchFilters>({});
     const [dateRangeType, setDateRangeType] = useState<string>('anytime');
 
     useEffect(() => {
         const timer = setTimeout(() => {
             setDebouncedQuery(query);
+            setDebouncedFilters({ ...filters });
         }, 300);
         return () => clearTimeout(timer);
-    }, [query]);
+    }, [query, filters]);
 
     const {
         data,
@@ -27,7 +29,7 @@ const Search: React.FC = () => {
         isFetchingNextPage,
         isLoading,
         error
-    } = useSearchQuery(debouncedQuery, 20, filters);
+    } = useSearchQuery(debouncedQuery, 20, debouncedFilters);
 
     const allResults = useMemo(() => {
         return data?.pages.flatMap(page => page.data.data.hits) || [];
