@@ -53,12 +53,14 @@ async def start_client(
     """
     try:
         result = await runtime_service.start(source="api")
+        logger.info("[control.start] status=%s state=%s source=%s", result.status, result.state, "api")
         response = ClientControlResponse(
             status=result.status,
             message=result.message,
         )
         return ApiResponse(data=response)
     except DomainError as exc:
+        logger.warning("[control.start] domain_error code=%s message=%s", exc.code, exc.message)
         raise _to_http_error(exc) from exc
 
 
@@ -78,12 +80,14 @@ async def stop_client(
     """
     try:
         result = await runtime_service.stop(source="api")
+        logger.info("[control.stop] status=%s state=%s source=%s", result.status, result.state, "api")
         response = ClientControlResponse(
             status=result.status,
             message=result.message,
         )
         return ApiResponse(data=response)
     except DomainError as exc:
+        logger.warning("[control.stop] domain_error code=%s message=%s", exc.code, exc.message)
         raise _to_http_error(exc) from exc
 
 
@@ -98,6 +102,13 @@ async def get_client_status(
 ) -> ApiResponse[dict]:
     """获取客户端状态"""
     runtime_status = await runtime_service.status()
+    logger.debug(
+        "[control.status] running=%s state=%s source=%s last_error=%s",
+        runtime_status.is_running,
+        runtime_status.state,
+        runtime_status.last_action_source,
+        runtime_status.last_error,
+    )
     status = {
         "is_running": runtime_status.is_running,
         "api_only_mode": runtime_status.api_only_mode,

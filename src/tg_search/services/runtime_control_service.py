@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+import time
 from collections.abc import Awaitable, Callable
 from typing import Any
 
@@ -102,6 +103,11 @@ class RuntimeControlService:
             if self._is_task_running():
                 self._state = "running"
                 self._last_action_source = source
+                logger.info(
+                    "[RuntimeControlService] start ignored (already_running) source=%s state=%s",
+                    source,
+                    self._state,
+                )
                 return RuntimeActionResult(
                     status="already_running",
                     message="Runtime task is already running",
@@ -111,6 +117,10 @@ class RuntimeControlService:
                 )
 
             if self._is_api_only_mode():
+                logger.warning(
+                    "[RuntimeControlService] start rejected (api_only_mode) source=%s",
+                    source,
+                )
                 raise DomainError(
                     "runtime_api_only_mode",
                     "Cannot start runtime task in API-only mode",
@@ -153,6 +163,10 @@ class RuntimeControlService:
             if not self._is_task_running():
                 self._task = None
                 self._state = "stopped"
+                logger.info(
+                    "[RuntimeControlService] stop ignored (already_stopped) source=%s",
+                    source,
+                )
                 return RuntimeActionResult(
                     status="already_stopped",
                     message="Runtime task is not running",
@@ -195,7 +209,24 @@ class RuntimeControlService:
 
     async def status(self) -> RuntimeStatus:
         """Return current runtime status snapshot."""
-        return self._snapshot()
+        t0 = time.monotonic()
+        snapshot = self._snapshot()
+        elapsed_ms = (time.monotonic() - t0) * 1000
+        if elapsed_ms > 50:
+            logger.warning(
+                "[RuntimeControlService] status latency high: %.2fms state=%s running=%s",
+                elapsed_ms,
+                snapshot.state,
+                snapshot.is_running,
+            )
+        else:
+            logger.debug(
+                "[RuntimeControlService] status state=%s running=%s source=%s",
+                snapshot.state,
+                snapshot.is_running,
+                snapshot.last_action_source,
+            )
+        return snapshot
 
     def set_api_only_getter(self, getter: ApiOnlyGetter) -> None:
         """Update API-only mode getter (mainly for app-lifespan wiring/tests)."""

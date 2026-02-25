@@ -36,7 +36,7 @@
 | `routes/search.py` | 搜索端点 | 226 行 |
 | `routes/status.py` | 状态端点 | 117 行 |
 | `routes/config.py` | 配置端点 | ~80 行 |
-| `routes/control.py` | 控制端点 | ~60 行 |
+| `routes/control.py` | 控制端点（RuntimeControlService 适配） | ~120 行 |
 | `routes/ws.py` | WebSocket 端点 | ~80 行 |
 
 ### 启动方式
@@ -64,7 +64,7 @@ async def lifespan(app: FastAPI):
     # 1. 初始化 AppState
     # 2. 初始化 AuthStore
     # 3. 初始化 MeiliSearchClient
-    # 4. 初始化 ConfigStore + ConfigPolicyService
+    # 4. 初始化 ConfigStore + ConfigPolicyService + RuntimeControlService
     # 5. 如果非 API-only 模式，启动 Bot 后台任务
 
     yield
@@ -72,6 +72,7 @@ async def lifespan(app: FastAPI):
     # 关闭时：
     # 1. 停止 AuthStore 清理任务
     # 2. 取消 Bot 任务
+    # 3. 停止 RuntimeControlService 托管任务
 ```
 
 ---
@@ -318,7 +319,15 @@ offset: int = 0           # 偏移量
 # 响应
 {
     "success": true,
-    "data": { "is_running": true }
+    "data": {
+        "is_running": true,
+        "api_only_mode": false,
+        "state": "running",
+        "last_action_source": "api",
+        "last_error": null,
+        "telegram_connected": true,
+        "bot_handler_initialized": true
+    }
 }
 ```
 
@@ -329,8 +338,8 @@ offset: int = 0           # 偏移量
 {
     "success": true,
     "data": {
-        "status": "started",
-        "message": "下载任务已启动"
+        "status": "started | already_running",
+        "message": "Runtime task started successfully | Runtime task is already running"
     }
 }
 ```
@@ -342,8 +351,8 @@ offset: int = 0           # 偏移量
 {
     "success": true,
     "data": {
-        "status": "stopped",
-        "message": "下载任务已停止"
+        "status": "stopped | already_stopped",
+        "message": "Runtime task stopped successfully | Runtime task is not running"
     }
 }
 ```
@@ -632,7 +641,7 @@ src/tg_search/api/
 │   ├── search.py        # 搜索端点 (226 行)
 │   ├── status.py        # 状态端点 (117 行)
 │   ├── config.py        # 配置端点
-│   ├── control.py       # 控制端点
+│   ├── control.py       # 控制端点（调用 RuntimeControlService）
 │   └── ws.py            # WebSocket 端点
 └── CLAUDE.md            # 本文档
 ```
@@ -646,3 +655,8 @@ src/tg_search/api/
 - 记录所有 API 端点接口
 - 添加认证机制说明
 - 补充 WebSocket 使用方法
+
+### 2026-02-25
+- 控制端点迁移到 `RuntimeControlService`，统一 Bot/API 任务状态真源
+- `GET /api/v1/client/status` 扩展 `state/last_action_source/last_error` 字段
+- lifespan 新增 RuntimeControlService 注入与关闭时统一 stop 回收

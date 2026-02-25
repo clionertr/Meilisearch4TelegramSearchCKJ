@@ -83,7 +83,7 @@ graph LR
 - [x] T-P0-SLA-04 增加分层静态检查（`tests/unit/test_service_layer_import_lint.py`）。
 - [x] T-P0-SLA-05 完成搜索能力切换到 `SearchService` -> 细化任务见 [SPEC-P0-search-service](./SPEC-P0-search-service.md) 第 4 节。
 - [x] T-P0-SLA-06 完成配置能力切换到 `ConfigPolicyService` -> 细化任务见 [SPEC-P0-config-policy-service](./SPEC-P0-config-policy-service.md) 第 4 节。
-- [ ] T-P0-SLA-07 完成运行控制切换到 `RuntimeControlService` -> 细化任务见 [SPEC-P0-runtime-control-service](./SPEC-P0-runtime-control-service.md) 第 4 节。
+- [x] T-P0-SLA-07 完成运行控制切换到 `RuntimeControlService` -> 细化任务见 [SPEC-P0-runtime-control-service](./SPEC-P0-runtime-control-service.md) 第 4 节。
 - [ ] T-P0-SLA-08 完成状态聚合切换到 `ObservabilityService` -> 细化任务见 [SPEC-P1-observability-service](./SPEC-P1-observability-service.md) 第 4 节。
 - [ ] T-P0-SLA-09 增加回归测试，确保 Bot/API 行为一致。
 - [x] T-P0-SLA-10 更新 `CLAUDE.md` 模块结构图与目录结构，增加 `services/` 层描述。
@@ -103,3 +103,4 @@ graph LR
 - 2026-02-25 增补：新增 `ServiceContainer`（`src/tg_search/services/container.py`）并在 API/Bot/download 启动链路共享实例。
 - 2026-02-25 增补：`ConfigPolicyService` 新增 `subscribe()` 推送机制，策略写后同步更新运行时缓存，避免 TTL 导致秒级漂移。
 - 2026-02-25 增补：新增真实环境 E2E `tests/integration/test_service_layer_architecture_e2e.py` 覆盖“共享容器注入”和“策略写后 `<1s` 可见”。
+- 2026-02-25 增补：`RuntimeControlService` 已落地并完成 Bot/API 统一启停；新增真实环境 E2E `tests/integration/test_runtime_control_service_e2e.py` 覆盖并发、API-only、一致性与重启场景。
