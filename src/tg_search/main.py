@@ -4,16 +4,17 @@ from collections.abc import Awaitable
 from typing import Any, cast
 
 from tg_search.config.settings import (
-    BLACK_LIST,
     MEILI_HOST,
     MEILI_PASS,
-    WHITE_LIST,
+    POLICY_REFRESH_TTL_SEC,
     validate_config,
 )
+from tg_search.config.config_store import ConfigStore
 from tg_search.core.bot import BotHandler
 from tg_search.core.logger import setup_logger
 from tg_search.core.meilisearch import MeiliSearchClient
 from tg_search.core.telegram import TelegramUserBot
+from tg_search.services.config_policy_service import ConfigPolicyService
 from tg_search.utils.message_tracker import (
     get_latest_msg_id4_meili,
     read_config_from_meili,
@@ -32,13 +33,15 @@ def _maybe_validate_config() -> None:
 async def download_and_listen(
     user_bot_client: TelegramUserBot,
     meili: MeiliSearchClient,
+    policy_service: ConfigPolicyService,
     progress_registry: Any | None = None,
 ):
     try:
-        config = read_config_from_meili(meili)
-        white_list = config.get("WHITE_LIST") or WHITE_LIST
-        black_list = config.get("BLACK_LIST") or BLACK_LIST
-        logger.info("Reading latest message id from config")
+        policy = await policy_service.get_policy(refresh=True)
+        white_list = policy.white_list
+        black_list = policy.black_list
+        latest_msg_config = read_config_from_meili(meili)
+        logger.info("Reading policy and latest message id from stores")
         logger.log(25, f"Current white_list: {white_list}, black_list: {black_list}")
         tasks = []
         dialogs = await user_bot_client.client.get_dialogs()
@@ -75,8 +78,8 @@ async def download_and_listen(
                         await user_bot_client.download_history(
                             p,
                             limit=None,
-                            offset_id=get_latest_msg_id4_meili(config, did),
-                            latest_msg_config=config,
+                            offset_id=get_latest_msg_id4_meili(latest_msg_config, did),
+                            latest_msg_config=latest_msg_config,
                             meili=meili,
                             dialog_id=did,
                             progress_callback=_progress,
@@ -105,13 +108,25 @@ async def main(progress_registry: Any | None = None):
     _maybe_validate_config()
 
     meili = MeiliSearchClient(MEILI_HOST, MEILI_PASS)
-    user_bot_client = TelegramUserBot(meili)
+    config_store = ConfigStore(meili)
+    policy_service = ConfigPolicyService(config_store)
+
+    async def _load_policy_lists() -> tuple[list[int], list[int]]:
+        return await policy_service.get_policy_lists(refresh=False)
+
+    user_bot_client = TelegramUserBot(
+        meili,
+        policy_loader=_load_policy_lists,
+        policy_ttl_sec=POLICY_REFRESH_TTL_SEC,
+    )
     try:
         await user_bot_client.start()
-        logger.info("User Bot started")
+        logger.info("User Bot started (policy_refresh_ttl_sec=%d)", POLICY_REFRESH_TTL_SEC)
 
         # 创建并运行下载和监听任务
-        download_task = asyncio.create_task(download_and_listen(user_bot_client, meili, progress_registry))
+        download_task = asyncio.create_task(
+            download_and_listen(user_bot_client, meili, policy_service, progress_registry)
+        )
 
         # 这里可以添加其他需要并行运行的任务
 
@@ -120,9 +135,6 @@ async def main(progress_registry: Any | None = None):
 
     except Exception as e:
         logger.error(f"Error running bot: {str(e)}")
-        if not isinstance(e, KeyboardInterrupt):
-            if isinstance(e, ValueError):
-                logger.error("Please check your environment variables “WHITE_LIST“ ")
     finally:
         await user_bot_client.cleanup()
 

@@ -10,6 +10,7 @@ Telegram 客户端封装
 import asyncio
 import gc
 import os
+import time
 import tracemalloc
 from collections.abc import Awaitable, Callable
 from typing import Any, cast
@@ -39,18 +40,15 @@ from tg_search.config.settings import (
     APP_HASH,
     APP_ID,
     BATCH_MSG_UNM,
-    BLACK_LIST,
     NOT_RECORD_MSG,
     PROXY,
     SESSION_STRING,
     TELEGRAM_REACTIONS,
     TIME_ZONE,
-    WHITE_LIST,
     IPv6,
 )
 from tg_search.core.logger import setup_logger
 from tg_search.utils.message_tracker import (
-    read_config_from_meili,
     update_latest_msg_config4_meili,
 )
 from tg_search.utils.permissions import is_allowed
@@ -224,7 +222,13 @@ async def serialize_message(message: Any, not_edited: bool = True) -> dict | Non
 
 
 class TelegramUserBot:
-    def __init__(self, meili_client):
+    def __init__(
+        self,
+        meili_client,
+        *,
+        policy_loader: Callable[[], Awaitable[tuple[list[int], list[int]]]] | None = None,
+        policy_ttl_sec: int = 10,
+    ):
         """
         初始化 Telegram 客户端
         :param meili_client: MeiliSearch 客户端
@@ -238,9 +242,11 @@ class TelegramUserBot:
             self.session = "session/user_bot_session"
 
         self.meili = meili_client
-        config = read_config_from_meili(self.meili)
-        self.white_list = config.get("WHITE_LIST") or WHITE_LIST
-        self.black_list = config.get("BLACK_LIST") or BLACK_LIST
+        self.white_list: list[int] = []
+        self.black_list: list[int] = []
+        self._policy_loader = policy_loader
+        self._policy_ttl_sec = max(policy_ttl_sec, 1)
+        self._policy_loaded_at = 0.0
 
         # 初始化客户端
         self.client = TelegramClient(
@@ -266,6 +272,7 @@ class TelegramUserBot:
         """启动客户端"""
         try:
             await cast(Awaitable[Any], self.client.start())
+            await self.refresh_policy(force=True)
             logger.info("Bot started successfully")
             self.register_handlers()
         except FloodWaitError as e:
@@ -291,7 +298,7 @@ class TelegramUserBot:
         async def handle_new_message(event):
             peer_id = event.chat_id
             try:
-                if is_allowed(peer_id, self.white_list, self.black_list):
+                if await self.is_allowed_peer(peer_id):
                     await self._process_message(event.message)
                 else:
                     logger.debug(f"Chat id {peer_id} is not allowed")
@@ -309,7 +316,7 @@ class TelegramUserBot:
         async def handle_edit_message(event):
             peer_id = event.chat_id
             try:
-                if is_allowed(peer_id, self.white_list, self.black_list):
+                if await self.is_allowed_peer(peer_id):
                     await self._process_message(event.message, NOT_RECORD_MSG)
                 else:
                     logger.debug(f"Chat id {peer_id} is not allowed")
@@ -322,6 +329,33 @@ class TelegramUserBot:
                 logger.warning(f"Permission denied for chat {peer_id}: {type(e).__name__}")
             except Exception as e:
                 logger.error(f"Error processing message edit: {type(e).__name__}: {str(e)}")
+
+    async def refresh_policy(self, force: bool = False) -> None:
+        """按 TTL 刷新运行时白黑名单策略。"""
+        if self._policy_loader is None:
+            return
+        if (not force) and (time.monotonic() - self._policy_loaded_at < self._policy_ttl_sec):
+            return
+
+        try:
+            white_list, black_list = await self._policy_loader()
+            self.white_list = list(white_list)
+            self.black_list = list(black_list)
+            self._policy_loaded_at = time.monotonic()
+            logger.debug(
+                "Policy refreshed: white=%d black=%d ttl_sec=%d",
+                len(self.white_list),
+                len(self.black_list),
+                self._policy_ttl_sec,
+            )
+        except Exception as e:
+            logger.warning(f"Failed to refresh policy: {type(e).__name__}: {e}")
+
+    async def is_allowed_peer(self, peer_id: int | None) -> bool:
+        if peer_id is None:
+            return False
+        await self.refresh_policy(force=False)
+        return is_allowed(peer_id, self.white_list, self.black_list)
 
     async def _process_message(self, message: Any, not_edited: bool = True):
         """处理新消息"""

@@ -1,0 +1,94 @@
+"""Unit tests for ConfigPolicyService."""
+
+from __future__ import annotations
+
+from datetime import datetime, timezone
+
+import pytest
+
+from tg_search.config.config_store import GlobalConfig
+from tg_search.services.config_policy_service import ConfigPolicyService
+
+pytestmark = [pytest.mark.unit]
+
+
+class FakeConfigStore:
+    """In-memory ConfigStore compatible stub."""
+
+    def __init__(self, initial: GlobalConfig | None = None):
+        self._config = initial or GlobalConfig()
+
+    def load_config(self, refresh: bool = False) -> GlobalConfig:
+        # Return a detached copy to emulate real store behavior.
+        return GlobalConfig.model_validate(self._config.model_dump())
+
+    def save_config(self, patch: dict, expected_version: int | None = None) -> GlobalConfig:
+        current = self.load_config(refresh=True)
+        if expected_version is not None and current.version != expected_version:
+            raise ValueError("version conflict")
+
+        data = current.model_dump()
+        for key, value in patch.items():
+            if key in ("sync", "storage", "ai", "policy") and isinstance(value, dict):
+                data[key].update(value)
+            else:
+                data[key] = value
+        data["version"] = current.version + 1
+        data["updated_at"] = datetime.now(timezone.utc).isoformat()
+
+        self._config = GlobalConfig.model_validate(data)
+        return self.load_config(refresh=True)
+
+
+@pytest.mark.asyncio
+async def test_bootstrap_initial_policy_from_defaults():
+    store = FakeConfigStore()
+    service = ConfigPolicyService(store, bootstrap_white_list=[101], bootstrap_black_list=[202])
+
+    policy = await service.get_policy(refresh=True)
+
+    assert policy.white_list == [101]
+    assert policy.black_list == [202]
+    assert policy.version == 1
+
+
+@pytest.mark.asyncio
+async def test_add_and_remove_whitelist_idempotent():
+    store = FakeConfigStore()
+    service = ConfigPolicyService(store, bootstrap_white_list=[], bootstrap_black_list=[])
+
+    add_result = await service.add_whitelist([1, 1, 2], source="api")
+    assert add_result.updated_list == [1, 2]
+    assert add_result.added == [1, 2]
+
+    add_again = await service.add_whitelist([2], source="api")
+    assert add_again.updated_list == [1, 2]
+    assert add_again.added == []
+
+    remove_result = await service.remove_whitelist([9, 1], source="api")
+    assert remove_result.updated_list == [2]
+    assert remove_result.removed == [1]
+
+
+@pytest.mark.asyncio
+async def test_set_blacklist_replaces_entire_list():
+    store = FakeConfigStore()
+    service = ConfigPolicyService(store, bootstrap_white_list=[], bootstrap_black_list=[1, 2])
+
+    result = await service.set_blacklist([3, 4, 4], source="bot")
+
+    assert result.updated_list == [3, 4]
+    assert result.added == [3, 4]
+    assert result.removed == [1, 2]
+
+
+@pytest.mark.asyncio
+async def test_invalid_ids_raise_value_error():
+    store = FakeConfigStore()
+    service = ConfigPolicyService(store, bootstrap_white_list=[], bootstrap_black_list=[])
+
+    with pytest.raises(ValueError):
+        await service.add_whitelist([], source="api")
+
+    with pytest.raises(ValueError):
+        await service.add_blacklist([1, "2"], source="api")  # type: ignore[list-item]

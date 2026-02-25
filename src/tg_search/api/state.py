@@ -191,6 +191,8 @@ class AppState:
         self.auth_store: Optional["AuthStore"] = None
         # 配置存储（在 lifespan 中初始化，P0-Config-Store）
         self.config_store: Optional[Any] = None
+        # 统一策略服务（在 lifespan 中初始化，P0-Config-Policy-Service）
+        self.config_policy_service: Optional[Any] = None
         # Dialog available 缓存（绑定到 app 生命周期，Fix-4）
         self.dialog_available_cache: Optional[Any] = None
 

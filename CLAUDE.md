@@ -2,11 +2,20 @@
 
 > 基于 Telethon + MeiliSearch 的 Telegram 中文/日文/韩文 (CJK) 消息搜索解决方案
 
-**生成时间**: 2026-02-06（最近同步: 2026-02-24）
+**生成时间**: 2026-02-06（最近同步: 2026-02-25）
 
 ---
 
 ## 变更记录 (Changelog)
+
+### 2026-02-25
+- 落地 **ConfigPolicyService** (`src/tg_search/services/config_policy_service.py`)，统一白/黑名单读写入口
+- `ConfigStore` 增加 `policy` section（`GlobalConfig.policy`），作为运行时策略单一真源
+- API `/api/v1/config/*` 改为调用 ConfigPolicyService，不再读写进程内可变列表
+- Bot `/set_white_list2meili`、`/set_black_list2meili` 改为调用 ConfigPolicyService
+- 下载与监听链路改为读取统一策略（白/黑名单），并增加策略刷新日志与 TTL 配置
+- 新增 `src/tg_search/services/` 包和单测 `tests/unit/test_config_policy_service.py`
+- 更新 README 与 `.env.example`：明确“静态配置来自 `.env`，动态策略来自 ConfigStore.policy”
 
 ### 2026-02-24
 - 新增 **ConfigStore** 配置持久化模块 (`config/config_store.py`)，基于 MeiliSearch 实现全局配置读写
@@ -130,6 +139,7 @@ graph TD
     B --> C["config"];
     B --> D["core"];
     B --> E["utils"];
+    B --> I["services"];
     B --> G["api"];
     A --> F["tests"];
     A --> H["webui-example"];
@@ -144,6 +154,8 @@ graph TD
     E --> E2["permissions.py<br/>权限检查"];
     E --> E3["message_tracker.py<br/>消息追踪"];
     E --> E4["memory.py<br/>内存监控"];
+    I --> I1["config_policy_service.py<br/>策略服务"];
+    I --> I2["contracts.py<br/>Service DTO"];
     G --> G1["app.py<br/>FastAPI应用"];
     G --> G2["routes/<br/>API路由"];
     G --> G3["models.py<br/>Pydantic模型"];
@@ -177,14 +189,11 @@ Meilisearch4TelegramSearchCKJ/
 ├── docker-compose-windows.yml   # Windows Docker 配置
 ├── docs/
 │   └── specs/                   # API 规格文档
-│       ├── SPEC-P0-config-store.md
-│       ├── SPEC-P0-dialog-sync.md
+│       ├── SPEC-P0-config-policy-service.md
+│       ├── SPEC-P0-runtime-control-service.md
 │       ├── SPEC-P0-search-service.md
 │       ├── SPEC-P0-service-layer-architecture.md
-│       ├── SPEC-P1-ai-config.md
 │       ├── SPEC-P1-observability-service.md
-│       ├── SPEC-P1-storage.md
-│       └── SPEC-P2-dashboard.md
 ├── src/
 │   └── tg_search/               # 主包
 │       ├── __init__.py
@@ -211,6 +220,10 @@ Meilisearch4TelegramSearchCKJ/
 │       │   ├── memory.py        # 内存监控
 │       │   ├── bridge.py        # 桥接模块
 │       │   └── CLAUDE.md        # 模块文档
+│       ├── services/            # Service 层
+│       │   ├── __init__.py
+│       │   ├── contracts.py     # 领域 DTO
+│       │   └── config_policy_service.py  # 策略服务
 │       └── api/                 # REST API 模块 (v0.2.0)
 │           ├── __init__.py
 │           ├── app.py           # FastAPI 应用构建
@@ -330,8 +343,9 @@ ruff format src/
 #### 可选（Bot 相关）
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
-| `WHITE_LIST` | `[1]` | 白名单 (频道/群组/用户 ID) |
-| `BLACK_LIST` | `[]` | 黑名单 |
+| `WHITE_LIST` | `[1]` | 策略服务冷启动白名单默认值 |
+| `BLACK_LIST` | `[]` | 策略服务冷启动黑名单默认值 |
+| `POLICY_REFRESH_TTL_SEC` | `10` | Telegram 监听器策略刷新间隔（秒） |
 | `OWNER_IDS` | `[]` | Bot 管理员 ID |
 | `SESSION_STRING` | - | Telethon 会话字符串 |
 | `LOGGING_LEVEL` | `25` | 控制台日志级别 (INFO=20, NOTICE=25, WARNING=30) |

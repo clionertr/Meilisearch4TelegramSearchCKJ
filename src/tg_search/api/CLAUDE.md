@@ -64,7 +64,8 @@ async def lifespan(app: FastAPI):
     # 1. 初始化 AppState
     # 2. 初始化 AuthStore
     # 3. 初始化 MeiliSearchClient
-    # 4. 如果非 API-only 模式，启动 Bot 后台任务
+    # 4. 初始化 ConfigStore + ConfigPolicyService
+    # 5. 如果非 API-only 模式，启动 Bot 后台任务
 
     yield
 
@@ -270,6 +271,8 @@ offset: int = 0           # 偏移量
 ```
 
 ### 配置端点 (`/api/v1/config`)
+
+> 说明：白名单/黑名单运行时真源为 `ConfigStore.policy`，由 `ConfigPolicyService` 统一读写。
 
 #### GET `/` - 获取配置
 

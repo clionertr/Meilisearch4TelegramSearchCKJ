@@ -2,13 +2,15 @@
 
 # Config 模块
 
-> 环境变量配置管理与验证模块
+> 环境变量配置管理与验证模块（静态配置来源）
 
 ---
 
 ## 模块职责
 
-负责从环境变量加载所有配置项，并提供配置验证功能。确保应用启动前所有必填配置已正确设置。
+负责从环境变量加载静态配置项，并提供配置验证功能。确保应用启动前所有必填配置已正确设置。
+
+> 说明：白名单/黑名单在运行时的真源为 `ConfigStore.policy`。`WHITE_LIST`/`BLACK_LIST` 在此模块中仅作为策略服务冷启动默认值。
 
 ### 核心功能
 - **配置加载**: 从环境变量读取配置
@@ -59,8 +61,9 @@ validate_config()  # 如果配置无效会抛出 ConfigurationError
 
 | 变量 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `WHITE_LIST` | `list[int]` | `[1]` | 允许同步的频道/群组/用户 ID |
-| `BLACK_LIST` | `list[int]` | `[]` | 禁止同步的 ID（优先级高于白名单） |
+| `WHITE_LIST` | `list[int]` | `[1]` | 策略服务冷启动白名单默认值 |
+| `BLACK_LIST` | `list[int]` | `[]` | 策略服务冷启动黑名单默认值 |
+| `POLICY_REFRESH_TTL_SEC` | `int` | `10` | Telegram 监听侧策略刷新间隔（秒） |
 | `OWNER_IDS` | `list[int]` | `[]` | Bot 管理员 ID |
 
 ### 可选配置（登录）
@@ -263,9 +266,9 @@ export APP_HASH=a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6
 ### Q2: WHITE_LIST 和 BLACK_LIST 如何使用？
 
 **A:**
-- `WHITE_LIST` 为空列表 `[]` 时，允许所有对话（除黑名单）
-- `WHITE_LIST` 非空时，仅同步白名单中的 ID
-- `BLACK_LIST` 优先级更高：即使在白名单中，黑名单 ID 也会被拒绝
+- `WHITE_LIST`/`BLACK_LIST` 仅用于**首次启动或空 policy 文档**时的默认值注入
+- 注入后运行时配置统一从 `ConfigStore.policy` 读取
+- `BLACK_LIST` 优先级高于白名单：即使在白名单中，黑名单 ID 也会被拒绝
 
 示例：
 ```bash

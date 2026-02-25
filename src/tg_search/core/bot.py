@@ -22,10 +22,11 @@ from tg_search.config.settings import (
     TOKEN,
     IPv6,
 )
+from tg_search.config.config_store import ConfigStore
 from tg_search.core.logger import setup_logger
 from tg_search.core.meilisearch import MeiliSearchClient
+from tg_search.services.config_policy_service import ConfigPolicyService
 from tg_search.utils.formatters import sizeof_fmt
-from tg_search.utils.message_tracker import read_config_from_meili
 
 MAX_RESULTS = MAX_PAGE * RESULTS_PER_PAGE
 
@@ -63,6 +64,8 @@ class BotHandler:
             connection_retries=5,
         )
         self.meili = MeiliSearchClient(MEILI_HOST, MEILI_PASS)
+        self.config_store = ConfigStore(self.meili)
+        self.policy_service = ConfigPolicyService(self.config_store)
         self.search_results_cache = {}
         self.main = main
         self.download_task = None
@@ -200,10 +203,11 @@ class BotHandler:
         self.logger.info(f"Received set set_white_list2meili command: {event.pattern_match.group(1)}")
         try:
             query = ast.literal_eval(event.pattern_match.group(1))
-            config = read_config_from_meili(self.meili)
-            config["WHITE_LIST"] = query
-            await asyncio.to_thread(self.meili.add_documents, [config], "config")
-            await event.reply(f"白名单设置为: {query}")
+            result = await self.policy_service.set_whitelist(query, source="bot")
+            await event.reply(f"白名单设置为: {result.updated_list}")
+        except (ValueError, RuntimeError) as e:
+            await event.reply(f"Error: {e}")
+            self.logger.error(f"Error: {e}")
         except Exception as e:
             await event.reply(f"Error: {e}")
             self.logger.error(f"Error: {e}")
@@ -214,10 +218,11 @@ class BotHandler:
         self.logger.info(f"Received set set_black_list2meili command: {event.pattern_match.group(1)}")
         try:
             query = ast.literal_eval(event.pattern_match.group(1))
-            config = read_config_from_meili(self.meili)
-            config["BLACK_LIST"] = query
-            await asyncio.to_thread(self.meili.add_documents, [config], "config")
-            await event.reply(f"黑名单设置为: {query}")
+            result = await self.policy_service.set_blacklist(query, source="bot")
+            await event.reply(f"黑名单设置为: {result.updated_list}")
+        except (ValueError, RuntimeError) as e:
+            await event.reply(f"Error: {e}")
+            self.logger.error(f"Error: {e}")
         except Exception as e:
             await event.reply(f"Error: {e}")
             self.logger.error(f"Error: {e}")

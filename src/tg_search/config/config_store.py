@@ -13,7 +13,7 @@ P0 Config Store - 统一配置持久化基座
 接口（内部模块，不对外暴露）：
     load_config(refresh: bool = False) -> GlobalConfig
     save_config(patch: dict, expected_version: int | None = None) -> GlobalConfig
-    update_section(section: Literal["sync", "storage", "ai"], patch: dict) -> GlobalConfig
+    update_section(section: Literal["sync", "storage", "ai", "policy"], patch: dict) -> GlobalConfig
 """
 
 from __future__ import annotations
@@ -70,6 +70,13 @@ class AiConfig(BaseModel):
     api_key: str = ""
 
 
+class PolicySection(BaseModel):
+    """运行时同步策略配置"""
+
+    white_list: list[int] = Field(default_factory=list)
+    black_list: list[int] = Field(default_factory=list)
+
+
 class GlobalConfig(BaseModel):
     """全局配置文档（MeiliSearch system_config 索引中的唯一文档）"""
 
@@ -79,6 +86,7 @@ class GlobalConfig(BaseModel):
     sync: SyncConfig = Field(default_factory=SyncConfig)
     storage: StorageConfig = Field(default_factory=StorageConfig)
     ai: AiConfig = Field(default_factory=AiConfig)
+    policy: PolicySection = Field(default_factory=PolicySection)
 
 
 # ============ Cache ============
@@ -283,7 +291,7 @@ class ConfigStore:
         # 合并 patch 到当前配置
         current_dict = current.model_dump()
         for key, value in patch.items():
-            if key in ("sync", "storage", "ai") and isinstance(value, dict):
+            if key in ("sync", "storage", "ai", "policy") and isinstance(value, dict):
                 # Section 级合并
                 current_dict[key].update(value)
             else:
@@ -313,14 +321,14 @@ class ConfigStore:
 
     def update_section(
         self,
-        section: Literal["sync", "storage", "ai"],
+        section: Literal["sync", "storage", "ai", "policy"],
         patch: dict[str, Any],
     ) -> GlobalConfig:
         """
         T-P0-CS-05: Section 级更新辅助函数。
 
         Args:
-            section: 要更新的配置节（"sync" | "storage" | "ai"）
+            section: 要更新的配置节（"sync" | "storage" | "ai" | "policy"）
             patch: 该节内的字段更新
 
         Returns:

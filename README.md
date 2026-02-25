@@ -14,6 +14,7 @@
 - **REST API**: FastAPI 提供 RESTful API + WebSocket 实时推送
 - **WebUI**: React 管理界面（会话同步、AI 配置、Dashboard 等）
 - **黑白名单**: 灵活的频道/群组/用户同步控制
+- **统一策略真源**: 白名单/黑名单运行时统一存储于 MeiliSearch `system_config.policy`
 
 ## 架构概览
 
@@ -87,14 +88,55 @@ python -m tg_search --mode bot-only
 
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
-| `WHITE_LIST` | `[1]` | 允许同步的频道 ID 列表 |
-| `BLACK_LIST` | `[]` | 禁止同步的频道 ID 列表 |
+| `WHITE_LIST` | `[1]` | 策略服务冷启动白名单默认值（运行时真源为 ConfigStore） |
+| `BLACK_LIST` | `[]` | 策略服务冷启动黑名单默认值（运行时真源为 ConfigStore） |
+| `POLICY_REFRESH_TTL_SEC` | `10` | Telegram 监听端策略刷新间隔（秒） |
 | `OWNER_IDS` | `[]` | Bot 管理员 ID |
 | `API_KEY` | - | REST API 认证密钥 |
 | `CORS_ORIGINS` | `http://localhost:5173,...` | 允许的 CORS 源 |
 | `SESSION_STRING` | - | Telethon 会话字符串（Docker 环境） |
 
 完整配置说明请参考 [`.env.example`](.env.example)。
+
+## 配置策略说明
+
+- **静态启动配置**: 从 `.env` 读取（如 `APP_ID/APP_HASH/BOT_TOKEN/MEILI_*`）。
+- **动态运行配置**: 白名单/黑名单统一从 MeiliSearch `system_config` 索引中的 `policy` 字段读取。
+- API 与 Bot 对白/黑名单的修改都会持久化到同一文档，重启后不丢失。
+
+## README 使用示例
+
+### 1) 查看当前策略
+
+```bash
+curl -s "http://localhost:8000/api/v1/config" \
+  -H "X-API-Key: <your_api_key>" | jq
+```
+
+### 2) 追加白名单
+
+```bash
+curl -s -X POST "http://localhost:8000/api/v1/config/whitelist" \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: <your_api_key>" \
+  -d '{"ids":[-1001234567890, -1009876543210]}' | jq
+```
+
+### 3) 追加黑名单
+
+```bash
+curl -s -X POST "http://localhost:8000/api/v1/config/blacklist" \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: <your_api_key>" \
+  -d '{"ids":[-1002222222222]}' | jq
+```
+
+### 4) Bot 直接设置（覆盖模式）
+
+```text
+/set_white_list2meili [-1001234567890, -1009876543210]
+/set_black_list2meili [-1002222222222]
+```
 
 ## REST API
 
