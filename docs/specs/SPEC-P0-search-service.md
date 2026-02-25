@@ -63,3 +63,22 @@ class SearchService:
 - ADR-SS-003：Bot 展示保留 Markdown/按钮形态，但数据源必须来自 SearchService。
 - ADR-SS-004：若缓存启用，缓存策略归 Service 管理，避免 Bot/API 双缓存不一致。
 - ADR-SS-005：Bot 翻页默认使用 `base64(json)` 编码；当 payload 超过 Telegram 64 bytes 限制时，自动回退短 token（Service 内 TTL 缓存映射）保证稳定翻页。
+
+## 7. 实现笔记（2026-02-25）
+
+### 7.1 代码落点
+- `src/tg_search/services/search_service.py`：统一过滤构建、命中解析、分页/缓存、callback 编解码。
+- `src/tg_search/services/contracts.py`：`SearchQuery/SearchHit/SearchPage` 领域 DTO。
+- `src/tg_search/api/routes/search.py`：瘦路由，仅做参数校验 + DTO -> API Model 映射。
+- `src/tg_search/core/bot.py`：统一改为调用 `SearchService`，移除重复搜索编排逻辑。
+
+### 7.2 可观测性
+- 新增搜索性能日志：`duration_ms`、`meili_processing_ms`。
+- 新增缓存命中日志：`presentation_cache_hit/miss/expired`。
+- 新增分页协议日志：`encode_callback mode=inline|token_fallback`、`decode_callback mode=inline|token|legacy`。
+
+### 7.3 配置项
+- `SEARCH_CACHE`：统一搜索缓存开关。
+- `CACHE_EXPIRE_SECONDS`：搜索缓存 TTL。
+- `SEARCH_PRESENTATION_MAX_HITS`：展示层分页预取窗口上限。
+- `SEARCH_CALLBACK_TOKEN_TTL_SEC`：分页短 token TTL。

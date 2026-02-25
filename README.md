@@ -15,6 +15,7 @@
 - **WebUI**: React 管理界面（会话同步、AI 配置、Dashboard 等）
 - **黑白名单**: 灵活的频道/群组/用户同步控制
 - **统一策略真源**: 白名单/黑名单运行时统一存储于 MeiliSearch `system_config.policy`
+- **统一搜索服务**: Bot 与 API 共享 `SearchService`（统一过滤、高亮解析、分页和缓存策略）
 
 ## 架构概览
 
@@ -92,6 +93,10 @@ python -m tg_search --mode bot-only
 | `BLACK_LIST` | `[]` | 策略服务冷启动黑名单默认值（运行时真源为 ConfigStore） |
 | `POLICY_REFRESH_TTL_SEC` | `10` | Telegram 监听端策略刷新间隔（秒） |
 | `OWNER_IDS` | `[]` | Bot 管理员 ID |
+| `SEARCH_CACHE` | `True` | 是否启用统一搜索缓存 |
+| `CACHE_EXPIRE_SECONDS` | `7200` | 搜索缓存 TTL（秒） |
+| `SEARCH_PRESENTATION_MAX_HITS` | `50` | Bot/API 展示层预取窗口上限 |
+| `SEARCH_CALLBACK_TOKEN_TTL_SEC` | `7200` | Bot 分页短 token TTL（秒） |
 | `API_KEY` | - | REST API 认证密钥 |
 | `CORS_ORIGINS` | `http://localhost:5173,...` | 允许的 CORS 源 |
 | `SESSION_STRING` | - | Telethon 会话字符串（Docker 环境） |
@@ -103,6 +108,14 @@ python -m tg_search --mode bot-only
 - **静态启动配置**: 从 `.env` 读取（如 `APP_ID/APP_HASH/BOT_TOKEN/MEILI_*`）。
 - **动态运行配置**: 白名单/黑名单统一从 MeiliSearch `system_config` 索引中的 `policy` 字段读取。
 - API 与 Bot 对白/黑名单的修改都会持久化到同一文档，重启后不丢失。
+
+## 统一搜索服务说明
+
+- `SearchService` 是 Bot 与 API 共用的搜索业务层，统一了：
+  - 过滤条件拼装（`chat_id/chat_type/date_from/date_to`）
+  - Meili `_formatted` 高亮解析（`formatted_text`）
+  - 分页与缓存策略
+- Bot 分页 callback 默认使用 `base64(json)`，当数据超过 Telegram 64 bytes 限制时，会自动回退到短 token 模式。
 
 ## README 使用示例
 
@@ -150,6 +163,49 @@ curl -s -X POST "http://localhost:8000/api/v1/client/start" \
 ```bash
 curl -s "http://localhost:8000/api/v1/status/progress" \
   -H "X-API-Key: <your_api_key>" | jq
+```
+
+### 7) 搜索（含过滤条件）
+
+```bash
+curl -s "http://localhost:8000/api/v1/search?q=keyword&chat_type=group&limit=5&offset=0" \
+  -H "X-API-Key: <your_api_key>" | jq '.data | {query,total_hits,limit,offset,hits: [.hits[] | {id,formatted_text}]}'
+```
+
+### 8) 按时间范围搜索
+
+```bash
+curl -s "http://localhost:8000/api/v1/search?q=release&date_from=2026-02-01T00:00:00Z&date_to=2026-02-25T23:59:59Z&limit=10" \
+  -H "X-API-Key: <your_api_key>" | jq '.data.total_hits'
+```
+
+### 9) Bot 搜索与翻页
+
+```text
+/search foo_bar
+```
+
+说明：
+- `foo_bar` 等含下划线关键词支持稳定翻页（不再依赖 `split("_")`）。
+- Bot 展示优先使用 `formatted_text`（高亮命中）。
+
+## 监控与日志点
+
+统一搜索服务新增了结构化日志，便于线上排障与性能观测：
+
+- `SearchService`：
+  - `search ... duration_ms / meili_processing_ms`
+  - `presentation_cache_hit|miss|expired`
+  - `encode_callback mode=inline|token_fallback`
+  - `decode_callback mode=inline|token|legacy`
+- `BotHandler`：
+  - `search_request/search_result/search_result_empty`
+  - `pagination_request/pagination_result`
+
+可通过如下方式快速过滤日志：
+
+```bash
+grep -E "SearchService|BotHandler" log_file.log
 ```
 
 ## REST API

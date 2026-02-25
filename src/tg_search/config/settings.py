@@ -122,6 +122,14 @@ MAX_PAGE = int(os.getenv("MAX_PAGE", 10))
 # 如果需要搜索大量消息，建议使用 Meilisearch 的Webui，包含高级搜索功能
 RESULTS_PER_PAGE = int(os.getenv("RESULTS_PER_PAGE", 5))
 
+# SearchService 展示层预取上限（用于 Bot/API 统一分页窗口）
+# 默认保持历史行为：MAX_PAGE * RESULTS_PER_PAGE
+SEARCH_PRESENTATION_MAX_HITS = int(os.getenv("SEARCH_PRESENTATION_MAX_HITS", MAX_PAGE * RESULTS_PER_PAGE))
+
+# SearchService callback 短 token TTL（秒）
+# 默认与搜索缓存 TTL 对齐
+SEARCH_CALLBACK_TOKEN_TTL_SEC = int(os.getenv("SEARCH_CALLBACK_TOKEN_TTL_SEC", CACHE_EXPIRE_SECONDS))
+
 
 ## 时区设置
 # 控制meilisearch中的消息的时间显示

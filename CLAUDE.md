@@ -9,6 +9,11 @@
 ## 变更记录 (Changelog)
 
 ### 2026-02-25
+- 落地 **SearchService** (`src/tg_search/services/search_service.py`)，统一 Bot/API 搜索过滤、高亮解析、分页与缓存策略
+- API `/api/v1/search` 改为薄路由，统一调用 SearchService（保持 OpenAPI schema 不变）
+- Bot 搜索链路改为调用 SearchService，分页 callback 从 `split("_")` 迁移为 `base64(json)` + 短 token 回退
+- 新增搜索服务真实环境回归：`tests/integration/test_search_service_e2e.py`（API/Bot 首屏一致、`foo_bar` 翻页、无结果语义）
+- 新增搜索服务单测：`tests/unit/test_search_service.py`（过滤构建、解析、缓存、分页编码兼容）
 - 落地 **ConfigPolicyService** (`src/tg_search/services/config_policy_service.py`)，统一白/黑名单读写入口
 - `ConfigStore` 增加 `policy` section（`GlobalConfig.policy`），作为运行时策略单一真源
 - API `/api/v1/config/*` 改为调用 ConfigPolicyService，不再读写进程内可变列表
@@ -158,7 +163,8 @@ graph TD
     E --> E3["message_tracker.py<br/>消息追踪"];
     E --> E4["memory.py<br/>内存监控"];
     I --> I1["config_policy_service.py<br/>策略服务"];
-    I --> I2["contracts.py<br/>Service DTO"];
+    I --> I2["search_service.py<br/>统一搜索服务"];
+    I --> I3["contracts.py<br/>Service DTO"];
     G --> G1["app.py<br/>FastAPI应用"];
     G --> G2["routes/<br/>API路由"];
     G --> G3["models.py<br/>Pydantic模型"];
@@ -226,6 +232,7 @@ Meilisearch4TelegramSearchCKJ/
 │       ├── services/            # Service 层
 │       │   ├── __init__.py
 │       │   ├── contracts.py     # 领域 DTO
+│       │   ├── search_service.py  # 统一搜索服务
 │       │   └── config_policy_service.py  # 策略服务
 │       └── api/                 # REST API 模块 (v0.2.0)
 │           ├── __init__.py

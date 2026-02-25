@@ -151,6 +151,7 @@ class BotHandler:
             self.logger.info("Downloading task is already running...")
 
     async def search_handler(self, event, query: str):
+        self.logger.info("[BotHandler] search_request q_len=%d", len(query))
         try:
             search_query = SearchQuery(q=query, limit=RESULTS_PER_PAGE, offset=0)
             page = await self.search_service.search_for_presentation(
@@ -159,8 +160,15 @@ class BotHandler:
                 page_size=RESULTS_PER_PAGE,
             )
             if page.hits:
+                self.logger.info(
+                    "[BotHandler] search_result q_len=%d hits_page=%d total_hits=%d",
+                    len(query),
+                    len(page.hits),
+                    page.total_hits,
+                )
                 await self.send_results_page(event, page, 0, search_query)
             else:
+                self.logger.info("[BotHandler] search_result_empty q_len=%d", len(query))
                 await event.reply("没有找到相关结果。")
         except DomainError as exc:
             await event.reply(self._domain_error_to_text(exc))
@@ -354,11 +362,24 @@ class BotHandler:
 
         try:
             query, page_number, page_size = self.search_service.decode_page_callback(event.data)
+            self.logger.info(
+                "[BotHandler] pagination_request q_len=%d page=%d page_size=%d",
+                len(query.q),
+                page_number,
+                page_size,
+            )
             await event.edit(f"正在加载第 {page_number + 1} 页...")
             page = await self.search_service.search_for_presentation(
                 query,
                 page=page_number,
                 page_size=page_size,
+            )
+            self.logger.info(
+                "[BotHandler] pagination_result q_len=%d page=%d hits_page=%d total_hits=%d",
+                len(query.q),
+                page_number,
+                len(page.hits),
+                page.total_hits,
             )
             await self.edit_results_page(event, page, page_number, query)
         except DomainError as exc:

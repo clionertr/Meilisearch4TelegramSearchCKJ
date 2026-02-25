@@ -11,14 +11,18 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from tg_search.config.settings import CACHE_EXPIRE_SECONDS, MAX_PAGE, RESULTS_PER_PAGE, SEARCH_CACHE
+from tg_search.config.settings import (
+    CACHE_EXPIRE_SECONDS,
+    RESULTS_PER_PAGE,
+    SEARCH_CACHE,
+    SEARCH_CALLBACK_TOKEN_TTL_SEC,
+    SEARCH_PRESENTATION_MAX_HITS,
+)
 from tg_search.core.logger import setup_logger
 from tg_search.core.meilisearch import MeiliSearchClient
 from tg_search.services.contracts import DomainError, SearchChat, SearchHit, SearchPage, SearchQuery, SearchUser
 
 logger = setup_logger()
-
-_DEFAULT_PRESENTATION_LIMIT = MAX_PAGE * RESULTS_PER_PAGE
 
 
 @dataclass(slots=True)
@@ -48,19 +52,35 @@ class SearchService:
         *,
         cache_enabled: bool = SEARCH_CACHE,
         cache_ttl_sec: int = CACHE_EXPIRE_SECONDS,
-        max_presentation_hits: int = _DEFAULT_PRESENTATION_LIMIT,
+        max_presentation_hits: int = SEARCH_PRESENTATION_MAX_HITS,
+        callback_token_ttl_sec: int = SEARCH_CALLBACK_TOKEN_TTL_SEC,
     ) -> None:
         self._meili = meili
         self._cache_enabled = cache_enabled
         self._cache_ttl_sec = max(int(cache_ttl_sec), 1)
         self._max_presentation_hits = max(int(max_presentation_hits), RESULTS_PER_PAGE)
+        self._callback_token_ttl_sec = max(int(callback_token_ttl_sec), 1)
         self._presentation_cache: dict[str, _PresentationCacheEntry] = {}
         self._callback_query_cache: dict[str, _CallbackQueryEntry] = {}
         self._cache_lock = asyncio.Lock()
+        logger.info(
+            "[SearchService] initialized cache_enabled=%s cache_ttl_sec=%d max_presentation_hits=%d callback_token_ttl_sec=%d",
+            self._cache_enabled,
+            self._cache_ttl_sec,
+            self._max_presentation_hits,
+            self._callback_token_ttl_sec,
+        )
 
     def clear_cache(self) -> None:
+        presentation_entries = len(self._presentation_cache)
+        callback_entries = len(self._callback_query_cache)
         self._presentation_cache.clear()
         self._callback_query_cache.clear()
+        logger.info(
+            "[SearchService] clear_cache presentation_entries=%d callback_entries=%d",
+            presentation_entries,
+            callback_entries,
+        )
 
     def _build_filter(self, query: SearchQuery) -> str | None:
         conditions: list[str] = []
@@ -120,6 +140,7 @@ class SearchService:
         )
 
     async def search(self, query: SearchQuery) -> SearchPage:
+        started_at = time.monotonic()
         search_params: dict[str, Any] = {
             "limit": query.limit,
             "offset": query.offset,
@@ -139,7 +160,7 @@ class SearchService:
             **search_params,
         )
         hits = [self._parse_hit(hit) for hit in result.get("hits", [])]
-        return SearchPage(
+        page = SearchPage(
             hits=hits,
             query=query.q,
             processing_time_ms=int(result.get("processingTimeMs", 0)),
@@ -147,6 +168,20 @@ class SearchService:
             limit=query.limit,
             offset=query.offset,
         )
+        duration_ms = (time.monotonic() - started_at) * 1000
+        logger.info(
+            "[SearchService] search q_len=%d index=%s filter_enabled=%s limit=%d offset=%d hits=%d total_hits=%d duration_ms=%.1f meili_processing_ms=%d",
+            len(query.q),
+            query.index_name,
+            filter_str is not None,
+            query.limit,
+            query.offset,
+            len(page.hits),
+            page.total_hits,
+            duration_ms,
+            page.processing_time_ms,
+        )
+        return page
 
     @staticmethod
     def _presentation_cache_key(query: SearchQuery) -> str:
@@ -162,13 +197,18 @@ class SearchService:
 
     async def _get_cached_or_load_presentation(self, query: SearchQuery) -> SearchPage:
         key = self._presentation_cache_key(query)
+        key_hash = hash(key)
         if self._cache_enabled:
             async with self._cache_lock:
                 entry = self._presentation_cache.get(key)
                 if entry is not None and not entry.is_expired():
+                    logger.info("[SearchService] presentation_cache_hit key_hash=%d", key_hash)
                     return entry.page
                 if entry is not None and entry.is_expired():
                     self._presentation_cache.pop(key, None)
+                    logger.info("[SearchService] presentation_cache_expired key_hash=%d", key_hash)
+
+        logger.info("[SearchService] presentation_cache_miss key_hash=%d", key_hash)
 
         loaded_page = await self.search(
             query.model_copy(
@@ -234,6 +274,12 @@ class SearchService:
         token = base64.urlsafe_b64encode(packed).decode("ascii").rstrip("=")
         encoded = f"page:{token}".encode("utf-8")
         if len(encoded) <= 64:
+            logger.info(
+                "[SearchService] encode_callback mode=inline page=%d page_size=%d payload_bytes=%d",
+                page,
+                page_size,
+                len(encoded),
+            )
             return encoded
 
         short_token = uuid.uuid4().hex[:12]
@@ -244,7 +290,14 @@ class SearchService:
                     "offset": page * page_size,
                 }
             ),
-            expires_at=time.monotonic() + self._cache_ttl_sec,
+            expires_at=time.monotonic() + self._callback_token_ttl_sec,
+        )
+        logger.warning(
+            "[SearchService] encode_callback mode=token_fallback page=%d page_size=%d inline_payload_bytes=%d token=%s",
+            page,
+            page_size,
+            len(encoded),
+            short_token,
         )
         return f"pagek:{short_token}:{page}:{page_size}".encode("utf-8")
 
@@ -265,6 +318,12 @@ class SearchService:
             except ValueError as exc:
                 raise DomainError("search_pagination_invalid", "invalid page number") from exc
             query = entry.query.model_copy(update={"limit": page_size, "offset": page * page_size})
+            logger.info(
+                "[SearchService] decode_callback mode=token page=%d page_size=%d token=%s",
+                page,
+                page_size,
+                token,
+            )
             return query, page, page_size
 
         if raw.startswith("page:"):
@@ -283,6 +342,11 @@ class SearchService:
                     index_name=str(payload.get("index", "telegram")),
                     limit=page_size,
                     offset=page * page_size,
+                )
+                logger.info(
+                    "[SearchService] decode_callback mode=inline page=%d page_size=%d",
+                    page,
+                    page_size,
                 )
                 return query, page, page_size
             except Exception as exc:  # pragma: no cover - defensive branch
@@ -304,6 +368,11 @@ class SearchService:
                 limit=page_size,
                 offset=page * page_size,
             )
+            logger.info(
+                "[SearchService] decode_callback mode=legacy page=%d page_size=%d",
+                page,
+                page_size,
+            )
             return query, page, page_size
 
         raise DomainError("search_pagination_invalid", "unsupported pagination payload")
@@ -312,3 +381,5 @@ class SearchService:
         expired_tokens = [token for token, entry in self._callback_query_cache.items() if entry.is_expired()]
         for token in expired_tokens:
             self._callback_query_cache.pop(token, None)
+        if expired_tokens:
+            logger.info("[SearchService] cleanup_callback_tokens removed=%d", len(expired_tokens))
