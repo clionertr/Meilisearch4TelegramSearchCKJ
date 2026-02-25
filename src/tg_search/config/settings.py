@@ -82,6 +82,14 @@ OWNER_IDS = ast.literal_eval(os.getenv("OWNER_IDS", "[]"))
 # TelegramUserBot 会按该 TTL 从 ConfigPolicyService 刷新白/黑名单
 POLICY_REFRESH_TTL_SEC = int(os.getenv("POLICY_REFRESH_TTL_SEC", "10"))
 
+# 统一可观测性快照超时（秒）
+# ObservabilityService 采集 Meili 状态时的单次采集超时阈值
+OBS_SNAPSHOT_TIMEOUT_SEC = float(os.getenv("OBS_SNAPSHOT_TIMEOUT_SEC", "0.8"))
+
+# 统一可观测性慢日志阈值（毫秒）
+# 任一快照采集耗时超过该值时记录 WARNING
+OBS_SNAPSHOT_WARN_MS = int(os.getenv("OBS_SNAPSHOT_WARN_MS", "800"))
+
 ## 登录设置 ##
 # 设置SESSION_STRING后，将使用此字符串登录，否则将使用文件登录
 SESSION_STRING = os.getenv("SESSION_STRING", None)

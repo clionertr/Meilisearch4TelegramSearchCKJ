@@ -33,11 +33,13 @@ class ObservabilityService:
         index_name: str = "telegram",
         progress_registry: ProgressRegistryLike | None = None,
         snapshot_timeout_sec: float = 0.8,
+        slow_snapshot_warn_ms: int = 800,
     ) -> None:
         self._meili = meili_client
         self._index_name = index_name
         self._progress_registry = progress_registry
         self._snapshot_timeout_sec = max(snapshot_timeout_sec, 0.1)
+        self._slow_snapshot_warn_ms = max(int(slow_snapshot_warn_ms), 1)
 
     def attach_progress_registry(self, progress_registry: ProgressRegistryLike) -> None:
         """Bind/replace runtime progress registry provider."""
@@ -121,7 +123,10 @@ class ObservabilityService:
         errors: list[str],
     ) -> None:
         duration_ms = (time.monotonic() - started_at) * 1000
-        logger.info(
+        is_slow = duration_ms > self._slow_snapshot_warn_ms
+        has_errors = len(errors) > 0
+        log_method = logger.warning if (is_slow or has_errors) else logger.info
+        log_method(
             "[ObservabilityService] trace_id=%s source=%s snapshot_type=%s duration_ms=%.1f notes=%d errors=%d",
             trace_id,
             source,

@@ -33,6 +33,7 @@
 | `test_logger.py` | 日志配置测试 |
 | `test_meilisearch.py` | MeiliSearch 基础测试 |
 | `test_meilisearch_handler.py` | MeiliSearch 客户端测试 (4 个测试类) |
+| `test_observability_service.py` | ObservabilityService 单元测试 |
 | `test_service_layer_import_lint.py` | Service 层导入边界防腐检查 |
 | `test_utils.py` | 工具函数测试 (3 个测试类) |
 
@@ -52,6 +53,7 @@
 | `test_dialog_sync.py` | Dialog Sync 集成测试 |
 | `test_dialog_sync_e2e.py` | Dialog Sync E2E 测试 |
 | `test_group_setup.py` | 测试组配置 |
+| `test_observability_service_e2e.py` | ObservabilityService 真实环境 E2E 测试 |
 | `test_service_layer_architecture_e2e.py` | Service 层容器注入与配置可见性 E2E 测试 |
 | `test_storage.py` | Storage API 集成测试 |
 
