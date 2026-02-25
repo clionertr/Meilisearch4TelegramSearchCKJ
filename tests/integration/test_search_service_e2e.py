@@ -287,3 +287,24 @@ async def test_search_service_query_object_supports_filters(bot_harness: BotHand
 
     assert page.total_hits >= len(page.hits) >= 1
     assert all(hit.chat.id == chat_id for hit in page.hits)
+
+
+@requires_meili
+@pytest.mark.asyncio
+async def test_search_service_query_object_supports_sender_filters(bot_harness: BotHandler, seeded_search_docs: dict[str, Any]):
+    marker = seeded_search_docs["marker"]
+    chat_id = seeded_search_docs["chat_id"]
+
+    page = await bot_harness.search_service.search(
+        SearchQuery(
+            q=marker,
+            chat_id=chat_id,
+            sender_username="user_2",
+            limit=RESULTS_PER_PAGE,
+            offset=0,
+        )
+    )
+
+    assert page.total_hits == 1
+    assert len(page.hits) == 1
+    assert page.hits[0].from_user.username == "user_2"

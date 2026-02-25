@@ -92,6 +92,9 @@ class SearchService:
             conditions.append(f'date >= "{query.date_from.isoformat()}"')
         if query.date_to is not None:
             conditions.append(f'date <= "{query.date_to.isoformat()}"')
+        if query.sender_username is not None:
+            safe = query.sender_username.replace('"', '\\"')
+            conditions.append(f'from_user.username = "{safe}"')
 
         return " AND ".join(conditions) if conditions else None
 
@@ -191,6 +194,7 @@ class SearchService:
             "chat_type": query.chat_type,
             "date_from": query.date_from.isoformat() if query.date_from else None,
             "date_to": query.date_to.isoformat() if query.date_to else None,
+            "sender_username": query.sender_username,
             "index_name": query.index_name,
         }
         return json.dumps(payload, sort_keys=True, separators=(",", ":"))
@@ -269,6 +273,8 @@ class SearchService:
             payload["df"] = query.date_from.isoformat()
         if query.date_to is not None:
             payload["dt"] = query.date_to.isoformat()
+        if query.sender_username is not None:
+            payload["su"] = query.sender_username
 
         packed = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
         token = base64.urlsafe_b64encode(packed).decode("ascii").rstrip("=")
@@ -339,6 +345,7 @@ class SearchService:
                     chat_type=payload.get("ct"),
                     date_from=datetime.fromisoformat(payload["df"]) if payload.get("df") else None,
                     date_to=datetime.fromisoformat(payload["dt"]) if payload.get("dt") else None,
+                    sender_username=payload.get("su"),
                     index_name=str(payload.get("index", "telegram")),
                     limit=page_size,
                     offset=page * page_size,

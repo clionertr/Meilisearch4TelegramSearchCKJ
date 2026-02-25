@@ -11,7 +11,7 @@ const BottomNav: React.FC = () => {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/80 dark:bg-[#101d22]/80 backdrop-blur-xl border-t border-slate-200 dark:border-white/5 px-6 pt-3 pb-8 flex justify-between items-center z-50">
+    <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/80 dark:bg-background-dark/80 backdrop-blur-xl border-t border-slate-200 dark:border-white/5 px-6 pt-3 pb-8 flex justify-between items-center z-50">
       <button 
         onClick={() => navigate('/')}
         className={`flex flex-col items-center gap-1 ${isActive('/') ? 'text-primary' : 'text-slate-400'}`}

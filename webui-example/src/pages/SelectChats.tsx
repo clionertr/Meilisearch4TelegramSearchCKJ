@@ -121,7 +121,7 @@ const SelectChats: React.FC = () => {
                     {dialogs.map(dialog => {
                         const syncStateMeta = getSyncStateLabel(dialog.sync_state);
                         return (
-                            <div key={dialog.id} className="flex items-center justify-between p-4 rounded-2xl bg-white dark:bg-[#15262d] border border-slate-100 dark:border-slate-800/50 shadow-sm">
+                            <div key={dialog.id} className="flex items-center justify-between p-4 rounded-2xl bg-white dark:bg-surface-alt-dark border border-slate-100 dark:border-slate-800/50 shadow-sm">
                                 <div className="flex items-center gap-3 overflow-hidden">
                                     <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${getIconColor(dialog.type)}`}>
                                         <span className="material-symbols-outlined text-2xl">{getIcon(dialog.type)}</span>

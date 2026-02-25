@@ -69,6 +69,7 @@ async def search_messages(
     chat_type: Optional[ChatType] = Query(None, description="聊天类型: private/group/channel"),
     date_from: Optional[datetime] = Query(None, description="开始日期 (ISO8601)"),
     date_to: Optional[datetime] = Query(None, description="结束日期 (ISO8601)"),
+    sender_username: Optional[str] = Query(None, description="发送者用户名"),
     limit: int = Query(20, ge=1, le=100, description="返回数量"),
     offset: int = Query(0, ge=0, description="偏移量"),
     search_service: SearchService = Depends(get_search_service),
@@ -80,6 +81,7 @@ async def search_messages(
             chat_type=chat_type.value if chat_type is not None else None,
             date_from=date_from,
             date_to=date_to,
+            sender_username=sender_username,
             limit=limit,
             offset=offset,
         )

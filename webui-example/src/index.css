@@ -9,6 +9,15 @@
     --color-background-dark: #101d22;
     --color-surface-dark: #1a2c33;
     --color-surface-light: #ffffff;
+    --color-card-dark: #192d33;
+    --color-border-dark: #325a67;
+    --color-divider-dark: #233f48;
+    --color-dropdown-dark: #162a30;
+    --color-highlight-dark: #1e3a44;
+    --color-code-dark: #1a3039;
+    --color-button-secondary-dark: #111e22;
+    --color-muted-dark: #92bbc9;
+    --color-surface-alt-dark: #15262d;
     --font-family-display: 'Inter', sans-serif;
 }
 

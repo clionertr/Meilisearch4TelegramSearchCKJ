@@ -141,3 +141,29 @@ def test_encode_callback_falls_back_to_short_token_when_payload_too_long():
     assert decoded_query.q == long_query
     assert page == 2
     assert page_size == 5
+
+@pytest.mark.asyncio
+async def test_search_builds_filter_with_sender_username():
+    fake = _FakeMeili({"hits": [], "processingTimeMs": 3, "estimatedTotalHits": 0})
+    service = SearchService(fake, cache_enabled=False)
+
+    await service.search(
+        SearchQuery(
+            q="hello",
+            sender_username='alice"bob',
+        )
+    )
+
+    assert len(fake.calls) == 1
+    call = fake.calls[0]
+    assert 'from_user.username = "alice\\"bob"' in call[2]["filter"]
+
+def test_encode_callback_includes_sender_username():
+    service = SearchService(_FakeMeili({"hits": [], "processingTimeMs": 0, "estimatedTotalHits": 0}))
+    
+    query = SearchQuery(q="hello", sender_username="alice")
+    payload = service.encode_page_callback(query, page=1, page_size=5)
+    
+    decoded_query, page, page_size = service.decode_page_callback(payload)
+    assert decoded_query.q == "hello"
+    assert decoded_query.sender_username == "alice"

@@ -2,12 +2,16 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { extractApiErrorMessage } from '@/api/error';
 import { Highlight } from '@/components/common/Highlight';
-import { useSearchQuery } from '@/hooks/queries/useSearch';
+import { useSearchQuery, SearchFilters } from '@/hooks/queries/useSearch';
+import { DateFilter } from '@/components/search/DateFilter';
+import { SenderFilter } from '@/components/search/SenderFilter';
 
 const Search: React.FC = () => {
     const navigate = useNavigate();
     const [query, setQuery] = useState('');
     const [debouncedQuery, setDebouncedQuery] = useState('');
+    const [filters, setFilters] = useState<SearchFilters>({});
+    const [dateRangeType, setDateRangeType] = useState<string>('anytime');
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -23,7 +27,7 @@ const Search: React.FC = () => {
         isFetchingNextPage,
         isLoading,
         error
-    } = useSearchQuery(debouncedQuery, 20);
+    } = useSearchQuery(debouncedQuery, 20, filters);
 
     const allResults = useMemo(() => {
         return data?.pages.flatMap(page => page.data.data.hits) || [];
@@ -68,16 +72,29 @@ const Search: React.FC = () => {
 
             {/* Filter Chips */}
             <div className="px-4 py-2 shrink-0 overflow-x-auto no-scrollbar flex gap-2 pb-4">
-                <button className="flex items-center gap-1 px-4 py-1.5 rounded-full bg-surface-light dark:bg-surface-dark border border-slate-200 dark:border-[#233f48] text-sm font-medium whitespace-nowrap shadow-sm active:scale-95 transition-transform">
-                    <span className="text-slate-500 dark:text-slate-400">Date:</span>
-                    <span className="text-primary">Anytime</span>
-                    <span className="material-symbols-outlined text-[18px] text-slate-400">expand_more</span>
-                </button>
-                <button className="flex items-center gap-1 px-4 py-1.5 rounded-full bg-surface-light dark:bg-surface-dark border border-slate-200 dark:border-[#233f48] text-sm font-medium whitespace-nowrap shadow-sm active:scale-95 transition-transform">
-                    <span className="text-slate-500 dark:text-slate-400">Sender:</span>
-                    <span className="text-slate-900 dark:text-white">All</span>
-                    <span className="material-symbols-outlined text-[18px] text-slate-400">expand_more</span>
-                </button>
+                <DateFilter
+                    rangeType={dateRangeType}
+                    onChange={(rangeType, dateFrom) => {
+                        setDateRangeType(rangeType);
+                        setFilters(prev => ({ ...prev, dateFrom }));
+                    }}
+                />
+                <SenderFilter
+                    value={filters.senderUsername}
+                    onChange={(senderUsername) => setFilters(prev => ({ ...prev, senderUsername }))}
+                />
+                {(dateRangeType !== 'anytime' || filters.senderUsername) && (
+                    <button
+                        onClick={() => {
+                            setFilters({});
+                            setDateRangeType('anytime');
+                        }}
+                        className="flex items-center gap-1 px-4 py-1.5 rounded-full bg-slate-100 dark:bg-code-dark border border-slate-200 dark:border-divider-dark text-sm font-medium hover:text-red-500 dark:hover:text-red-400 whitespace-nowrap shadow-sm transition-colors text-slate-500 dark:text-slate-400"
+                    >
+                        <span className="material-symbols-outlined text-[16px]">filter_alt_off</span>
+                        Clear filters
+                    </button>
+                )}
             </div>
 
             {/* Results Info */}
@@ -99,7 +116,7 @@ const Search: React.FC = () => {
                 )}
 
                 {allResults.map((result) => (
-                    <div key={result.id} className="bg-surface-light dark:bg-surface-dark rounded-2xl p-4 shadow-sm border border-transparent dark:border-[#233f48]/50">
+                    <div key={result.id} className="bg-surface-light dark:bg-surface-dark rounded-2xl p-4 shadow-sm border border-transparent dark:border-divider-dark/50">
                         <div className="flex items-start gap-3 mb-3">
                             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-indigo-600 flex items-center justify-center shrink-0 shadow-lg shadow-indigo-500/20">
                                 <span className="text-white font-bold text-sm">
@@ -120,7 +137,7 @@ const Search: React.FC = () => {
                                 </p>
                             </div>
                         </div>
-                        <div className="relative pl-4 border-l-2 border-slate-200 dark:border-[#233f48] space-y-2.5">
+                        <div className="relative pl-4 border-l-2 border-slate-200 dark:border-divider-dark space-y-2.5">
                             <div className="text-sm text-slate-800 dark:text-slate-200 bg-primary/10 dark:bg-primary/5 -ml-4 pl-4 pr-2 py-2 rounded-r-lg border-l-2 border-primary">
                                 <Highlight html={result.formatted_text || result.text} />
                             </div>

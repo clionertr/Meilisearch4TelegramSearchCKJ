@@ -45,6 +45,7 @@ class SearchQuery(BaseModel):
     chat_type: Optional[Literal["private", "group", "channel"]] = None
     date_from: Optional[datetime] = None
     date_to: Optional[datetime] = None
+    sender_username: Optional[str] = None
     limit: int = Field(default=20, ge=1, le=100)
     offset: int = Field(default=0, ge=0)
     index_name: str = "telegram"

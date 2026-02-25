@@ -134,11 +134,11 @@ const AIConfig: React.FC = () => {
                     <div className="p-4 space-y-6">
                         <section className="space-y-4">
                             <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 px-1">API Settings</h3>
-                            <div className="p-4 rounded-2xl bg-[#192d33] border border-white/5 space-y-4">
+                            <div className="p-4 rounded-2xl bg-card-dark border border-white/5 space-y-4">
                                 <div className="space-y-2">
                                     <label className="text-xs font-medium text-slate-400 block px-1">API Endpoint URL</label>
                                     <input
-                                        className="w-full bg-[#111e22] border-white/10 rounded-xl px-4 py-3 text-sm focus:ring-primary focus:border-primary placeholder:text-slate-600 outline-none"
+                                        className="w-full bg-button-secondary-dark border-white/10 rounded-xl px-4 py-3 text-sm focus:ring-primary focus:border-primary placeholder:text-slate-600 outline-none"
                                         placeholder="https://api.openai.com/v1"
                                         type="text"
                                         value={baseUrl}
@@ -149,7 +149,7 @@ const AIConfig: React.FC = () => {
                                     <label className="text-xs font-medium text-slate-400 block px-1">API Key</label>
                                     <div className="relative">
                                         <input
-                                            className="w-full bg-[#111e22] border-white/10 rounded-xl px-4 py-3 text-sm focus:ring-primary focus:border-primary placeholder:text-slate-600 outline-none"
+                                            className="w-full bg-button-secondary-dark border-white/10 rounded-xl px-4 py-3 text-sm focus:ring-primary focus:border-primary placeholder:text-slate-600 outline-none"
                                             placeholder={config?.api_key_set ? 'Key is set (leave empty to clear)' : 'Enter your API key'}
                                             type={showApiKey ? 'text' : 'password'}
                                             value={apiKey}
@@ -192,12 +192,12 @@ const AIConfig: React.FC = () => {
 
                         <section className="space-y-4">
                             <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 px-1">Model Selection</h3>
-                            <div className="p-4 rounded-2xl bg-[#192d33] border border-white/5 space-y-4">
+                            <div className="p-4 rounded-2xl bg-card-dark border border-white/5 space-y-4">
                                 <div className="space-y-2">
                                     <label className="text-xs font-medium text-slate-400 block px-1">Model Name</label>
                                     <div className="relative">
                                         <input
-                                            className="w-full bg-[#111e22] border-white/10 rounded-xl px-4 py-3 text-sm focus:ring-primary focus:border-primary placeholder:text-slate-600 outline-none"
+                                            className="w-full bg-button-secondary-dark border-white/10 rounded-xl px-4 py-3 text-sm focus:ring-primary focus:border-primary placeholder:text-slate-600 outline-none"
                                             placeholder="e.g. gpt-4o"
                                             type="text"
                                             value={model}

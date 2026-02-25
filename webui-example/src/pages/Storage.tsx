@@ -77,7 +77,7 @@ const Storage: React.FC = () => {
 
             <div className="p-4 space-y-4">
                 {/* Stats Card */}
-                <div className="bg-white dark:bg-[#192d33] rounded-2xl p-5 border border-slate-200 dark:border-white/5 shadow-sm">
+                <div className="bg-white dark:bg-card-dark rounded-2xl p-5 border border-slate-200 dark:border-white/5 shadow-sm">
                     <div className="flex justify-between items-end mb-4">
                         <div>
                             <p className="text-xs font-semibold uppercase tracking-wider text-primary mb-1">Total Usage</p>
@@ -110,7 +110,7 @@ const Storage: React.FC = () => {
                 </div>
 
                 {/* Auto-clean */}
-                <div className="bg-white dark:bg-[#192d33] rounded-2xl p-5 border border-slate-200 dark:border-white/5 shadow-sm">
+                <div className="bg-white dark:bg-card-dark rounded-2xl p-5 border border-slate-200 dark:border-white/5 shadow-sm">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -118,7 +118,7 @@ const Storage: React.FC = () => {
                             </div>
                             <div>
                                 <p className="font-bold">Auto-clean Storage</p>
-                                <p className="text-xs text-slate-500 dark:text-[#92bbc9]">Manage space automatically</p>
+                                <p className="text-xs text-slate-500 dark:text-muted-dark">Manage space automatically</p>
                             </div>
                         </div>
                         <label className="relative inline-flex items-center cursor-pointer">
@@ -135,11 +135,11 @@ const Storage: React.FC = () => {
                         <button
                             onClick={handleCleanupCache}
                             disabled={isCleaning}
-                            className="w-full flex items-center justify-between p-4 bg-white dark:bg-[#192d33] border border-slate-200 dark:border-white/5 rounded-2xl active:scale-[0.98] transition-transform disabled:opacity-50"
+                            className="w-full flex items-center justify-between p-4 bg-white dark:bg-card-dark border border-slate-200 dark:border-white/5 rounded-2xl active:scale-[0.98] transition-transform disabled:opacity-50"
                         >
                             <div className="text-left">
                                 <p className="font-bold text-sm">Clear Cache</p>
-                                <p className="text-xs text-slate-500 dark:text-[#92bbc9]">Removes search & config cache</p>
+                                <p className="text-xs text-slate-500 dark:text-muted-dark">Removes search & config cache</p>
                             </div>
                             <div className="bg-primary/10 text-primary px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-tight">
                                 {cleanupCacheMutation.isPending ? 'Clearing...' : 'Clean Up'}
@@ -148,11 +148,11 @@ const Storage: React.FC = () => {
                         <button
                             onClick={handleCleanupMedia}
                             disabled={isCleaning}
-                            className="w-full flex items-center justify-between p-4 bg-white dark:bg-[#192d33] border border-slate-200 dark:border-white/5 rounded-2xl active:scale-[0.98] transition-transform group disabled:opacity-50"
+                            className="w-full flex items-center justify-between p-4 bg-white dark:bg-card-dark border border-slate-200 dark:border-white/5 rounded-2xl active:scale-[0.98] transition-transform group disabled:opacity-50"
                         >
                             <div className="text-left">
                                 <p className="font-bold text-sm text-red-500">Clear Media</p>
-                                <p className="text-xs text-slate-500 dark:text-[#92bbc9]">Not available in current version</p>
+                                <p className="text-xs text-slate-500 dark:text-muted-dark">Not available in current version</p>
                             </div>
                             <div className="bg-red-500/10 text-red-500 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-tight">
                                 {cleanupMediaMutation.isPending ? 'Clearing...' : 'Clear'}

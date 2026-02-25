@@ -47,7 +47,7 @@ const Settings: React.FC = () => {
 
       {/* Storage Card */}
       <div className="p-4">
-        <div className="flex flex-col items-stretch justify-start rounded-xl p-5 shadow-lg bg-white dark:bg-[#192d33] border border-slate-200 dark:border-white/5">
+        <div className="flex flex-col items-stretch justify-start rounded-xl p-5 shadow-lg bg-white dark:bg-card-dark border border-slate-200 dark:border-white/5">
           <div className="flex items-center justify-between mb-6">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-primary mb-1">Device Health</p>
@@ -60,7 +60,7 @@ const Settings: React.FC = () => {
               <div className="flex justify-between items-end dark:text-white">
                 <p className="text-2xl font-bold">{formatBytes(storageStats?.total_bytes ?? null)}</p>
               </div>
-              <p className="text-slate-500 dark:text-[#92bbc9] text-xs font-normal leading-relaxed mt-1">
+              <p className="text-slate-500 dark:text-muted-dark text-xs font-normal leading-relaxed mt-1">
                 {systemStatus
                   ? `TeleMemory is indexing ${systemStatus.indexed_messages.toLocaleString()} messages.`
                   : 'Loading status...'
@@ -73,7 +73,7 @@ const Settings: React.FC = () => {
               <span className="material-symbols-outlined text-lg">cleaning</span>
               <span>Quick Clean</span>
             </button>
-            <button className="w-12 flex items-center justify-center rounded-lg h-12 bg-slate-100 dark:bg-[#111e22] text-slate-600 dark:text-white border border-slate-200 dark:border-white/5">
+            <button className="w-12 flex items-center justify-center rounded-lg h-12 bg-slate-100 dark:bg-button-secondary-dark text-slate-600 dark:text-white border border-slate-200 dark:border-white/5">
               <span className="material-symbols-outlined">settings</span>
             </button>
           </div>
@@ -85,7 +85,7 @@ const Settings: React.FC = () => {
         <div className="px-4 py-2">
           <h3 className="text-lg font-bold leading-tight tracking-tight mb-4 dark:text-white">System Status</h3>
           <div className="grid grid-cols-2 gap-3">
-            <div className="p-4 rounded-xl bg-white dark:bg-[#192d33] border border-slate-200 dark:border-white/5">
+            <div className="p-4 rounded-xl bg-white dark:bg-card-dark border border-slate-200 dark:border-white/5">
               <div className="flex items-center gap-2 mb-2">
                 <span className={`w-2 h-2 rounded-full ${systemStatus.meili_connected ? 'bg-green-500' : 'bg-red-500'}`}></span>
                 <span className="text-xs font-medium text-slate-500 dark:text-slate-400">MeiliSearch</span>
@@ -94,7 +94,7 @@ const Settings: React.FC = () => {
                 {systemStatus.meili_connected ? 'Connected' : 'Disconnected'}
               </p>
             </div>
-            <div className="p-4 rounded-xl bg-white dark:bg-[#192d33] border border-slate-200 dark:border-white/5">
+            <div className="p-4 rounded-xl bg-white dark:bg-card-dark border border-slate-200 dark:border-white/5">
               <div className="flex items-center gap-2 mb-2">
                 <span className={`w-2 h-2 rounded-full ${systemStatus.telegram_connected ? 'bg-green-500' : 'bg-red-500'}`}></span>
                 <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Telegram</span>
@@ -111,7 +111,7 @@ const Settings: React.FC = () => {
       <div className="px-4 py-4">
         <h3 className="text-lg font-bold leading-tight tracking-tight mb-4 dark:text-white">Configurations</h3>
         <div className="grid grid-cols-2 gap-4">
-          <div onClick={() => navigate('/ai-config')} className="flex flex-col gap-4 p-4 rounded-xl bg-white dark:bg-[#192d33] border border-slate-200 dark:border-white/5 shadow-sm cursor-pointer active:scale-95 transition-transform">
+          <div onClick={() => navigate('/ai-config')} className="flex flex-col gap-4 p-4 rounded-xl bg-white dark:bg-card-dark border border-slate-200 dark:border-white/5 shadow-sm cursor-pointer active:scale-95 transition-transform">
             <div className="flex items-center justify-between">
               <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
                 <span className="material-symbols-outlined text-primary">psychology</span>
@@ -120,10 +120,10 @@ const Settings: React.FC = () => {
             </div>
             <div>
               <p className="font-bold text-base dark:text-white">AI Configuration</p>
-              <p className="text-slate-500 dark:text-[#92bbc9] text-xs mt-1">OpenAI, Claude, Local</p>
+              <p className="text-slate-500 dark:text-muted-dark text-xs mt-1">OpenAI, Claude, Local</p>
             </div>
           </div>
-          <div onClick={() => navigate('/synced-chats')} className="flex flex-col gap-4 p-4 rounded-xl bg-white dark:bg-[#192d33] border border-slate-200 dark:border-white/5 shadow-sm cursor-pointer active:scale-95 transition-transform">
+          <div onClick={() => navigate('/synced-chats')} className="flex flex-col gap-4 p-4 rounded-xl bg-white dark:bg-card-dark border border-slate-200 dark:border-white/5 shadow-sm cursor-pointer active:scale-95 transition-transform">
             <div className="flex items-center justify-between">
               <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
                 <span className="material-symbols-outlined text-primary">sync</span>
@@ -132,7 +132,7 @@ const Settings: React.FC = () => {
             </div>
             <div>
               <p className="font-bold text-base dark:text-white">Synced Chats</p>
-              <p className="text-slate-500 dark:text-[#92bbc9] text-xs mt-1">Manage sync settings</p>
+              <p className="text-slate-500 dark:text-muted-dark text-xs mt-1">Manage sync settings</p>
             </div>
           </div>
         </div>

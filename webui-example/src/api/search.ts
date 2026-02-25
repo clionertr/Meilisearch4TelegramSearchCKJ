@@ -5,6 +5,9 @@ export interface SearchRequest {
   limit?: number;
   offset?: number;
   chat_id?: number;
+  date_from?: string;
+  date_to?: string;
+  sender_username?: string;
 }
 
 interface ChatInfo {
@@ -38,5 +41,5 @@ export interface SearchResponse {
 }
 
 export const searchApi = {
-  search: (params: SearchRequest) => api.get<{data: SearchResponse}>('/search', { params }),
+  search: (params: SearchRequest) => api.get<{ data: SearchResponse }>('/search', { params }),
 };

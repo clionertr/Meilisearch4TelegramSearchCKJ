@@ -130,7 +130,7 @@ const Login: React.FC = () => {
                         <span className="material-symbols-outlined text-slate-400 text-xl">call</span>
                     </div>
                     <input
-                        className="form-input block w-full pl-11 pr-4 py-3.5 bg-white dark:bg-[#192d33] border border-slate-200 dark:border-[#325a67] rounded-xl text-base focus:ring-2 focus:ring-primary focus:border-primary transition-all placeholder:text-slate-400 dark:placeholder:text-[#92bbc9] dark:text-white"
+                        className="form-input block w-full pl-11 pr-4 py-3.5 bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark rounded-xl text-base focus:ring-2 focus:ring-primary focus:border-primary transition-all placeholder:text-slate-400 dark:placeholder:text-muted-dark dark:text-white"
                         placeholder="+8613800138000"
                         type="tel"
                         value={phoneNumber}
@@ -166,7 +166,7 @@ const Login: React.FC = () => {
                         <span className="material-symbols-outlined text-slate-400 text-xl">password</span>
                     </div>
                     <input
-                        className="form-input block w-full pl-11 pr-4 py-3.5 bg-white dark:bg-[#192d33] border border-slate-200 dark:border-[#325a67] rounded-xl text-base focus:ring-2 focus:ring-primary focus:border-primary transition-all placeholder:text-slate-400 dark:placeholder:text-[#92bbc9] dark:text-white"
+                        className="form-input block w-full pl-11 pr-4 py-3.5 bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark rounded-xl text-base focus:ring-2 focus:ring-primary focus:border-primary transition-all placeholder:text-slate-400 dark:placeholder:text-muted-dark dark:text-white"
                         placeholder="12345"
                         type="text"
                         value={code}
@@ -215,7 +215,7 @@ const Login: React.FC = () => {
                         <span className="material-symbols-outlined text-slate-400 text-xl">lock</span>
                     </div>
                     <input
-                        className="form-input block w-full pl-11 pr-4 py-3.5 bg-white dark:bg-[#192d33] border border-slate-200 dark:border-[#325a67] rounded-xl text-base focus:ring-2 focus:ring-primary focus:border-primary transition-all placeholder:text-slate-400 dark:placeholder:text-[#92bbc9] dark:text-white"
+                        className="form-input block w-full pl-11 pr-4 py-3.5 bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark rounded-xl text-base focus:ring-2 focus:ring-primary focus:border-primary transition-all placeholder:text-slate-400 dark:placeholder:text-muted-dark dark:text-white"
                         placeholder="Your 2FA password"
                         type="password"
                         value={password}
@@ -248,7 +248,7 @@ const Login: React.FC = () => {
                         <span className="material-symbols-outlined text-slate-400 text-xl">key</span>
                     </div>
                     <input
-                        className="form-input block w-full pl-11 pr-4 py-3.5 bg-white dark:bg-[#192d33] border border-slate-200 dark:border-[#325a67] rounded-xl text-base focus:ring-2 focus:ring-primary focus:border-primary transition-all placeholder:text-slate-400 dark:placeholder:text-[#92bbc9] dark:text-white font-mono text-sm"
+                        className="form-input block w-full pl-11 pr-4 py-3.5 bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark rounded-xl text-base focus:ring-2 focus:ring-primary focus:border-primary transition-all placeholder:text-slate-400 dark:placeholder:text-muted-dark dark:text-white font-mono text-sm"
                         placeholder="Paste your token here"
                         type="text"
                         value={tokenInput}
@@ -259,7 +259,7 @@ const Login: React.FC = () => {
                 </div>
             </label>
             <p className="text-xs text-slate-400 dark:text-slate-500 leading-relaxed">
-                Paste a valid Bearer Token from <code className="bg-slate-100 dark:bg-[#1a3039] px-1.5 py-0.5 rounded text-[11px]">session/auth_tokens.json</code> to skip the phone verification flow.
+                Paste a valid Bearer Token from <code className="bg-slate-100 dark:bg-code-dark px-1.5 py-0.5 rounded text-[11px]">session/auth_tokens.json</code> to skip the phone verification flow.
             </p>
             <button
                 onClick={handleTokenLogin}
@@ -301,17 +301,17 @@ const Login: React.FC = () => {
                     </div>
 
                     {/* Mode Switcher Tabs */}
-                    <div className="flex bg-slate-100 dark:bg-[#162a30] rounded-xl p-1 mb-6">
+                    <div className="flex bg-slate-100 dark:bg-dropdown-dark rounded-xl p-1 mb-6">
                         <button
                             onClick={() => switchMode('phone')}
-                            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-sm font-medium transition-all ${loginMode === 'phone' ? 'bg-white dark:bg-[#1e3a44] text-primary shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-sm font-medium transition-all ${loginMode === 'phone' ? 'bg-white dark:bg-highlight-dark text-primary shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
                         >
                             <span className="material-symbols-outlined text-lg">phone_iphone</span>
                             <span>Phone</span>
                         </button>
                         <button
                             onClick={() => switchMode('token')}
-                            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-sm font-medium transition-all ${loginMode === 'token' ? 'bg-white dark:bg-[#1e3a44] text-primary shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-sm font-medium transition-all ${loginMode === 'token' ? 'bg-white dark:bg-highlight-dark text-primary shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
                         >
                             <span className="material-symbols-outlined text-lg">vpn_key</span>
                             <span>Token</span>

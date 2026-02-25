@@ -185,9 +185,9 @@ INDEX_CONFIG = (
     {
         "displayedAttributes": ["*"],
         "searchableAttributes": ["text", "id"],
-        # Note: Search API uses filters like `chat.id` and `from_user.id`.
+        # Note: Search API uses filters like `chat.id` and `from_user.username`.
         # These must be declared filterable in MeiliSearch, otherwise filtered search will error.
-        "filterableAttributes": ["chat.id", "chat.type", "date", "from_user.id", "reactions_scores"],
+        "filterableAttributes": ["chat.id", "chat.type", "date", "from_user.id", "from_user.username", "reactions_scores"],
         "sortableAttributes": ["date", "id"],
         "rankingRules": [
             "words",

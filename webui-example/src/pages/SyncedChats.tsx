@@ -66,12 +66,12 @@ const SyncedChats: React.FC = () => {
                 {dialogs.map((dialog, idx) => {
                     const isActive = dialog.sync_state === 'active';
                     return (
-                        <div key={dialog.id} className={`flex items-center gap-4 p-4 rounded-2xl bg-white dark:bg-[#192d33] border border-slate-200 dark:border-white/5 shadow-sm ${!isActive ? 'opacity-80' : ''}`}>
+                        <div key={dialog.id} className={`flex items-center gap-4 p-4 rounded-2xl bg-white dark:bg-card-dark border border-slate-200 dark:border-white/5 shadow-sm ${!isActive ? 'opacity-80' : ''}`}>
                             <div className="relative">
                                 <div className={`w-12 h-12 rounded-full bg-gradient-to-tr ${gradients[idx % gradients.length]} flex items-center justify-center text-white font-bold text-lg ${!isActive ? 'grayscale' : ''}`}>
                                     {dialog.title.charAt(0).toUpperCase()}
                                 </div>
-                                <div className={`absolute -bottom-0.5 -right-0.5 w-4 h-4 ${isActive ? 'bg-green-500' : 'bg-slate-400'} border-2 border-white dark:border-[#192d33] rounded-full`}></div>
+                                <div className={`absolute -bottom-0.5 -right-0.5 w-4 h-4 ${isActive ? 'bg-green-500' : 'bg-slate-400'} border-2 border-white dark:border-card-dark rounded-full`}></div>
                             </div>
                             <div className="flex-1 min-w-0">
                                 <h3 className={`font-bold text-sm truncate ${isActive ? 'dark:text-white' : 'text-slate-600 dark:text-slate-300'}`}>{dialog.title}</h3>
