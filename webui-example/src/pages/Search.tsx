@@ -75,7 +75,7 @@ const Search: React.FC = () => {
             </div>
 
             {/* Filter Chips */}
-            <div className="px-4 py-2 shrink-0 overflow-x-auto no-scrollbar flex gap-2 pb-4">
+            <div className="px-4 py-2 shrink-0 flex flex-wrap gap-2 pb-4 relative z-20">
                 <DateFilter
                     rangeType={dateRangeType}
                     onChange={(rangeType, dateFrom) => {

@@ -55,15 +55,15 @@ export const SenderFilter: React.FC<SenderFilterProps> = ({ value, onChange }) =
             </button>
 
             {isOpen && (
-                <div className="absolute top-full left-0 mt-2 w-64 bg-white dark:bg-dropdown-dark rounded-xl shadow-lg border border-slate-100 dark:border-border-dark p-3 z-50">
+                <div className="absolute top-full -left-4 sm:left-0 mt-2 w-56 sm:w-64 bg-white dark:bg-dropdown-dark rounded-xl shadow-lg border border-slate-100 dark:border-border-dark p-3 z-50">
                     <form onSubmit={handleSubmit} className="flex gap-2">
                         <input
                             type="text"
                             autoFocus
                             value={inputValue}
                             onChange={(e) => setInputValue(e.target.value)}
-                            placeholder="Enter username..."
-                            className="flex-1 text-sm rounded bg-slate-50 dark:bg-surface-dark border border-slate-200 dark:border-border-dark px-2 py-1.5 text-slate-900 dark:text-white focus:outline-none focus:border-primary"
+                            placeholder="Username..."
+                            className="flex-1 min-w-0 text-sm rounded bg-slate-50 dark:bg-surface-dark border border-slate-200 dark:border-border-dark px-2 py-1.5 text-slate-900 dark:text-white focus:outline-none focus:border-primary"
                         />
                         <div className="flex gap-1">
                             {inputValue && (
