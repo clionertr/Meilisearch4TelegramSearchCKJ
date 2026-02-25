@@ -69,6 +69,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             app_state.service_container = build_service_container(meili_client=app_state.meili_client)
             app_state.config_store = app_state.service_container.config_store
             app_state.config_policy_service = app_state.service_container.config_policy_service
+            app_state.search_service = app_state.service_container.search_service
             logger.info("ServiceContainer initialized successfully")
         except Exception as e:
             logger.error(f"Failed to initialize ServiceContainer: {e}")

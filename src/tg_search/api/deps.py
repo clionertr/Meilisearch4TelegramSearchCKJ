@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from tg_search.config.config_store import ConfigStore
     from tg_search.core.meilisearch import MeiliSearchClient
     from tg_search.services.config_policy_service import ConfigPolicyService
+    from tg_search.services.search_service import SearchService
 
 
 # API Key 安全依赖
@@ -175,6 +176,16 @@ async def get_config_policy_service(request: Request) -> "ConfigPolicyService":
     if app_state.config_policy_service is None:
         raise HTTPException(status_code=503, detail="ConfigPolicyService not initialized")
     return app_state.config_policy_service
+
+
+async def get_search_service(request: Request) -> "SearchService":
+    """获取 SearchService。"""
+    from tg_search.services.search_service import SearchService  # noqa: F401
+
+    app_state = await get_app_state(request)
+    if app_state.search_service is None:
+        raise HTTPException(status_code=503, detail="SearchService not initialized")
+    return app_state.search_service
 
 
 def parse_bearer_token(authorization: Optional[str]) -> Optional[str]:

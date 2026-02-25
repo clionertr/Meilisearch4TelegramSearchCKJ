@@ -94,6 +94,7 @@ async def api_client(service_container: ServiceContainer):
         state.meili_client = service_container.meili_client
         state.config_store = service_container.config_store
         state.config_policy_service = service_container.config_policy_service
+        state.search_service = service_container.search_service
         state.api_only = False
 
         headers: dict[str, str] = {}

@@ -141,8 +141,11 @@ async def test_client(mock_meili_client):
             transport = httpx.ASGITransport(app=app, raise_app_exceptions=True)
             async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
                 # lifespan 会被执行，app_state 会被创建；确保 meili_client 为 mock
+                from tg_search.services.search_service import SearchService
+
                 app.state.app_state.meili_client = mock_meili_client
                 app.state.app_state.config_policy_service = FakePolicyService()
+                app.state.app_state.search_service = SearchService(mock_meili_client, cache_enabled=False)
                 yield client
 
 

@@ -11,26 +11,20 @@ from telethon.tl.types import BotCommand, BotCommandScopeDefault
 from tg_search.config.settings import (
     APP_HASH,
     APP_ID,
-    CACHE_EXPIRE_SECONDS,
     MAX_PAGE,
     OWNER_IDS,
     PROXY,
     RESULTS_PER_PAGE,
-    SEARCH_CACHE,
     TOKEN,
     IPv6,
 )
 from tg_search.core.logger import setup_logger
 from tg_search.services import DomainError
 from tg_search.services.container import ServiceContainer, build_service_container
+from tg_search.services.contracts import SearchHit, SearchPage, SearchQuery
 from tg_search.utils.formatters import sizeof_fmt
 
 MAX_RESULTS = MAX_PAGE * RESULTS_PER_PAGE
-
-
-# TODO
-# 1. 加速未缓存时的搜索速度
-# 3. 优化代码逻辑和结构
 
 
 def set_permission(func):
@@ -68,7 +62,7 @@ class BotHandler:
         self.services = services or build_service_container()
         self.meili = self.services.meili_client
         self.policy_service = self.services.config_policy_service
-        self.search_results_cache = {}
+        self.search_service = self.services.search_service
         self.main = main
         self.download_task = None
 
@@ -80,6 +74,8 @@ class BotHandler:
             return "写入冲突，请稍后重试"
         if exc.code == "policy_store_unavailable":
             return "服务暂不可用，请稍后重试"
+        if exc.code == "search_pagination_invalid":
+            return "分页参数已失效，请重新搜索"
         return f"操作失败：{exc.message}"
 
     async def initialize(self):
@@ -120,7 +116,7 @@ class BotHandler:
             self.bot_client(
                 SetBotCommandsRequest(
                     scope=BotCommandScopeDefault(),
-                    lang_code="",  # 空字符串表示默认语言
+                    lang_code="",
                     commands=commands,
                 )
             ),
@@ -154,31 +150,36 @@ class BotHandler:
         else:
             self.logger.info("Downloading task is already running...")
 
-    async def search_handler(self, event, query):
+    async def search_handler(self, event, query: str):
         try:
-            results = (
-                await self.get_search_results(query, limit=MAX_RESULTS)
-                if not SEARCH_CACHE
-                else await self.get_search_results(query)
+            search_query = SearchQuery(q=query, limit=RESULTS_PER_PAGE, offset=0)
+            page = await self.search_service.search_for_presentation(
+                search_query,
+                page=0,
+                page_size=RESULTS_PER_PAGE,
             )
-            if results:
-                if SEARCH_CACHE:
-                    self.search_results_cache[query] = results
-                    asyncio.create_task(self.clean_cache(query))
-                    additional_cache = await self.get_search_results(query, limit=MAX_RESULTS - 10, offset=10)
-                    if additional_cache:
-                        self.search_results_cache[query].extend(additional_cache)
-                await self.send_results_page(event, results, 0, query)
+            if page.hits:
+                await self.send_results_page(event, page, 0, search_query)
             else:
                 await event.reply("没有找到相关结果。")
+        except DomainError as exc:
+            await event.reply(self._domain_error_to_text(exc))
+            self.logger.error(f"Search domain error: {exc.code}: {exc.message}")
         except Exception as e:
             await event.reply(f"Search error: {e}")
             self.logger.error(f"Search error: {e}")
 
     async def get_search_results(self, query, limit=10, offset=0, index_name="telegram"):
         try:
-            results = await asyncio.to_thread(self.meili.search, query, index_name, limit=limit, offset=offset)
-            return results["hits"] if results["hits"] else None
+            page = await self.search_service.search(
+                SearchQuery(
+                    q=query,
+                    index_name=index_name,
+                    limit=limit,
+                    offset=offset,
+                )
+            )
+            return [hit.model_dump(mode="json") for hit in page.hits] or None
         except Exception as e:
             self.logger.error(f"MeiliSearch query error: {e}")
             return None
@@ -242,18 +243,10 @@ class BotHandler:
 
     @set_permission
     async def clean(self, event):
-        self.search_results_cache.clear()
+        self.search_service.clear_cache()
         await event.reply("缓存已清理。") if event else None
-        self.logger.info("Cache cleared.")
+        self.logger.info("Search service cache cleared.")
         gc.collect()
-
-    async def clean_cache(self, key):
-        await asyncio.sleep(CACHE_EXPIRE_SECONDS)
-        try:
-            del self.search_results_cache[key]
-            self.logger.info(f"Cache for {key} deleted.")
-        except Exception as e:
-            self.logger.error(f"Error deleting cache: {e}")
 
     async def about_handler(self, event):
         await event.reply(
@@ -275,63 +268,80 @@ class BotHandler:
     async def message_handler(self, event):
         await self.search_handler(event, event.raw_text)
 
-    def format_search_result(self, hit: dict[str, Any]) -> str:
-        if len(hit["text"]) > 360:
-            text = hit["text"][:360] + "..."
-        else:
-            text = hit["text"]
+    @staticmethod
+    def _id_parts(message_id: str) -> tuple[str, str]:
+        if "-" in message_id:
+            chat_part, msg_part = message_id.split("-", 1)
+            return chat_part, msg_part
+        return "0", "0"
 
-        chat_type = hit["chat"]["type"]
+    def format_search_result(self, hit: SearchHit) -> str:
+        source_text = hit.formatted_text or hit.text
+        text = source_text.replace("<mark>", "**").replace("</mark>", "**")
+        if len(text) > 360:
+            text = text[:360] + "..."
+
+        chat_part, msg_part = self._id_parts(hit.id)
+        chat_type = hit.chat.type
         if chat_type == "private":
-            chat_title = f"Private: {hit['chat']['username']}"
-            url = f"tg://openmessage?user_id={hit['id'].split('-')[0]}&message_id={hit['id'].split('-')[1]}"
+            chat_title = f"Private: {hit.chat.username}"
+            url = f"tg://openmessage?user_id={chat_part}&message_id={msg_part}"
         elif chat_type == "channel":
-            chat_title = f"Channel: {hit['chat']['title']}"
-            url = f"https://t.me/c/{hit['id'].split('-')[0]}/{hit['id'].split('-')[1]}"
+            chat_title = f"Channel: {hit.chat.title}"
+            url = f"https://t.me/c/{chat_part}/{msg_part}"
         else:
-            chat_title = f"Group: {hit['chat']['title']}"
-            url = f"https://t.me/c/{hit['id'].split('-')[0]}/{hit['id'].split('-')[1]}"
+            chat_title = f"Group: {hit.chat.title}"
+            url = f"https://t.me/c/{chat_part}/{msg_part}"
 
-        date = hit["date"].split("T")[0]
+        date = hit.date.date().isoformat()
         return f"- **{chat_title}**  ({date})\n{text}\n  [🔗Jump]({url})\n" + "—" * 18 + "\n"
 
     def _build_results_page(
         self,
-        hits: list[dict[str, Any]],
+        page: SearchPage,
         page_number: int,
-        query: str,
+        query: SearchQuery,
     ) -> tuple[str, list | None]:
-        """构建结果页面内容和分页按钮（公共方法）
-
-        Returns:
-            (text, buttons)：text 为空字符串时表示无结果。
-        """
-        start_index = page_number * RESULTS_PER_PAGE
-        end_index = min((page_number + 1) * RESULTS_PER_PAGE, len(hits))
-        page_results = hits[start_index:end_index]
-
-        if not page_results:
+        if not page.hits:
             return "", None
 
-        response = "".join([self.format_search_result(hit) for hit in page_results])
-        buttons: list = []
+        response = "".join([self.format_search_result(hit) for hit in page.hits])
+        buttons: list[Any] = []
         if page_number > 0:
-            buttons.append(Button.inline("上一页", data=f"page_{query}_{page_number - 1}"))
-        if end_index < len(hits):
-            buttons.append(Button.inline("下一页", data=f"page_{query}_{page_number + 1}"))
+            buttons.append(
+                Button.inline(
+                    "上一页",
+                    data=self.search_service.encode_page_callback(
+                        query,
+                        page=page_number - 1,
+                        page_size=RESULTS_PER_PAGE,
+                    ),
+                )
+            )
+        if page.offset + len(page.hits) < page.total_hits:
+            buttons.append(
+                Button.inline(
+                    "下一页",
+                    data=self.search_service.encode_page_callback(
+                        query,
+                        page=page_number + 1,
+                        page_size=RESULTS_PER_PAGE,
+                    ),
+                )
+            )
 
         text = f"搜索结果 (第 {page_number + 1} 页):\n{response}"
         return text, buttons or None
 
-    async def send_results_page(self, event, hits, page_number, query):
-        text, buttons = self._build_results_page(hits, page_number, query)
+    async def send_results_page(self, event, page: SearchPage, page_number: int, query: SearchQuery):
+        text, buttons = self._build_results_page(page, page_number, query)
         if not text:
             await event.reply("没有更多结果了。")
             return
         await self.bot_client.send_message(event.chat_id, text, buttons=buttons)
 
-    async def edit_results_page(self, event, hits, page_number, query):
-        text, buttons = self._build_results_page(hits, page_number, query)
+    async def edit_results_page(self, event, page: SearchPage, page_number: int, query: SearchQuery):
+        text, buttons = self._build_results_page(page, page_number, query)
         if not text:
             await event.reply("没有更多结果了。")
             return
@@ -339,19 +349,21 @@ class BotHandler:
 
     async def callback_query_handler(self, event):
         data = event.data.decode("utf-8")
-        if data.startswith("page_"):
-            parts = data.split("_")
-            query = parts[1]
-            page_number = int(parts[2])
-            try:
-                # TODO  加速未缓存时的搜索速度
-                results = (
-                    await self.get_search_results(query, limit=MAX_RESULTS)
-                    if not SEARCH_CACHE
-                    else self.search_results_cache.get(query)
-                )
-                await event.edit(f"正在加载第 {page_number + 1} 页...")
-                await self.edit_results_page(event, results, page_number, query)
-            except Exception as e:
-                await event.answer(f"搜索出错：{e}", alert=True)
-                self.logger.error(f"搜索出错：{e}")
+        if not (data.startswith("page:") or data.startswith("page_") or data.startswith("pagek:")):
+            return
+
+        try:
+            query, page_number, page_size = self.search_service.decode_page_callback(event.data)
+            await event.edit(f"正在加载第 {page_number + 1} 页...")
+            page = await self.search_service.search_for_presentation(
+                query,
+                page=page_number,
+                page_size=page_size,
+            )
+            await self.edit_results_page(event, page, page_number, query)
+        except DomainError as exc:
+            await event.answer(self._domain_error_to_text(exc), alert=True)
+            self.logger.error(f"Search callback domain error: {exc.code}: {exc.message}")
+        except Exception as e:
+            await event.answer(f"搜索出错：{e}", alert=True)
+            self.logger.error(f"搜索出错：{e}")

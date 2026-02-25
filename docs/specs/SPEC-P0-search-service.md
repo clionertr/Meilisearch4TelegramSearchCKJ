@@ -41,14 +41,14 @@ class SearchService:
 - 不改变现有 API schema（向后兼容前端）
 
 ## 4. 任务拆分（每个任务 30-60 分钟）
-- [ ] T-P0-SS-01 定义 `SearchQuery/SearchHit/SearchPage` DTO。
-- [ ] T-P0-SS-02 抽离 API `MeiliFilterBuilder` 到 SearchService 内部。
-- [ ] T-P0-SS-03 抽离 API `_parse_message` 到 SearchService 公共解析器。
-- [ ] T-P0-SS-04 抽离 Bot `get_search_results`，改为调用 SearchService。
-- [ ] T-P0-SS-05 抽离 Bot 分页数据编码/解码，修复特殊字符查询翻页。
-- [ ] T-P0-SS-06 整理缓存策略（是否缓存、TTL、缓存键）并下沉到 Service。
-- [ ] T-P0-SS-07 API Route 改造为“薄路由”并保持 OpenAPI 不变。
-- [ ] T-P0-SS-08 增加单元测试与集成回归（Bot/API 双入口一致性）。
+- [x] T-P0-SS-01 定义 `SearchQuery/SearchHit/SearchPage` DTO。
+- [x] T-P0-SS-02 抽离 API `MeiliFilterBuilder` 到 SearchService 内部。
+- [x] T-P0-SS-03 抽离 API `_parse_message` 到 SearchService 公共解析器。
+- [x] T-P0-SS-04 抽离 Bot `get_search_results`，改为调用 SearchService。
+- [x] T-P0-SS-05 抽离 Bot 分页数据编码/解码，修复特殊字符查询翻页。
+- [x] T-P0-SS-06 整理缓存策略（是否缓存、TTL、缓存键）并下沉到 Service。
+- [x] T-P0-SS-07 API Route 改造为“薄路由”并保持 OpenAPI 不变。
+- [x] T-P0-SS-08 增加单元测试与集成回归（Bot/API 双入口一致性）。
 
 ## 5. E2E 测试用例清单
 1. API `/search?q=foo` 与 Bot `/search foo` 返回同一批首屏命中（按 id 比较）。
@@ -62,4 +62,4 @@ class SearchService:
 - ADR-SS-002：SearchService 返回领域 DTO，路由再映射到 Pydantic response model。
 - ADR-SS-003：Bot 展示保留 Markdown/按钮形态，但数据源必须来自 SearchService。
 - ADR-SS-004：若缓存启用，缓存策略归 Service 管理，避免 Bot/API 双缓存不一致。
-
+- ADR-SS-005：Bot 翻页默认使用 `base64(json)` 编码；当 payload 超过 Telegram 64 bytes 限制时，自动回退短 token（Service 内 TTL 缓存映射）保证稳定翻页。

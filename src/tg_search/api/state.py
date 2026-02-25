@@ -193,6 +193,8 @@ class AppState:
         self.config_store: Optional[Any] = None
         # 统一策略服务（在 lifespan 中初始化，P0-Config-Policy-Service）
         self.config_policy_service: Optional[Any] = None
+        # 统一搜索服务（在 lifespan 中初始化，P0-Search-Service）
+        self.search_service: Optional[Any] = None
         # 统一 Service 容器（在 lifespan 中初始化，P0-SLA-02）
         self.service_container: Optional[Any] = None
         # Dialog available 缓存（绑定到 app 生命周期，Fix-4）

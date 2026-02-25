@@ -9,6 +9,7 @@ from tg_search.config.config_store import ConfigStore
 from tg_search.config.settings import MEILI_HOST, MEILI_PASS
 from tg_search.core.meilisearch import MeiliSearchClient
 from tg_search.services.config_policy_service import ConfigPolicyService
+from tg_search.services.search_service import SearchService
 
 
 @dataclass(slots=True)
@@ -18,6 +19,7 @@ class ServiceContainer:
     meili_client: MeiliSearchClient
     config_store: ConfigStore
     config_policy_service: ConfigPolicyService
+    search_service: SearchService
 
 
 def build_service_container(
@@ -37,8 +39,10 @@ def build_service_container(
         bootstrap_white_list=bootstrap_white_list,
         bootstrap_black_list=bootstrap_black_list,
     )
+    search_service = SearchService(client)
     return ServiceContainer(
         meili_client=client,
         config_store=config_store,
         config_policy_service=config_policy_service,
+        search_service=search_service,
     )
