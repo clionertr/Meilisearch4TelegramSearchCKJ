@@ -4,15 +4,14 @@
 提供系统状态和对话列表接口
 """
 
-import tracemalloc
-from datetime import datetime
 from typing import List
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends
 
-from tg_search.api.deps import MeiliSearchAsync, get_app_state, get_meili_async
+from tg_search.api.deps import get_app_state, get_observability_service
 from tg_search.api.models import ApiResponse, DialogInfo, DialogListResponse, SystemStatus
 from tg_search.api.state import AppState
+from tg_search.services.observability_service import ObservabilityService
 
 router = APIRouter()
 
@@ -25,39 +24,24 @@ router = APIRouter()
 )
 async def get_system_status(
     app_state: AppState = Depends(get_app_state),
-    meili: MeiliSearchAsync = Depends(get_meili_async),
+    observability: ObservabilityService = Depends(get_observability_service),
 ) -> ApiResponse[SystemStatus]:
     """获取系统状态"""
-    # 检查 MeiliSearch 连接
-    meili_connected = True
-    indexed_messages = 0
-    try:
-        stats = await meili.get_index_stats()
-        indexed_messages = stats.number_of_documents
-    except Exception:
-        meili_connected = False
-
-    # 获取内存使用
-    memory_usage_mb = 0.0
-    if tracemalloc.is_tracing():
-        current, peak = tracemalloc.get_traced_memory()
-        memory_usage_mb = current / (1024 * 1024)
-    else:
-        try:
-            import resource
-
-            usage = resource.getrusage(resource.RUSAGE_SELF)
-            memory_usage_mb = usage.ru_maxrss / 1024  # Linux: KB -> MB
-        except (ImportError, AttributeError):
-            pass
+    snapshot = await observability.system_snapshot(
+        uptime_seconds=app_state.uptime_seconds,
+        bot_running=app_state.is_bot_running,
+        telegram_connected=app_state.telegram_client is not None,
+        source="api.status",
+    )
 
     status = SystemStatus(
-        uptime_seconds=app_state.uptime_seconds,
-        meili_connected=meili_connected,
-        bot_connected=app_state.is_bot_running,
-        telegram_connected=app_state.telegram_client is not None,
-        indexed_messages=indexed_messages,
-        memory_usage_mb=round(memory_usage_mb, 2),
+        uptime_seconds=snapshot.uptime_seconds,
+        meili_connected=snapshot.meili_connected,
+        bot_connected=snapshot.bot_running,
+        telegram_connected=snapshot.telegram_connected,
+        indexed_messages=snapshot.indexed_messages,
+        memory_usage_mb=snapshot.memory_usage_mb,
+        notes=snapshot.notes,
     )
 
     return ApiResponse(data=status)
@@ -107,11 +91,9 @@ async def get_dialogs(
     description="获取当前所有下载任务的进度",
 )
 async def get_download_progress(
-    app_state: AppState = Depends(get_app_state),
+    observability: ObservabilityService = Depends(get_observability_service),
 ) -> ApiResponse[dict]:
     """获取所有下载进度"""
-    all_progress = app_state.progress_registry.get_all_progress()
-    progress_data = {str(k): v.to_dict() for k, v in all_progress.items()}
-    active_count = sum(1 for v in all_progress.values() if v.status == "downloading")
+    snapshot = await observability.progress_snapshot(source="api.status.progress")
 
-    return ApiResponse(data={"progress": progress_data, "count": active_count})
+    return ApiResponse(data={"progress": snapshot.all_progress, "count": snapshot.active_count})

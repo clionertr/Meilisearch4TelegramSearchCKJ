@@ -66,9 +66,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         try:
             from tg_search.services.container import build_service_container
 
-            app_state.service_container = build_service_container(meili_client=app_state.meili_client)
+            app_state.service_container = build_service_container(
+                meili_client=app_state.meili_client,
+                progress_registry=app_state.progress_registry,
+            )
             app_state.config_store = app_state.service_container.config_store
             app_state.config_policy_service = app_state.service_container.config_policy_service
+            app_state.observability_service = app_state.service_container.observability_service
+            app_state.observability_service.attach_progress_registry(app_state.progress_registry)
             logger.info("ServiceContainer initialized successfully")
         except Exception as e:
             logger.error(f"Failed to initialize ServiceContainer: {e}")

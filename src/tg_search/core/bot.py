@@ -68,6 +68,7 @@ class BotHandler:
         self.services = services or build_service_container()
         self.meili = self.services.meili_client
         self.policy_service = self.services.config_policy_service
+        self.observability_service = self.services.observability_service
         self.search_results_cache = {}
         self.main = main
         self.download_task = None
@@ -262,13 +263,31 @@ class BotHandler:
 
     @set_permission
     async def ping_handler(self, event):
-        text = "Pong!\n"
-        stats = await asyncio.to_thread(self.meili.client.get_all_stats)
-        size = stats["databaseSize"]
-        last_update = stats["lastUpdate"]
-        for uid, index in stats["indexes"].items():
-            text += f"Index {uid} has {index['numberOfDocuments']} documents\n"
-        text += f"\nDatabase size: {sizeof_fmt(size)}\nLast update: {last_update}\n"
+        snapshot = await self.observability_service.system_snapshot(
+            uptime_seconds=0.0,
+            bot_running=True,
+            telegram_connected=False,
+            source="bot.ping",
+        )
+        index = await self.observability_service.index_snapshot(source="bot.ping")
+        storage = await self.observability_service.storage_snapshot(source="bot.ping")
+
+        if not snapshot.meili_connected:
+            await event.reply("Pong!\n服务不可用：MeiliSearch 暂时不可达，请稍后重试。")
+            return
+
+        size = storage.index_bytes or 0
+        last_update = index.last_update.isoformat() if index.last_update is not None else "unknown"
+        text = (
+            "Pong!\n"
+            f"Index telegram has {snapshot.indexed_messages} documents\n"
+            f"\nDatabase size: {sizeof_fmt(size)}\n"
+            f"Last update: {last_update}\n"
+        )
+
+        if snapshot.notes:
+            text += "\n".join([f"Note: {note}" for note in snapshot.notes[:2]]) + "\n"
+
         await event.reply(text)
 
     @set_permission
