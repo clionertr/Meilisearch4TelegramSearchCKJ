@@ -346,7 +346,7 @@ class TestAPIResponseFormat:
         # 如果有结果，验证消息格式
         if search_result["hits"]:
             hit = search_result["hits"][0]
-            print(f"\n消息格式审核:")
+            print("\n消息格式审核:")
             print(f"  包含 id: {'id' in hit}")
             print(f"  包含 chat: {'chat' in hit}")
             print(f"  包含 date: {'date' in hit}")

@@ -6,6 +6,7 @@ from contextlib import contextmanager
 from unittest import mock
 
 import pytest
+
 from tests.helpers.requirements import (
     check_meili_available,
     load_meili_env_from_dotenv,
