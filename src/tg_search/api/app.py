@@ -42,6 +42,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # 创建应用状态
     app_state = AppState()
     app_state.start_time = datetime.utcnow()
+    # API-only 模式标记需要在 ServiceContainer 构建前可见（供 RuntimeControlService 读取）
+    app_state.api_only = os.getenv("API_ONLY", "false").lower() == "true"
 
     # 初始化 AuthStore
     app_state.auth_store = AuthStore(token_store_file=AUTH_TOKEN_STORE_FILE)
@@ -66,9 +68,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         try:
             from tg_search.services.container import build_service_container
 
-            app_state.service_container = build_service_container(meili_client=app_state.meili_client)
+            app_state.service_container = build_service_container(
+                meili_client=app_state.meili_client,
+                runtime_progress_registry_getter=lambda: app_state.progress_registry,
+                runtime_api_only_getter=lambda: app_state.api_only,
+            )
             app_state.config_store = app_state.service_container.config_store
             app_state.config_policy_service = app_state.service_container.config_policy_service
+            app_state.runtime_control_service = app_state.service_container.runtime_control_service
             logger.info("ServiceContainer initialized successfully")
         except Exception as e:
             logger.error(f"Failed to initialize ServiceContainer: {e}")
@@ -78,9 +85,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     from tg_search.api.routes.dialogs import _AvailableCache
 
     app_state.dialog_available_cache = _AvailableCache()
-
-    # 检查是否为 API-only 模式
-    app_state.api_only = os.getenv("API_ONLY", "false").lower() == "true"
 
     # 存储到 app.state
     app.state.app_state = app_state
@@ -136,6 +140,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         except asyncio.CancelledError:
             pass
         logger.info("Bot task cancelled")
+
+    if app_state.runtime_control_service is not None:
+        try:
+            await app_state.runtime_control_service.stop(source="api_lifespan_shutdown")
+        except Exception as e:
+            logger.error(f"RuntimeControlService stop on shutdown failed: {e}")
 
     logger.info("API server shutdown")
 

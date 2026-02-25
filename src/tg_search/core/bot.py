@@ -68,9 +68,9 @@ class BotHandler:
         self.services = services or build_service_container()
         self.meili = self.services.meili_client
         self.policy_service = self.services.config_policy_service
+        self.runtime_control_service = self.services.runtime_control_service
         self.search_results_cache = {}
         self.main = main
-        self.download_task = None
 
     @staticmethod
     def _domain_error_to_text(exc: DomainError) -> str:
@@ -80,6 +80,10 @@ class BotHandler:
             return "写入冲突，请稍后重试"
         if exc.code == "policy_store_unavailable":
             return "服务暂不可用，请稍后重试"
+        if exc.code == "runtime_api_only_mode":
+            return "当前为 API-only 模式，无法启动下载任务"
+        if exc.code in {"runtime_start_failed", "runtime_stop_failed", "runtime_cleanup_failed"}:
+            return "运行控制失败，请稍后重试"
         return f"操作失败：{exc.message}"
 
     async def initialize(self):
@@ -133,26 +137,36 @@ class BotHandler:
 
     @set_permission
     async def stop_download_and_listening(self, event):
-        if self.download_task and not self.download_task.done():
-            self.download_task.cancel()
-            await event.reply("下载任务已停止")
-        else:
-            await event.reply("没有正在运行的下载任务")
+        try:
+            result = await self.runtime_control_service.stop(source="bot")
+            if result.status == "stopped":
+                await event.reply("下载任务已停止")
+            else:
+                await event.reply("没有正在运行的下载任务")
+        except DomainError as exc:
+            await event.reply(self._domain_error_to_text(exc))
+            self.logger.error(f"Runtime stop command failed: {exc.code}: {exc.message}")
 
     @set_permission
     async def start_download_and_listening(self, event):
-        await event.reply("开始下载历史消息,监听历史消息...")
-        self.logger.info("Downloading and listening messages for dialogs")
-        if self.download_task is None or self.download_task.done():
-            self.download_task = asyncio.create_task(self.main())
-        else:
-            await event.reply("下载任务已经在运行中...")
+        try:
+            result = await self.runtime_control_service.start(source="bot")
+            if result.status == "started":
+                await event.reply("开始下载历史消息,监听历史消息...")
+                self.logger.info("Downloading and listening messages for dialogs")
+            else:
+                await event.reply("下载任务已经在运行中...")
+        except DomainError as exc:
+            await event.reply(self._domain_error_to_text(exc))
+            self.logger.error(f"Runtime start command failed: {exc.code}: {exc.message}")
 
     async def auto_start_download_and_listening(self):
-        if self.download_task is None or self.download_task.done():
-            self.download_task = asyncio.create_task(self.main())
-        else:
-            self.logger.info("Downloading task is already running...")
+        try:
+            result = await self.runtime_control_service.start(source="bot_auto")
+            if result.status == "already_running":
+                self.logger.info("Downloading task is already running...")
+        except DomainError as exc:
+            self.logger.error(f"Auto start runtime failed: {exc.code}: {exc.message}")
 
     async def search_handler(self, event, query):
         try:

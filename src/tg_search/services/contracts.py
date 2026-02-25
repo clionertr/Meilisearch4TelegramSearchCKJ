@@ -1,4 +1,4 @@
-"""Service-layer contracts for runtime policy management."""
+"""Service-layer contracts for runtime policy and runtime-control services."""
 
 from __future__ import annotations
 
@@ -34,3 +34,26 @@ class PolicyChangeResult(BaseModel):
     added: list[int] = Field(default_factory=list)
     removed: list[int] = Field(default_factory=list)
     version: int
+
+
+RuntimeState = Literal["stopped", "starting", "running", "stopping"]
+
+
+class RuntimeActionResult(BaseModel):
+    """Mutation result for runtime start/stop actions."""
+
+    status: Literal["started", "stopped", "already_running", "already_stopped"]
+    message: str
+    state: RuntimeState
+    last_action_source: str | None = None
+    last_error: str | None = None
+
+
+class RuntimeStatus(BaseModel):
+    """Canonical runtime task status snapshot."""
+
+    state: RuntimeState
+    is_running: bool
+    last_action_source: str | None = None
+    last_error: str | None = None
+    api_only_mode: bool = False

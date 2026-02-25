@@ -6,7 +6,14 @@ Use per-scope conftest files for test-layer setup.
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
+
+# Force local `src/` package resolution for src-layout project.
+_PROJECT_ROOT = Path(__file__).resolve().parents[1]
+_SRC_ROOT = _PROJECT_ROOT / "src"
+if str(_SRC_ROOT) not in sys.path:
+    sys.path.insert(0, str(_SRC_ROOT))
 
 
 def pytest_configure(config):

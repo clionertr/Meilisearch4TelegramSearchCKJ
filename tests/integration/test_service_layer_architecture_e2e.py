@@ -94,7 +94,9 @@ async def api_client(service_container: ServiceContainer):
         state.meili_client = service_container.meili_client
         state.config_store = service_container.config_store
         state.config_policy_service = service_container.config_policy_service
+        state.runtime_control_service = service_container.runtime_control_service
         state.api_only = False
+        state.runtime_control_service.set_api_only_getter(lambda: state.api_only)
 
         headers: dict[str, str] = {}
         api_key = os.environ.get("API_KEY")

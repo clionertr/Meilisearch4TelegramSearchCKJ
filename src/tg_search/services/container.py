@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Sequence
+from typing import Any, Sequence
 
 from tg_search.config.config_store import ConfigStore
 from tg_search.config.settings import MEILI_HOST, MEILI_PASS
 from tg_search.core.meilisearch import MeiliSearchClient
 from tg_search.services.config_policy_service import ConfigPolicyService
+from tg_search.services.runtime_control_service import RuntimeControlService
 
 
 @dataclass(slots=True)
@@ -18,6 +20,7 @@ class ServiceContainer:
     meili_client: MeiliSearchClient
     config_store: ConfigStore
     config_policy_service: ConfigPolicyService
+    runtime_control_service: RuntimeControlService
 
 
 def build_service_container(
@@ -28,6 +31,9 @@ def build_service_container(
     config_index_name: str = "system_config",
     bootstrap_white_list: Sequence[int] | None = None,
     bootstrap_black_list: Sequence[int] | None = None,
+    runtime_progress_registry_getter: Callable[[], Any | None] | None = None,
+    runtime_api_only_getter: Callable[[], bool] | None = None,
+    runtime_cleanup: Callable[[], Any] | None = None,
 ) -> ServiceContainer:
     """Build a fully wired service container."""
     client = meili_client or MeiliSearchClient(meili_host or MEILI_HOST, meili_key or MEILI_PASS)
@@ -37,8 +43,35 @@ def build_service_container(
         bootstrap_white_list=bootstrap_white_list,
         bootstrap_black_list=bootstrap_black_list,
     )
-    return ServiceContainer(
+    container_ref: ServiceContainer | None = None
+
+    def _progress_registry() -> Any | None:
+        if runtime_progress_registry_getter is None:
+            return None
+        return runtime_progress_registry_getter()
+
+    def _api_only_mode() -> bool:
+        if runtime_api_only_getter is None:
+            return False
+        return bool(runtime_api_only_getter())
+
+    async def _runner() -> None:
+        from tg_search.main import run
+
+        if container_ref is None:  # pragma: no cover - defensive
+            raise RuntimeError("service container is not initialized")
+        await run(progress_registry=_progress_registry(), services=container_ref)
+
+    runtime_control_service = RuntimeControlService(
+        _runner,
+        cleanup=runtime_cleanup,
+        api_only_getter=_api_only_mode,
+    )
+    container = ServiceContainer(
         meili_client=client,
         config_store=config_store,
         config_policy_service=config_policy_service,
+        runtime_control_service=runtime_control_service,
     )
+    container_ref = container
+    return container
