@@ -9,7 +9,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@google/genai": "^1.40.0",
     "@tanstack/react-query": "^5.90.20",
     "axios": "^1.7.9",
     "dompurify": "^3.2.4",

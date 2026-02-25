@@ -220,7 +220,6 @@ export const useStatusWebSocket = () => {
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
 | `VITE_API_URL` | 后端 API 地址 | `/api/v1` |
-| `GEMINI_API_KEY` | Google Gemini API 密钥 | - |
 
 ---
 
