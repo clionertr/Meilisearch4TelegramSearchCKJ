@@ -5,6 +5,8 @@ FastAPI 应用构建模块
 """
 
 import os
+import time
+import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import AsyncGenerator
@@ -171,6 +173,85 @@ def build_app() -> FastAPI:
         openapi_url="/openapi.json",
     )
 
+    request_id_header = os.getenv("API_REQUEST_ID_HEADER", "X-Request-ID")
+    slow_request_warn_ms = int(os.getenv("API_ACCESS_LOG_SLOW_MS", "800"))
+    access_log_enabled = os.getenv("API_ACCESS_LOG_ENABLED", "true").lower() not in ("0", "false", "no")
+    access_log_skip_paths = tuple(
+        item.strip()
+        for item in os.getenv(
+            "API_ACCESS_LOG_SKIP_PATHS",
+            "/health,/docs,/redoc,/openapi.json,/docs/oauth2-redirect",
+        ).split(",")
+        if item.strip()
+    )
+
+    def _extract_client_ip(request: Request) -> str:
+        x_forwarded_for = request.headers.get("x-forwarded-for")
+        if x_forwarded_for:
+            return x_forwarded_for.split(",")[0].strip()
+
+        x_real_ip = request.headers.get("x-real-ip")
+        if x_real_ip:
+            return x_real_ip.strip()
+
+        if request.client is not None and request.client.host:
+            return request.client.host
+        return "unknown"
+
+    @app.middleware("http")
+    async def request_log_middleware(request: Request, call_next):
+        request_id = request.headers.get(request_id_header) or uuid.uuid4().hex[:12]
+        request.state.request_id = request_id
+        started_at = time.monotonic()
+
+        try:
+            response = await call_next(request)
+        except Exception as exc:
+            duration_ms = (time.monotonic() - started_at) * 1000
+            logger.error(
+                "[api.access] request_id=%s method=%s path=%s status=500 duration_ms=%.1f client=%s error=%s:%s",
+                request_id,
+                request.method,
+                request.url.path,
+                duration_ms,
+                _extract_client_ip(request),
+                type(exc).__name__,
+                exc,
+            )
+            raise
+
+        duration_ms = (time.monotonic() - started_at) * 1000
+        path = request.url.path
+        should_skip = any(path.startswith(prefix) for prefix in access_log_skip_paths)
+
+        if access_log_enabled and not should_skip:
+            status_code = response.status_code
+            client_ip = _extract_client_ip(request)
+            user_agent = request.headers.get("user-agent", "-")
+            if len(user_agent) > 120:
+                user_agent = f"{user_agent[:117]}..."
+
+            if status_code >= 500:
+                log_method = logger.error
+            elif status_code >= 400 or duration_ms > slow_request_warn_ms:
+                log_method = logger.warning
+            else:
+                log_method = logger.info
+
+            log_method(
+                "[api.access] request_id=%s method=%s path=%s status=%d duration_ms=%.1f client=%s ua=%s",
+                request_id,
+                request.method,
+                path,
+                status_code,
+                duration_ms,
+                client_ip,
+                user_agent,
+            )
+
+        response.headers[request_id_header] = request_id
+        return response
+
     # CORS 配置
     cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",")
     app.add_middleware(
@@ -234,7 +315,8 @@ def build_app() -> FastAPI:
 
     @app.exception_handler(Exception)
     async def generic_exception_handler(request: Request, exc: Exception):
-        logger.error(f"Unhandled exception: {type(exc).__name__}: {exc}")
+        request_id = getattr(request.state, "request_id", "unknown")
+        logger.error(f"Unhandled exception request_id={request_id}: {type(exc).__name__}: {exc}")
         return JSONResponse(
             status_code=500,
             content=ErrorResponse(

@@ -2,11 +2,20 @@
 
 > 基于 Telethon + MeiliSearch 的 Telegram 中文/日文/韩文 (CJK) 消息搜索解决方案
 
-**生成时间**: 2026-02-06（最近同步: 2026-02-25）
+**生成时间**: 2026-02-06（最近同步: 2026-02-26）
 
 ---
 
 ## 变更记录 (Changelog)
+
+### 2026-02-26
+- 文档体系同步更新：重写根 README / `webui-example/README.md`，补齐 API + Bot + WebUI 联调示例
+- 新增 WebUI 环境变量模板：`webui-example/.env.example` 与 `.env.development.example`
+- 新增 FastAPI 统一访问日志中间件：`[api.access]`（`request_id/method/path/status/duration_ms/client/ua`）
+- API 响应统一回传 `X-Request-ID`（可通过 `API_REQUEST_ID_HEADER` 自定义）
+- 新增前端 telemetry：`api.start/api.end/api.error/ws.state/ws.message`，用于前后端 request_id 串联排障
+- `webui-example/webui_gap_analysis.md` 改造为“Done + Backlog”遗留问题台账
+- `.env.example` 补充 API 访问日志与登录会话相关配置说明
 
 ### 2026-02-25
 - 落地 **SearchService** (`src/tg_search/services/search_service.py`)，统一 Bot/API 搜索过滤、高亮解析、分页与缓存策略
@@ -210,12 +219,14 @@ Meilisearch4TelegramSearchCKJ/
 ├── docker-compose.yml           # Docker Compose 配置
 ├── docker-compose-windows.yml   # Windows Docker 配置
 ├── docs/
-│   └── specs/                   # API 规格文档
-│       ├── SPEC-P0-config-policy-service.md
-│       ├── SPEC-P0-runtime-control-service.md
-│       ├── SPEC-P0-search-service.md
-│       ├── SPEC-P0-service-layer-architecture.md
-│       ├── SPEC-P1-observability-service.md
+│   ├── specs/                   # API 规格文档
+│   │   ├── SPEC-P0-config-policy-service.md
+│   │   ├── SPEC-P0-runtime-control-service.md
+│   │   ├── SPEC-P0-search-service.md
+│   │   ├── SPEC-P0-service-layer-architecture.md
+│   │   ├── SPEC-P1-observability-service.md
+│   └── operations/              # 运维手册
+│       └── observability.md     # 日志与链路追踪 runbook
 ├── src/
 │   └── tg_search/               # 主包
 │       ├── __init__.py
@@ -391,7 +402,12 @@ ruff format src/
 | `API_KEY` | `None` | API 密钥（未设置则无需认证） |
 | `API_KEY_HEADER` | `X-API-Key` | API 密钥请求头名称 |
 | `AUTH_TOKEN_STORE_FILE` | `session/auth_tokens.json` | Bearer Token 持久化文件路径（空为仅内存） |
+| `API_AUTH_SESSION_FILE` | `session/api_auth.session` | 认证流程 Telethon 会话文件（send-code/signin） |
 | `CORS_ORIGINS` | `http://localhost:5173,http://localhost:3000` | 允许的 CORS 源 |
+| `API_ACCESS_LOG_ENABLED` | `true` | 是否启用统一 API 访问日志 |
+| `API_ACCESS_LOG_SLOW_MS` | `800` | API 慢请求告警阈值（毫秒） |
+| `API_ACCESS_LOG_SKIP_PATHS` | `/health,/docs,/redoc,/openapi.json,/docs/oauth2-redirect` | 访问日志跳过路径 |
+| `API_REQUEST_ID_HEADER` | `X-Request-ID` | 请求链路追踪 header 名称 |
 
 #### 可选（搜索相关）
 | 变量 | 默认值 | 说明 |
@@ -401,6 +417,7 @@ ruff format src/
 | `CACHE_EXPIRE_SECONDS` | `7200` | 缓存过期时间（秒） |
 | `MAX_PAGE` | `10` | 最大分页数 |
 | `RESULTS_PER_PAGE` | `5` | 每页显示消息数 |
+| `ENABLE_TRACEMALLOC` | `true` | 是否启用 tracemalloc 内存统计 |
 
 ---
 
@@ -435,8 +452,10 @@ ruff format src/
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | GET | `/api/v1/config` | 获取配置 |
-| POST | `/api/v1/config/whitelist` | 设置白名单 |
-| POST | `/api/v1/config/blacklist` | 设置黑名单 |
+| POST | `/api/v1/config/whitelist` | 添加白名单 ID |
+| DELETE | `/api/v1/config/whitelist` | 移除白名单 ID |
+| POST | `/api/v1/config/blacklist` | 添加黑名单 ID |
+| DELETE | `/api/v1/config/blacklist` | 移除黑名单 ID |
 
 ### 控制端点 (需要认证)
 

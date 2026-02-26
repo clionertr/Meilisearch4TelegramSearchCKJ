@@ -1,316 +1,267 @@
 # Meilisearch4TelegramSearchCKJ
 
-> 基于 Telethon + MeiliSearch 的 Telegram 中文/日文/韩文 (CJK) 消息全文搜索解决方案
+> 基于 Telethon + MeiliSearch 的 Telegram CJK（中文/日文/韩文）消息搜索系统，包含 Bot、REST API 与 WebUI。
 
-## 展示
+![展示图](asset/image-20250206132432097.png)
 
-<img src="asset/image-20250206132432097.png" alt="展示图" style="zoom:25%;" />
+## 项目状态
 
-## 功能特性
+- 当前版本：`0.2.0`
+- 核心链路：`ServiceContainer + SearchService + ConfigPolicyService + RuntimeControlService + ObservabilityService`
+- 前端状态：WebUI 已可用，但仍有历史遗留问题（见 [webui-example/webui_gap_analysis.md](webui-example/webui_gap_analysis.md)）
 
-- **消息下载**: 从 Telegram 下载历史消息到 MeiliSearch
-- **实时监听**: 监听新消息并自动索引
-- **Bot 搜索**: 通过 Telegram Bot 提供搜索界面
-- **REST API**: FastAPI 提供 RESTful API + WebSocket 实时推送
-- **WebUI**: React 管理界面（会话同步、AI 配置、Dashboard 等）
-- **黑白名单**: 灵活的频道/群组/用户同步控制
-- **统一策略真源**: 白名单/黑名单运行时统一存储于 MeiliSearch `system_config.policy`
-- **统一搜索服务**: Bot 与 API 共享 `SearchService`（统一过滤、高亮解析、分页和缓存策略）
-- **统一可观测性快照**: `/status`、`/search/stats`、`/storage/stats` 与 Bot `/ping` 统一走 ObservabilityService
+## 核心能力
+
+- Telegram 历史消息下载与实时监听
+- MeiliSearch 全文检索（CJK 友好）
+- Telegram Bot 搜索与分页
+- FastAPI REST API + WebSocket 进度推送
+- WebUI 管理界面（登录、搜索、会话同步、存储、AI 配置、Dashboard）
+- 白名单/黑名单动态策略持久化（`system_config.policy`）
 
 ## 架构概览
 
-<img src="asset/2025-02-05-1646.png" alt="架构概图" style="zoom:25%;" />
+- `TelegramUserBot` 负责下载和监听消息
+- `MeiliSearchClient` 负责索引写入和搜索
+- `SearchService` 统一 Bot/API 的搜索语义（过滤、高亮、分页）
+- `ConfigPolicyService` 统一动态策略读写
+- `RuntimeControlService` 统一 Bot/API 启停状态机
+- `ObservabilityService` 统一 `/status`、`/search/stats`、`/storage/stats` 与 Bot `/ping`
 
-- **TG Client**: 从 Telegram 下载和监听消息到 MeiliSearch
-- **MeiliSearch**: 存储消息、增量配置、黑白名单
-- **Bot**: 与用户交互，搜索消息、启动 TG Client
-- **REST API**: FastAPI 提供管理、搜索、配置等端点
-- **WebUI**: React 前端管理界面
+---
 
 ## 快速开始
 
-### Docker 部署（推荐）
+### 1) Docker 启动（推荐）
 
-1. 克隆仓库
 ```bash
 git clone https://github.com/clionertr/Meilisearch4TelegramSearchCKJ.git
 cd Meilisearch4TelegramSearchCKJ
-```
-
-2. 配置环境变量
-```bash
 cp .env.example .env
-# 编辑 .env 填入你的 Telegram API 和 MeiliSearch 配置
-```
+# 编辑 .env：至少填 APP_ID/APP_HASH/BOT_TOKEN/MEILI_MASTER_KEY
 
-3. 启动服务
-```bash
 docker-compose up -d
 ```
 
-### 本地部署
+启动后：
+- API: `http://localhost:8000`
+- 文档: `http://localhost:8000/docs`
+- MeiliSearch: `http://localhost:7700`
 
-1. 安装依赖（需要 Python 3.10+，使用 [uv](https://docs.astral.sh/uv/) 包管理器）
+### 2) 本地后端启动
+
 ```bash
 uv sync
-```
-
-2. 配置环境变量
-```bash
 cp .env.example .env
-# 编辑 .env
+python -m tg_search --mode all
 ```
 
-3. 启动服务
-```bash
-# 同时运行 API + Bot
-python -m tg_search
+常用模式：
 
-# 仅运行 API
+```bash
+# API + Bot
+python -m tg_search --mode all
+
+# 仅 API
 python -m tg_search --mode api-only
 
-# 仅运行 Bot
+# 仅 Bot
 python -m tg_search --mode bot-only
 ```
 
-## 环境变量
+### 3) 本地 WebUI 启动
 
-### 必填
+```bash
+cd webui-example
+cp .env.development.example .env.development
+npm install
+npm run dev
+```
 
-| 变量 | 说明 |
-|------|------|
-| `APP_ID` | Telegram API ID ([获取](https://my.telegram.org/apps)) |
-| `APP_HASH` | Telegram API Hash |
-| `BOT_TOKEN` | Telegram Bot Token ([@BotFather](https://t.me/BotFather)) |
-| `MEILI_HOST` | MeiliSearch 地址 |
-| `MEILI_MASTER_KEY` | MeiliSearch 主密钥 |
+默认访问：`http://localhost:3000`
 
-### 常用可选
+---
 
-| 变量 | 默认值 | 说明 |
-|------|--------|------|
-| `WHITE_LIST` | `[1]` | 策略服务冷启动白名单默认值（运行时真源为 ConfigStore） |
-| `BLACK_LIST` | `[]` | 策略服务冷启动黑名单默认值（运行时真源为 ConfigStore） |
-| `POLICY_REFRESH_TTL_SEC` | `10` | Telegram 监听端策略刷新间隔（秒） |
-| `OBS_SNAPSHOT_TIMEOUT_SEC` | `0.8` | 可观测性快照采集超时（秒） |
-| `OBS_SNAPSHOT_WARN_MS` | `800` | 可观测性慢采集告警阈值（毫秒） |
-| `OWNER_IDS` | `[]` | Bot 管理员 ID |
-| `SEARCH_CACHE` | `True` | 是否启用统一搜索缓存 |
-| `CACHE_EXPIRE_SECONDS` | `7200` | 搜索缓存 TTL（秒） |
-| `SEARCH_PRESENTATION_MAX_HITS` | `50` | Bot/API 展示层预取窗口上限 |
-| `SEARCH_CALLBACK_TOKEN_TTL_SEC` | `7200` | Bot 分页短 token TTL（秒） |
-| `API_KEY` | - | REST API 认证密钥 |
-| `API_ONLY` | `false` | 是否仅启动 API（开启后运行控制 start 会统一拒绝） |
-| `DISABLE_BOT_AUTOSTART` | `false` | 是否禁用 API 启动时自动拉起 Bot |
-| `CORS_ORIGINS` | `http://localhost:5173,...` | 允许的 CORS 源 |
-| `SESSION_STRING` | - | Telethon 会话字符串（Docker 环境） |
+## 环境变量分层
 
-完整配置说明请参考 [`.env.example`](.env.example)。
+### 后端（根目录 `.env`）
 
-## 配置策略说明
+请基于 `.env.example` 配置，关键变量：
 
-- **静态启动配置**: 从 `.env` 读取（如 `APP_ID/APP_HASH/BOT_TOKEN/MEILI_*`）。
-- **动态运行配置**: 白名单/黑名单统一从 MeiliSearch `system_config` 索引中的 `policy` 字段读取。
-- API 与 Bot 对白/黑名单的修改都会持久化到同一文档，重启后不丢失。
+- 必填：`APP_ID`, `APP_HASH`, `BOT_TOKEN`, `MEILI_HOST`, `MEILI_MASTER_KEY`
+- 鉴权：`API_KEY`, `API_KEY_HEADER`, `AUTH_TOKEN_STORE_FILE`
+- 可观测性：`OBS_SNAPSHOT_TIMEOUT_SEC`, `OBS_SNAPSHOT_WARN_MS`
+- 访问日志：`API_ACCESS_LOG_ENABLED`, `API_ACCESS_LOG_SLOW_MS`, `API_ACCESS_LOG_SKIP_PATHS`, `API_REQUEST_ID_HEADER`
 
-## 统一搜索服务说明
+### WebUI（`webui-example/.env*`）
 
-- `SearchService` 是 Bot 与 API 共用的搜索业务层，统一了：
-  - 过滤条件拼装（`chat_id/chat_type/date_from/date_to`）
-  - Meili `_formatted` 高亮解析（`formatted_text`）
-  - 分页与缓存策略
-- Bot 分页 callback 默认使用 `base64(json)`，当数据超过 Telegram 64 bytes 限制时，会自动回退到短 token 模式。
+- 模板：`webui-example/.env.example`
+- 本地联调推荐：`webui-example/.env.development.example`
+
+关键变量：
+
+- `VITE_API_URL`：后端 API 前缀（推荐 `/api/v1` 配合 Vite proxy）
+- `VITE_ENABLE_DEBUG_LOGS`：前端 telemetry 开关
+- `VITE_SLOW_API_WARN_MS`：前端慢请求告警阈值
+
+---
+
+## 认证说明
+
+- 未配置 `API_KEY` 时：大部分 API 端点可直接访问（开发模式）
+- 配置 `API_KEY` 后：
+  - `/search` `/status` `/config` `/client` `/storage` 支持 `API Key` 或 `Bearer`
+  - `/ai/*` `/dashboard/*` `/dialogs/*` 为 `Bearer-only`
+  - WebSocket `/api/v1/ws/status` 在启用鉴权时需要 `?token=...`
+
+---
 
 ## README 使用示例
 
-### 1) 查看当前策略
+以下示例默认你已设置：
 
 ```bash
-curl -s "http://localhost:8000/api/v1/config" \
-  -H "X-API-Key: <your_api_key>" | jq
+export API_BASE="http://localhost:8000/api/v1"
+export API_KEY="<your_api_key>"
 ```
 
-### 2) 追加白名单
+### 1) 查看系统状态
 
 ```bash
-curl -s -X POST "http://localhost:8000/api/v1/config/whitelist" \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: <your_api_key>" \
-  -d '{"ids":[-1001234567890, -1009876543210]}' | jq
+curl -s "$API_BASE/status" \
+  -H "X-API-Key: $API_KEY" | jq '.data | {uptime_seconds, meili_connected, telegram_connected, indexed_messages, notes}'
 ```
 
-### 3) 追加黑名单
+### 2) 查看并更新策略（白/黑名单）
 
 ```bash
-curl -s -X POST "http://localhost:8000/api/v1/config/blacklist" \
+curl -s "$API_BASE/config" \
+  -H "X-API-Key: $API_KEY" | jq '.data | {white_list, black_list}'
+```
+
+```bash
+curl -s -X POST "$API_BASE/config/whitelist" \
+  -H "X-API-Key: $API_KEY" \
   -H "Content-Type: application/json" \
-  -H "X-API-Key: <your_api_key>" \
+  -d '{"ids":[-1001234567890]}' | jq
+```
+
+```bash
+curl -s -X POST "$API_BASE/config/blacklist" \
+  -H "X-API-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
   -d '{"ids":[-1002222222222]}' | jq
 ```
 
-### 4) Bot 直接设置（覆盖模式）
-
-```text
-/set_white_list2meili [-1001234567890, -1009876543210]
-/set_black_list2meili [-1002222222222]
-```
-
-### 5) 启停下载任务 (API)
+### 3) 启停运行任务（统一状态机）
 
 ```bash
-curl -s -X POST "http://localhost:8000/api/v1/client/start" \
-  -H "X-API-Key: <your_api_key>" | jq
+curl -s -X POST "$API_BASE/client/start" \
+  -H "X-API-Key: $API_KEY" | jq '.data'
+
+curl -s "$API_BASE/client/status" \
+  -H "X-API-Key: $API_KEY" | jq '.data | {is_running,state,last_action_source,last_error}'
+
+curl -s -X POST "$API_BASE/client/stop" \
+  -H "X-API-Key: $API_KEY" | jq '.data'
 ```
+
+### 4) 搜索消息（带过滤）
 
 ```bash
-curl -s -X POST "http://localhost:8000/api/v1/client/stop" \
-  -H "X-API-Key: <your_api_key>" | jq
+curl -s "$API_BASE/search?q=keyword&chat_type=group&limit=5&offset=0" \
+  -H "X-API-Key: $API_KEY" | jq '.data | {query,total_hits,limit,offset,hits:[.hits[] | {id,formatted_text,chat:.chat.title}]}'
 ```
 
-### 6) 查看运行控制状态（统一状态机）
+### 5) 拉取索引/存储快照
 
 ```bash
-curl -s "http://localhost:8000/api/v1/client/status" \
-  -H "X-API-Key: <your_api_key>" | jq
+curl -s "$API_BASE/search/stats" \
+  -H "X-API-Key: $API_KEY" | jq '.data | {total_documents,index_size_bytes,last_update,is_indexing,notes}'
+
+curl -s "$API_BASE/storage/stats" \
+  -H "X-API-Key: $API_KEY" | jq '.data | {total_bytes,index_bytes,media_supported,notes}'
 ```
 
-典型返回字段：
-- `is_running`: 当前是否有下载/监听任务运行
-- `state`: `stopped|starting|running|stopping`
-- `api_only_mode`: 当前是否 API-only
-- `last_action_source`: 最近一次动作来源（`api` / `bot` / `bot_auto`）
-- `last_error`: 最近一次运行控制错误（无则 `null`）
-
-### 7) Bot 侧启停与 API 语义一致
-
-```text
-/start_client
-/stop_client
-```
-
-说明：当任务已在运行时，Bot 与 API 都返回 `already_running` 语义；当任务未运行时都返回 `already_stopped` 语义。
-
-### 8) 查看下载进度
-
-```bash
-curl -s "http://localhost:8000/api/v1/status/progress" \
-  -H "X-API-Key: <your_api_key>" | jq
-```
-
-### 7) 搜索（含过滤条件）
-
-```bash
-curl -s "http://localhost:8000/api/v1/search?q=keyword&chat_type=group&limit=5&offset=0" \
-  -H "X-API-Key: <your_api_key>" | jq '.data | {query,total_hits,limit,offset,hits: [.hits[] | {id,formatted_text}]}'
-```
-
-### 8) 按时间范围搜索
-
-```bash
-curl -s "http://localhost:8000/api/v1/search?q=release&date_from=2026-02-01T00:00:00Z&date_to=2026-02-25T23:59:59Z&limit=10" \
-  -H "X-API-Key: <your_api_key>" | jq '.data.total_hits'
-```
-
-### 9) Bot 搜索与翻页
+### 6) Bot 侧常用命令
 
 ```text
 /search foo_bar
-```
-
-说明：
-- `foo_bar` 等含下划线关键词支持稳定翻页（不再依赖 `split("_")`）。
-- Bot 展示优先使用 `formatted_text`（高亮命中）。
-
-### 10) 查看统一系统快照（含降级 notes）
-
-```bash
-curl -s "http://localhost:8000/api/v1/status" \
-  -H "X-API-Key: <your_api_key>" | jq '.data | {meili_connected,indexed_messages,memory_usage_mb,notes}'
-```
-
-### 11) 查看统一索引/存储快照
-
-```bash
-curl -s "http://localhost:8000/api/v1/search/stats" \
-  -H "X-API-Key: <your_api_key>" | jq '.data | {total_documents,index_size_bytes,last_update,is_indexing,notes}'
-
-curl -s "http://localhost:8000/api/v1/storage/stats" \
-  -H "X-API-Key: <your_api_key>" | jq '.data | {index_bytes,total_bytes,media_supported,notes}'
-```
-
-### 12) Bot 健康检查
-
-```text
+/start_client
+/stop_client
 /ping
+/set_white_list2meili [-1001234567890]
+/set_black_list2meili [-1002222222222]
 ```
 
-当 Meili 暂时不可用时，Bot 会返回统一文案：
-
-```text
-Pong!
-服务不可用：MeiliSearch 暂时不可达，请稍后重试。
+---
 
 ## 监控与日志点
 
-统一搜索服务新增了结构化日志，便于线上排障与性能观测：
+### 后端日志（`log_file.log` + 控制台）
 
-- `SearchService`：
-  - `search ... duration_ms / meili_processing_ms`
-  - `presentation_cache_hit|miss|expired`
-  - `encode_callback mode=inline|token_fallback`
-  - `decode_callback mode=inline|token|legacy`
-- `BotHandler`：
-  - `search_request/search_result/search_result_empty`
-  - `pagination_request/pagination_result`
+新增统一访问日志：
 
-可通过如下方式快速过滤日志：
+- 事件：`[api.access]`
+- 字段：`request_id method path status duration_ms client ua`
+- 慢请求阈值：`API_ACCESS_LOG_SLOW_MS`（默认 800ms）
+- 每个 HTTP 响应会回传 `X-Request-ID`（或你配置的 `API_REQUEST_ID_HEADER`）
+
+已有关键结构化日志：
+
+- `SearchService`: 搜索耗时、缓存命中、callback 编解码模式
+- `RuntimeControlService` / `control.*`: 启停动作与状态
+- `ObservabilityService`: 快照采集耗时、降级 notes/errors
+
+快速过滤：
 
 ```bash
-grep -E "SearchService|BotHandler" log_file.log
+grep -E "api.access|SearchService|RuntimeControlService|ObservabilityService|control\." log_file.log
 ```
 
-## REST API
+### 前端 telemetry（浏览器控制台）
 
-API 端点一览：
-
-| 模块 | 前缀 | 说明 |
-|------|------|------|
-| Auth | `/api/v1/auth/` | Telegram 登录认证 |
-| Search | `/api/v1/search/` | 消息搜索 |
-| Status | `/api/v1/status/` | 系统状态 |
-| Config | `/api/v1/config/` | 黑白名单配置 |
-| Control | `/api/v1/client/` | 下载控制 |
-| Storage | `/api/v1/storage/` | 存储统计与清理 |
-| AI Config | `/api/v1/ai/` | AI 配置管理 |
-| Dashboard | `/api/v1/dashboard/` | 活动聚合 |
-| Dialogs | `/api/v1/dialogs/` | 会话同步管理 |
-| WebSocket | `/api/v1/ws/` | 实时进度推送 |
-
-- Swagger UI: `http://localhost:8000/docs`
-- ReDoc: `http://localhost:8000/redoc`
-
-## 开发
+开启方式：
 
 ```bash
-# 安装开发依赖
-uv sync --extra dev
+# webui-example/.env.development
+VITE_ENABLE_DEBUG_LOGS=true
+VITE_SLOW_API_WARN_MS=800
+```
 
-# 运行测试
+可观测事件：
+
+- `api.start` / `api.end` / `api.error`（含 request_id、状态码、耗时）
+- `ws.state` / `ws.message`
+
+用于和后端 `api.access` 的 `request_id` 做端到端串联排查。
+
+---
+
+## 测试与质量检查
+
+```bash
+# 后端单元 + 集成
 pytest tests/
 
-# 代码格式化与检查
-ruff format src/
+# 格式与静态检查
 ruff check src/
+ruff format src/
+
+# WebUI 构建验证
+cd webui-example
+npm run build
 ```
 
-详细开发文档请参考 [CLAUDE.md](CLAUDE.md)。
+---
 
-## 致谢
+## 文档索引
 
-本项目从 [SearchGram](https://github.com/tgbot-collection/SearchGram) 重构而来，感谢原作者的付出。
-
-非常感谢 Telethon 的作者和维护者们！
+- 总体架构与开发约定: [CLAUDE.md](CLAUDE.md)
+- WebUI 模块文档: [webui-example/CLAUDE.md](webui-example/CLAUDE.md)
+- WebUI 遗留问题台账: [webui-example/webui_gap_analysis.md](webui-example/webui_gap_analysis.md)
+- 可观测性运维手册: [docs/operations/observability.md](docs/operations/observability.md)
+- 规格文档: `docs/specs/`
 
 ## License
 
