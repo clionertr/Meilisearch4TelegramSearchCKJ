@@ -207,6 +207,7 @@ async def test_client(mock_meili_client):
                 app.state.app_state.meili_client = mock_meili_client
                 app.state.app_state.config_policy_service = FakePolicyService()
                 app.state.app_state.search_service = SearchService(mock_meili_client, cache_enabled=False)
+                app.state.app_state.api_only = False
                 app.state.app_state.runtime_control_service = FakeRuntimeControlService(
                     api_only_getter=lambda: app.state.app_state.api_only
                 )
@@ -324,6 +325,20 @@ class TestStatusAPI:
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
+
+    async def test_system_status_reflects_runtime_running_state(self, test_client):
+        """RuntimeControlService 运行时应反映到 telegram_connected。"""
+        start_response = await test_client.post("/api/v1/client/start")
+        assert start_response.status_code == 200
+
+        status_response = await test_client.get("/api/v1/status")
+        assert status_response.status_code == 200
+        status_data = status_response.json()["data"]
+        assert status_data["telegram_connected"] is True
+        assert status_data["bot_connected"] is True
+
+        stop_response = await test_client.post("/api/v1/client/stop")
+        assert stop_response.status_code == 200
 
 
 class TestControlAPI:

@@ -1,5 +1,4 @@
 import ast
-import asyncio
 import gc
 from collections.abc import Awaitable
 from typing import Any, cast

@@ -8,7 +8,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
 
-from tg_search.api.deps import MeiliSearchAsync, get_meili_async, get_observability_service, get_search_service
+from tg_search.api.deps import get_observability_service, get_search_service
 from tg_search.api.models import (
     ApiResponse,
     ChatInfo,

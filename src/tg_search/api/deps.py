@@ -271,7 +271,6 @@ async def verify_bearer_token(
     Raises:
         HTTPException: 401 认证失败
     """
-    from tg_search.api.auth_store import AuthToken
 
     token = parse_bearer_token(authorization)
 

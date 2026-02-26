@@ -109,13 +109,17 @@ async def get_client_status(
         runtime_status.last_action_source,
         runtime_status.last_error,
     )
+    runtime_connected = bool(runtime_status.is_running)
+    legacy_connected = bool(app_state.telegram_client is not None or app_state.is_bot_running)
+    telegram_connected = runtime_connected or legacy_connected
+
     status = {
         "is_running": runtime_status.is_running,
         "api_only_mode": runtime_status.api_only_mode,
         "state": runtime_status.state,
         "last_action_source": runtime_status.last_action_source,
         "last_error": runtime_status.last_error,
-        "telegram_connected": app_state.telegram_client is not None,
-        "bot_handler_initialized": app_state.bot_handler is not None,
+        "telegram_connected": telegram_connected,
+        "bot_handler_initialized": bool(app_state.bot_handler is not None or app_state.bot_task is not None),
     }
     return ApiResponse(data=status)

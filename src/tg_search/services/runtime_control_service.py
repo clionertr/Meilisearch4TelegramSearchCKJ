@@ -6,7 +6,6 @@ import asyncio
 import inspect
 import time
 from collections.abc import Awaitable, Callable
-from typing import Any
 
 from tg_search.core.logger import setup_logger
 from tg_search.services.contracts import DomainError, RuntimeActionResult, RuntimeState, RuntimeStatus

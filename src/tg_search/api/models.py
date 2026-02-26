@@ -5,7 +5,6 @@ Pydantic 模型定义
 """
 
 from datetime import datetime
-from enum import Enum
 from typing import Any, Dict, Generic, List, Literal, Optional, TypeVar
 
 from pydantic import BaseModel, Field

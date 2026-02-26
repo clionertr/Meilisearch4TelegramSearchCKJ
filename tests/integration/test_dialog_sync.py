@@ -44,7 +44,6 @@ from tg_search.api.auth_store import AuthStore, AuthToken  # noqa: E402
 from tg_search.api.models import (  # noqa: E402
     AvailableDialogItem,
     AvailableDialogsMeta,
-    AvailableDialogsResponse,
     DeleteSyncResult,
     PatchSyncStateRequest,
     SyncedDialogItem,
@@ -232,7 +231,6 @@ async def ds_client(real_meili_client, index_name) -> AsyncGenerator[dict, None]
     * Mock Telegram client（iter_dialogs 返回可控假数据）
     * 测试结束后清理索引
     """
-    from tg_search.api.state import AppState
     from tg_search.config.config_store import ConfigStore
 
     mock_tg = AsyncMock()

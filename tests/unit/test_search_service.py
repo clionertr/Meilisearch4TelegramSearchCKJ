@@ -160,10 +160,10 @@ async def test_search_builds_filter_with_sender_username():
 
 def test_encode_callback_includes_sender_username():
     service = SearchService(_FakeMeili({"hits": [], "processingTimeMs": 0, "estimatedTotalHits": 0}))
-    
+
     query = SearchQuery(q="hello", sender_username="alice")
     payload = service.encode_page_callback(query, page=1, page_size=5)
-    
+
     decoded_query, page, page_size = service.decode_page_callback(payload)
     assert decoded_query.q == "hello"
     assert decoded_query.sender_username == "alice"

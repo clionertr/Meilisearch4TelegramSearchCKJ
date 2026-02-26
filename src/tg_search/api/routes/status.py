@@ -11,9 +11,35 @@ from fastapi import APIRouter, Depends
 from tg_search.api.deps import get_app_state, get_observability_service
 from tg_search.api.models import ApiResponse, DialogInfo, DialogListResponse, SystemStatus
 from tg_search.api.state import AppState
+from tg_search.core.logger import setup_logger
 from tg_search.services.observability_service import ObservabilityService
 
 router = APIRouter()
+logger = setup_logger()
+
+
+async def _resolve_runtime_connected(app_state: AppState) -> bool:
+    """
+    Resolve Telegram runtime connectivity from the canonical runtime controller.
+
+    Fallback to legacy AppState flags for compatibility with older bootstrap paths.
+    """
+    runtime = getattr(app_state, "runtime_control_service", None)
+    if runtime is None and app_state.service_container is not None:
+        runtime = getattr(app_state.service_container, "runtime_control_service", None)
+
+    if runtime is not None:
+        try:
+            runtime_status = await runtime.status()
+            return bool(runtime_status.is_running)
+        except Exception as exc:  # pragma: no cover - defensive fallback
+            logger.warning(
+                "[status] runtime status probe failed, fallback to legacy flags: %s: %s",
+                type(exc).__name__,
+                exc,
+            )
+
+    return bool(app_state.telegram_client is not None or app_state.is_bot_running)
 
 
 @router.get(
@@ -27,10 +53,12 @@ async def get_system_status(
     observability: ObservabilityService = Depends(get_observability_service),
 ) -> ApiResponse[SystemStatus]:
     """获取系统状态"""
+    runtime_connected = await _resolve_runtime_connected(app_state)
+
     snapshot = await observability.system_snapshot(
         uptime_seconds=app_state.uptime_seconds,
-        bot_running=app_state.is_bot_running,
-        telegram_connected=app_state.telegram_client is not None,
+        bot_running=runtime_connected or app_state.is_bot_running,
+        telegram_connected=runtime_connected,
         source="api.status",
     )
 

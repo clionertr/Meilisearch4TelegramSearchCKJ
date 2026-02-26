@@ -34,7 +34,7 @@ if os.getenv("RUN_INTEGRATION_TESTS", "").lower() not in ("1", "true", "yes"):
         allow_module_level=True,
     )
 
-from tests.integration.config import TEST_API_BASE_URL, TEST_MEILI_HOST, TEST_MEILI_KEY  # noqa: E402
+from tests.integration.config import TEST_API_BASE_URL  # noqa: E402
 from tests.integration.conftest import switchable  # noqa: E402
 
 pytestmark = [pytest.mark.integration, pytest.mark.e2e, pytest.mark.meili]

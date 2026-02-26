@@ -285,7 +285,6 @@ class TestFallbackOnBadSchema:
         _wait_task(meili, index_name)
 
         # 强制刷新 -> 应触发 fallback
-        import logging
         import unittest.mock as mock
 
         with mock.patch("tg_search.config.config_store.logger") as mock_logger:

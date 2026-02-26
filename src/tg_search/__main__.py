@@ -12,7 +12,6 @@ tg_search 命令行入口
 import argparse
 import asyncio
 import os
-import sys
 
 
 def parse_args():

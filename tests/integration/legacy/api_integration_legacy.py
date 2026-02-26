@@ -9,9 +9,7 @@ import json
 import os
 import sys
 from datetime import datetime
-from typing import Any
 
-import httpx
 import pytest
 from fastapi.testclient import TestClient
 

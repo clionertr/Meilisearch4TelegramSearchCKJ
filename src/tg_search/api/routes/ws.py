@@ -5,13 +5,11 @@ WebSocket 路由
 """
 
 import asyncio
-import json
 from datetime import datetime
 from typing import Any, Dict, Optional
 
-from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from tg_search.api.deps import get_app_state
 from tg_search.api.state import AppState
 from tg_search.config.settings import API_KEY
 from tg_search.core.logger import setup_logger

@@ -18,7 +18,6 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import JSONResponse
 
 from tg_search.api.deps import get_app_state, get_config_store, verify_bearer_token
 from tg_search.api.models import (
