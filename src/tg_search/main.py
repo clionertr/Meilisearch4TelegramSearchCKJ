@@ -106,6 +106,7 @@ async def main(
     progress_registry: Any | None = None,
     *,
     services: ServiceContainer | None = None,
+    on_ready: Any | None = None,
 ):
     _maybe_validate_config()
 
@@ -128,6 +129,15 @@ async def main(
         await user_bot_client.start()
         logger.info("User Bot started (policy_refresh_ttl_sec=%d)", POLICY_REFRESH_TTL_SEC)
 
+        if on_ready is not None:
+            try:
+                if asyncio.iscoroutinefunction(on_ready):
+                    await on_ready(user_bot_client.client)
+                else:
+                    on_ready(user_bot_client.client)
+            except Exception as e:
+                logger.error(f"Error calling on_ready callback: {e}")
+
         # 创建并运行下载和监听任务
         download_task = asyncio.create_task(
             download_and_listen(user_bot_client, meili, policy_service, progress_registry)
@@ -149,10 +159,11 @@ async def run(
     progress_registry: Any | None = None,
     *,
     services: ServiceContainer | None = None,
+    on_ready: Any | None = None,
 ):
     try:
         _maybe_validate_config()
-        await main(progress_registry, services=services)
+        await main(progress_registry, services=services, on_ready=on_ready)
     except KeyboardInterrupt:
         logger.info("Bot stopped by user")
 

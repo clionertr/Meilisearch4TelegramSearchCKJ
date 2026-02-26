@@ -124,7 +124,7 @@ async def _fetch_available_from_telegram(
     """
     tg = app_state.telegram_client
     if tg is None:
-        logger.info("[dialogs/available] telegram_client is None, returning empty list")
+        logger.warning("[dialogs/available] telegram_client is None, returning empty list")
         return []
 
     global_config = config_store.load_config()

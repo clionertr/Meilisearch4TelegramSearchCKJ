@@ -43,6 +43,7 @@ def build_service_container(
     progress_registry: object | None = None,
     runtime_progress_registry_getter: Callable[[], Any | None] | None = None,
     runtime_api_only_getter: Callable[[], bool] | None = None,
+    runtime_on_ready_getter: Callable[[], Any | None] | None = None,
     runtime_cleanup: Callable[[], Any] | None = None,
 ) -> ServiceContainer:
     """Build a fully wired service container."""
@@ -78,7 +79,16 @@ def build_service_container(
 
         if container_ref is None:  # pragma: no cover - defensive
             raise RuntimeError("service container is not initialized")
-        await run(progress_registry=_progress_registry(), services=container_ref)
+        
+        on_ready = None
+        if runtime_on_ready_getter is not None:
+            on_ready = runtime_on_ready_getter()
+            
+        await run(
+            progress_registry=_progress_registry(), 
+            services=container_ref,
+            on_ready=on_ready
+        )
 
     runtime_control_service = RuntimeControlService(
         _runner,

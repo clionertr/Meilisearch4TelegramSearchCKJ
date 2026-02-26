@@ -47,6 +47,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # API-only 模式标记需要在 ServiceContainer 构建前可见（供 RuntimeControlService 读取）
     app_state.api_only = os.getenv("API_ONLY", "false").lower() == "true"
 
+    async def on_client_ready(client):
+        app_state.telegram_client = client
+        logger.info("Telegram client bridged to AppState")
+
     # 初始化 AuthStore
     app_state.auth_store = AuthStore(token_store_file=AUTH_TOKEN_STORE_FILE)
     disable_auth_cleanup = os.getenv("DISABLE_AUTH_CLEANUP_TASK", "").lower() in ("1", "true", "yes")
@@ -75,6 +79,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                 progress_registry=app_state.progress_registry,
                 runtime_progress_registry_getter=lambda: app_state.progress_registry,
                 runtime_api_only_getter=lambda: app_state.api_only,
+                runtime_on_ready_getter=lambda: on_client_ready,
             )
             app_state.config_store = app_state.service_container.config_store
             app_state.config_policy_service = app_state.service_container.config_policy_service
@@ -117,6 +122,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                             lambda: run(
                                 progress_registry=app_state.progress_registry,
                                 services=app_state.service_container,
+                                on_ready=on_client_ready,
                             ),
                             services=app_state.service_container,
                         )
