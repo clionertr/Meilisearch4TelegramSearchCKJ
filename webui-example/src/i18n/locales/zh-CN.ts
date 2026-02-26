@@ -225,6 +225,21 @@ const zhCN = {
     modifyLater: '你可以稍后在设置中修改这些选择。',
     syncing: '同步中...',
     startSyncing: '开始同步（{{count}}）',
+    // Date range
+    downloadRange: '历史消息范围',
+    downloadRangeHint: '仅下载该时间范围内的消息。',
+    range1m: '近 1 个月',
+    range3m: '近 3 个月',
+    range6m: '近 6 个月',
+    range1y: '近 1 年',
+    range2y: '近 2 年',
+    rangeAll: '全部历史',
+    // Search
+    searchPlaceholder: '按名称或 ID 搜索...',
+    searchResult: '{{total}} 个会话中找到 {{count}} 个',
+    noResults: '未找到会话',
+    // Sync summary
+    syncSummary: '{{count}} 个会话 · 近 {{range}}历史',
   },
   aiConfig: {
     title: 'AI 配置',

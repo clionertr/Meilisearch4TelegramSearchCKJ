@@ -225,6 +225,21 @@ const enUS = {
     modifyLater: 'You can modify these selections later in settings.',
     syncing: 'Syncing...',
     startSyncing: 'Start Syncing ({{count}})',
+    // Date range
+    downloadRange: 'History Range',
+    downloadRangeHint: 'Only messages within this range will be downloaded.',
+    range1m: '1 Month',
+    range3m: '3 Months',
+    range6m: '6 Months',
+    range1y: '1 Year',
+    range2y: '2 Years',
+    rangeAll: 'All Time',
+    // Search
+    searchPlaceholder: 'Search by name or ID...',
+    searchResult: '{{count}} of {{total}} chats',
+    noResults: 'No chats found',
+    // Sync summary
+    syncSummary: '{{count}} chats · {{range}} of history',
   },
   aiConfig: {
     title: 'AI Configuration',
