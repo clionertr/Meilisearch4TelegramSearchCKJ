@@ -47,7 +47,10 @@ export const SenderFilter: React.FC<SenderFilterProps> = ({ value, onChange }) =
         <div className="relative" ref={containerRef}>
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center gap-1 px-4 py-1.5 rounded-full bg-surface-light dark:bg-surface-dark border border-slate-200 dark:border-border-dark text-sm font-medium whitespace-nowrap shadow-sm active:scale-95 transition-transform"
+                className={`flex items-center gap-1 px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap shadow-sm active:scale-95 transition-all border ${value
+                        ? 'bg-primary/10 dark:bg-primary/15 border-primary text-primary'
+                        : 'bg-surface-light dark:bg-surface-dark border-slate-200 dark:border-border-dark'
+                    }`}
             >
                 <span className="text-slate-500 dark:text-muted-dark relative z-0">Sender:</span>
                 <span className="text-slate-900 dark:text-white relative z-0">{value || 'All'}</span>

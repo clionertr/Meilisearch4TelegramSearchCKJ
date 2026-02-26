@@ -22,6 +22,10 @@
 | SPEC-P1-skeleton-empty-states.md | 2026-02-25 | `<Skeleton>`, `<EmptyState>` | WebUI 界面过渡态 |
 | SPEC-P1-dark-light-toggle.md | 2026-02-25 | `useTheme` Hook, localStorage, App.tsx 适配 | WebUI 外观设置 |
 | SPEC-P1-page-transitions.md | 2026-02-25 | `framer-motion`, `PageTransition` | WebUI 路由和列表动画 |
+| SPEC-P2-search-filters-theme.md | 2026-02-25 | `DateFilter`/`SenderFilter` 激活态高亮样式（`bg-primary/10 border-primary`），暗色 token 校验 | 搜索筛选器激活态 + 主题适配 |
+| SPEC-P2-confirmation-dialog.md | 2026-02-25 | `ConfirmDialog.tsx`、`ConfirmProvider.tsx`、`useConfirm` hook，替换 Settings/Storage 的 `window.confirm()` | 二次确认对话框系统 |
+| SPEC-P2-code-splitting.md | 2026-02-25 | `App.tsx` `React.lazy` + `Suspense` + `PageSkeleton`，`vite.config.ts` `manualChunks`（vendor/query/motion） | 路由懒加载 + 代码分割 |
+| SPEC-P2-search-enhancements.md | 2026-02-25 | `searchHistory.ts`、`telegramLinks.ts`、Search.tsx 接入 `react-virtuoso` 虚拟滚动、搜索历史/建议下拉、"Open in Telegram" 链接 | 搜索增强 |
 
 ---
 

@@ -409,7 +409,7 @@ graph TD
 | 缺口 | 已有 SPEC 覆盖？ | 说明 |
 |------|:----------------:|------|
 | Tailwind v4 统一 | ✅ 已完成归档 → [COMPLETED_SPECS.md](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/docs/specs/completed/COMPLETED_SPECS.md) | Phase A 暗色变量统一 |
-| 搜索筛选器 | ✅ [SPEC-P2-search-filters-theme.md](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/docs/specs/SPEC-P2-search-filters-theme.md) | Date + Sender 筛选 |
+| 搜索筛选器 | ✅ 已完成归档 → [COMPLETED_SPECS.md](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/docs/specs/completed/COMPLETED_SPECS.md) | DateFilter/SenderFilter 激活高亮、暗色 token ✅ |
 | 死代码清理 | ✅ 已完成归档 → [COMPLETED_SPECS.md](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/docs/specs/completed/COMPLETED_SPECS.md) | geminiService 等 |
 | 工具函数整理 | ✅ 已完成归档 → [COMPLETED_SPECS.md](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/docs/specs/completed/COMPLETED_SPECS.md) | formatBytes 去重等 |
 | **页面过渡动画** | ✅ 已完成归档 → [COMPLETED_SPECS.md](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/docs/specs/completed/COMPLETED_SPECS.md) | framer-motion 路由过渡 + stagger |
@@ -426,7 +426,7 @@ graph TD
 | **二次确认对话框** | ✅ [SPEC-P2-confirmation-dialog.md](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/docs/specs/SPEC-P2-confirmation-dialog.md) | 替代 confirm() |
 | **下拉刷新** | ❌ 未覆盖 | — |
 | **虚拟滚动** | ✅ ↑ SPEC-P2-search-enhancements | react-virtuoso |
-| **代码分割/懒加载** | ✅ [SPEC-P2-code-splitting.md](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/docs/specs/SPEC-P2-code-splitting.md) | React.lazy + Vite chunks |
+| **代码分割/懒加载** | ✅ 已完成归档 → [COMPLETED_SPECS.md](file:///home/sinfor/Games/SteamLibrary/CODE/Meilisearch4TelegramSearchCKJ/docs/specs/completed/COMPLETED_SPECS.md) | React.lazy + Suspense + vite manualChunks |
 | **全局离线提示** | ❌ 未覆盖 | — |
 | **Profile 页或移除** | ❌ 未覆盖 | — |
 

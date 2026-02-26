@@ -3,10 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { useStorageStats, useToggleAutoClean, useCleanupCache, useCleanupMedia } from '@/hooks/queries/useStorage';
 import { formatBytes } from '@/utils/formatters';
 import toast from '@/components/Toast/toast';
+import { useConfirm } from '@/hooks/useConfirm';
 
 const Storage: React.FC = () => {
     const navigate = useNavigate();
     const [autoClean, setAutoClean] = useState(false);
+    const { confirm } = useConfirm();
 
     const { data: stats, isLoading: loading, error: fetchError } = useStorageStats();
 
@@ -23,7 +25,14 @@ const Storage: React.FC = () => {
         });
     };
 
-    const handleCleanupCache = () => {
+    const handleCleanupCache = async () => {
+        const ok = await confirm({
+            title: 'Clear Cache',
+            message: 'This will remove all cached search results and configuration data. This action cannot be undone.',
+            variant: 'danger',
+            confirmLabel: 'Clear',
+        });
+        if (!ok) return;
         cleanupCacheMutation.mutate(undefined, {
             onSuccess: (data) => {
                 const cleared = data?.targets_cleared ?? [];
@@ -35,7 +44,14 @@ const Storage: React.FC = () => {
         });
     };
 
-    const handleCleanupMedia = () => {
+    const handleCleanupMedia = async () => {
+        const ok = await confirm({
+            title: 'Clear Media',
+            message: 'Media cleanup is currently unavailable. No data will be deleted.',
+            variant: 'default',
+            confirmLabel: 'OK',
+        });
+        if (!ok) return;
         cleanupMediaMutation.mutate(undefined, {
             onSuccess: () => {
                 toast.info('Media cleanup is not available in the current version');

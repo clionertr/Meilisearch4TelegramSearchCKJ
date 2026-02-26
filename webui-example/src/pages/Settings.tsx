@@ -8,6 +8,7 @@ import { authApi } from '@/api/auth';
 import { useAuthStore } from '@/store/authStore';
 import { useTheme } from '@/hooks/useTheme';
 import toast from '@/components/Toast/toast';
+import { useConfirm } from '@/hooks/useConfirm';
 
 const Settings: React.FC = () => {
   const navigate = useNavigate();
@@ -15,12 +16,19 @@ const Settings: React.FC = () => {
   const { data: storageStats, isLoading: storageLoading, error: storageError } = useStorageStats();
   const { data: systemStatus, isLoading: statusLoading, error: statusError } = useSystemStatus();
   const { theme, setTheme } = useTheme();
+  const { confirm } = useConfirm();
 
   const loading = storageLoading || statusLoading;
   const error = storageError?.message || statusError?.message;
 
   const handleLogout = async () => {
-    if (!confirm('Are you sure you want to logout?')) return;
+    const ok = await confirm({
+      title: 'Logout',
+      message: 'Are you sure you want to log out of this session?',
+      variant: 'danger',
+      confirmLabel: 'Logout',
+    });
+    if (!ok) return;
     try {
       await authApi.logout();
     } catch {
