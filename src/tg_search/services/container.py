@@ -45,6 +45,7 @@ def build_service_container(
     runtime_api_only_getter: Callable[[], bool] | None = None,
     runtime_on_ready_getter: Callable[[], Any | None] | None = None,
     runtime_cleanup: Callable[[], Any] | None = None,
+    scheduler_ready_callback_getter: Callable[[], Any | None] | None = None,
 ) -> ServiceContainer:
     """Build a fully wired service container."""
     client = meili_client or MeiliSearchClient(meili_host or MEILI_HOST, meili_key or MEILI_PASS)
@@ -83,11 +84,16 @@ def build_service_container(
         on_ready = None
         if runtime_on_ready_getter is not None:
             on_ready = runtime_on_ready_getter()
+
+        sched_cb = None
+        if scheduler_ready_callback_getter is not None:
+            sched_cb = scheduler_ready_callback_getter()
             
         await run(
             progress_registry=_progress_registry(), 
             services=container_ref,
-            on_ready=on_ready
+            on_ready=on_ready,
+            scheduler_ready_callback=sched_cb,
         )
 
     runtime_control_service = RuntimeControlService(

@@ -397,6 +397,13 @@ async def post_sync_dialogs(
     # 缓存失效（§3.3：POST/PATCH/DELETE /dialogs/* 成功后清除）
     cache.invalidate()
 
+    # 动态触发下载调度器（无需重启客户端）
+    scheduler = getattr(app_state, "download_scheduler", None)
+    if scheduler is not None and accepted:
+        import asyncio
+        for did in accepted:
+            asyncio.create_task(scheduler.enqueue(did))
+
     return ApiResponse(data=SyncResult(accepted=accepted, ignored=ignored, not_found=not_found))
 
 
@@ -442,6 +449,14 @@ async def patch_sync_state(
     cache.invalidate()
 
     updated_at = new_dialogs[str_id]["updated_at"]
+
+    # 动态触发下载调度器：active 时入队下载
+    if request.sync_state == "active":
+        scheduler = getattr(app_state, "download_scheduler", None)
+        if scheduler is not None:
+            import asyncio
+            asyncio.create_task(scheduler.enqueue(dialog_id))
+
     return ApiResponse(
         data=PatchSyncStateResult(
             id=dialog_id,

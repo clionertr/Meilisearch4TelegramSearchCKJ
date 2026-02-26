@@ -80,6 +80,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                 runtime_progress_registry_getter=lambda: app_state.progress_registry,
                 runtime_api_only_getter=lambda: app_state.api_only,
                 runtime_on_ready_getter=lambda: on_client_ready,
+                scheduler_ready_callback_getter=lambda: (
+                    lambda scheduler: setattr(app_state, "download_scheduler", scheduler)
+                ),
             )
             app_state.config_store = app_state.service_container.config_store
             app_state.config_policy_service = app_state.service_container.config_policy_service

@@ -95,3 +95,53 @@ async def test_invalid_ids_raise_domain_error():
     with pytest.raises(DomainError, match="integers only") as exc:
         await service.add_blacklist([1, "2"], source="api")  # type: ignore[list-item]
     assert exc.value.code == "policy_invalid_ids"
+
+
+@pytest.mark.asyncio
+async def test_sync_dialogs_active_merged_into_whitelist():
+    """sync.dialogs 中 active 的 ID 应被合并到 get_policy().white_list 中。"""
+    from tg_search.config.config_store import DialogSyncState, GlobalConfig, SyncConfig
+
+    initial = GlobalConfig(
+        policy={"white_list": [100], "black_list": []},
+        sync=SyncConfig(
+            dialogs={
+                "200": DialogSyncState(sync_state="active"),
+                "300": DialogSyncState(sync_state="paused"),
+                "400": DialogSyncState(sync_state="active"),
+            }
+        ),
+    )
+    store = FakeConfigStore(initial)
+    service = ConfigPolicyService(store, bootstrap_white_list=[], bootstrap_black_list=[])
+
+    policy = await service.get_policy(refresh=True)
+
+    # 100 来自 policy.white_list，200 和 400 来自 sync.dialogs (active)
+    assert 100 in policy.white_list
+    assert 200 in policy.white_list
+    assert 400 in policy.white_list
+    # 300 是 paused，不应出现
+    assert 300 not in policy.white_list
+
+
+@pytest.mark.asyncio
+async def test_sync_dialogs_no_duplicate_with_existing_whitelist():
+    """sync.dialogs 中已在 policy.white_list 里的 ID 不应重复。"""
+    from tg_search.config.config_store import DialogSyncState, GlobalConfig, SyncConfig
+
+    initial = GlobalConfig(
+        policy={"white_list": [100], "black_list": []},
+        sync=SyncConfig(
+            dialogs={
+                "100": DialogSyncState(sync_state="active"),  # 已在白名单
+            }
+        ),
+    )
+    store = FakeConfigStore(initial)
+    service = ConfigPolicyService(store, bootstrap_white_list=[], bootstrap_black_list=[])
+
+    policy = await service.get_policy(refresh=True)
+
+    assert policy.white_list.count(100) == 1
+

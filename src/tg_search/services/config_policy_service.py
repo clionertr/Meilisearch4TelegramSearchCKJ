@@ -154,8 +154,21 @@ class ConfigPolicyService:
 
     @staticmethod
     def _to_policy_config(cfg: GlobalConfig, source: Literal["config_store", "bootstrap_defaults"]) -> PolicyConfig:
+        # 合并 sync.dialogs 中 active 的 dialog ID 到有效白名单
+        # 这样 download_and_listen 和实时监听器都能感知到通过 Sync API 添加的会话
+        base_white = list(cfg.policy.white_list)
+        base_white_set = set(base_white)
+        for str_id, state in cfg.sync.dialogs.items():
+            if state.sync_state == "active":
+                try:
+                    did = int(str_id)
+                except ValueError:
+                    continue
+                if did not in base_white_set:
+                    base_white.append(did)
+                    base_white_set.add(did)
         return PolicyConfig(
-            white_list=list(cfg.policy.white_list),
+            white_list=base_white,
             black_list=list(cfg.policy.black_list),
             version=cfg.version,
             updated_at=cfg.updated_at,

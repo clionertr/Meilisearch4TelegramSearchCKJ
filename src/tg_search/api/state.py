@@ -203,6 +203,8 @@ class AppState:
         self.runtime_control_service: Optional[Any] = None
         # Dialog available 缓存（绑定到 app 生命周期，Fix-4）
         self.dialog_available_cache: Optional[Any] = None
+        # 下载调度器（在 download_and_listen 中通过回调初始化）
+        self.download_scheduler: Optional[Any] = None
 
     @property
     def uptime_seconds(self) -> float:

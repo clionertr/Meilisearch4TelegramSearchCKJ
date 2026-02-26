@@ -407,6 +407,7 @@ class TelegramUserBot:
         meili=None,
         dialog_id=None,
         progress_callback: Callable[[int], Awaitable[None]] | None = None,
+        state_checker: Callable[[], Awaitable[bool]] | None = None,
     ):
         """
         下载历史消息
@@ -417,7 +418,10 @@ class TelegramUserBot:
         :param batch_size: 批量下载大小
         :param offset_date:
         :param offset_id:
+        :param state_checker: 每批次后调用，返回 False 时优雅停止下载
         """
+        from tg_search.services.download_scheduler import DownloadPausedError
+
         try:
             messages = []
             last_seen_marker = None
@@ -456,6 +460,18 @@ class TelegramUserBot:
                     if progress_callback is not None:
                         await progress_callback(total_messages)
 
+                    # 每 batch 后检查 state_checker
+                    if state_checker is not None:
+                        should_continue = await state_checker()
+                        if not should_continue:
+                            logger.info(
+                                "download_history paused by state_checker after %d messages for dialog %s",
+                                total_messages, dialog_id,
+                            )
+                            raise DownloadPausedError(
+                                f"Download paused for dialog {dialog_id} after {total_messages} messages"
+                            )
+
             # 处理剩余消息
             if messages:
                 if last_seen_marker is not None and latest_msg_config is not None and meili is not None:
@@ -473,6 +489,8 @@ class TelegramUserBot:
             elif progress_callback is not None:
                 await progress_callback(total_messages)
 
+        except DownloadPausedError:
+            raise  # 向上传播，不要被下面的 catch-all 吞掉
         except FloodWaitError as e:
             logger.warning(f"Rate limited, need to wait {e.seconds} seconds")
             await asyncio.sleep(e.seconds)

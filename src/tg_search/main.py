@@ -33,69 +33,99 @@ async def download_and_listen(
     meili: MeiliSearchClient,
     policy_service: ConfigPolicyService,
     progress_registry: Any | None = None,
+    *,
+    config_store: Any | None = None,
+    scheduler_ready_callback: Any | None = None,
 ):
     try:
         policy = await policy_service.get_policy(refresh=True)
         white_list = policy.white_list
         black_list = policy.black_list
-        latest_msg_config = read_config_from_meili(meili)
         logger.info("Reading policy and latest message id from stores")
         logger.log(25, f"Current white_list: {white_list}, black_list: {black_list}")
-        tasks = []
-        dialogs = await user_bot_client.client.get_dialogs()
-        for d in dialogs:
-            dialog_title = d.title or str(d.id)
-            logger.log(25, f"Dialog discovered: {d.id} ({dialog_title})")
-            if is_allowed(d.id, white_list, black_list):
-                logger.log(25, f"Downloading history for {dialog_title}")
-                peer = await user_bot_client.client.get_entity(d.id)
 
-                dialog_id = d.id
+        # 使用 DialogDownloadScheduler 进行顺序下载
+        if config_store is not None:
+            from tg_search.services.download_scheduler import DialogDownloadScheduler
 
-                async def _progress(current: int, did: int = dialog_id, dtitle: str = dialog_title):
-                    if progress_registry is None:
-                        return
-                    await progress_registry.update_progress(
-                        dialog_id=did,
-                        dialog_title=dtitle,
-                        current=current,
-                        total=0,
-                        status="downloading",
-                    )
+            scheduler = DialogDownloadScheduler(
+                config_store=config_store,
+                meili=meili,
+                progress_registry=progress_registry,
+            )
+            scheduler.set_client(user_bot_client)
+            await scheduler.start()
 
-                async def _download_one(p=peer, did: int = dialog_id, dtitle: str = dialog_title):
-                    if progress_registry is not None:
+            # 通知外部（AppState）scheduler 已就绪
+            if scheduler_ready_callback is not None:
+                try:
+                    scheduler_ready_callback(scheduler)
+                except Exception as e:
+                    logger.error(f"scheduler_ready_callback error: {e}")
+
+            # 入队所有 active sync dialogs
+            await scheduler.enqueue_all_active()
+
+            logger.info("Scheduler started, now listening for new messages...")
+            try:
+                await cast(Awaitable[None], user_bot_client.client.disconnected)
+            finally:
+                await scheduler.stop()
+        else:
+            # 降级：无 config_store 时使用旧逻辑（兼容纯 bot-only 模式）
+            latest_msg_config = read_config_from_meili(meili)
+            tasks = []
+            dialogs = await user_bot_client.client.get_dialogs()
+            for d in dialogs:
+                dialog_title = d.title or str(d.id)
+                logger.log(25, f"Dialog discovered: {d.id} ({dialog_title})")
+                if is_allowed(d.id, white_list, black_list):
+                    logger.log(25, f"Downloading history for {dialog_title}")
+                    peer = await user_bot_client.client.get_entity(d.id)
+                    dialog_id = d.id
+
+                    async def _progress(current: int, did: int = dialog_id, dtitle: str = dialog_title):
+                        if progress_registry is None:
+                            return
                         await progress_registry.update_progress(
                             dialog_id=did,
                             dialog_title=dtitle,
-                            current=0,
+                            current=current,
                             total=0,
                             status="downloading",
                         )
-                    try:
-                        await user_bot_client.download_history(
-                            p,
-                            limit=None,
-                            offset_id=get_latest_msg_id4_meili(latest_msg_config, did),
-                            latest_msg_config=latest_msg_config,
-                            meili=meili,
-                            dialog_id=did,
-                            progress_callback=_progress,
-                        )
-                        if progress_registry is not None:
-                            await progress_registry.complete_progress(did)
-                    except Exception as e:
-                        if progress_registry is not None:
-                            await progress_registry.fail_progress(did, str(e))
-                        raise
 
-                tasks.append(_download_one())
-        # 并行处理所有下载任务
-        await asyncio.gather(*tasks)
-        # 监控内存使用
-        user_bot_client.get_memory_usage()
-        logger.info("Finished downloading history, now listening for new messages...")
-        await cast(Awaitable[None], user_bot_client.client.disconnected)
+                    async def _download_one(p=peer, did: int = dialog_id, dtitle: str = dialog_title):
+                        if progress_registry is not None:
+                            await progress_registry.update_progress(
+                                dialog_id=did,
+                                dialog_title=dtitle,
+                                current=0,
+                                total=0,
+                                status="downloading",
+                            )
+                        try:
+                            await user_bot_client.download_history(
+                                p,
+                                limit=None,
+                                offset_id=get_latest_msg_id4_meili(latest_msg_config, did),
+                                latest_msg_config=latest_msg_config,
+                                meili=meili,
+                                dialog_id=did,
+                                progress_callback=_progress,
+                            )
+                            if progress_registry is not None:
+                                await progress_registry.complete_progress(did)
+                        except Exception as e:
+                            if progress_registry is not None:
+                                await progress_registry.fail_progress(did, str(e))
+                            raise
+
+                    tasks.append(_download_one())
+            await asyncio.gather(*tasks)
+            user_bot_client.get_memory_usage()
+            logger.info("Finished downloading history, now listening for new messages...")
+            await cast(Awaitable[None], user_bot_client.client.disconnected)
     except asyncio.CancelledError:
         logger.info("下载任务被取消")
     except Exception as e:
@@ -107,6 +137,7 @@ async def main(
     *,
     services: ServiceContainer | None = None,
     on_ready: Any | None = None,
+    scheduler_ready_callback: Any | None = None,
 ):
     _maybe_validate_config()
 
@@ -140,7 +171,11 @@ async def main(
 
         # 创建并运行下载和监听任务
         download_task = asyncio.create_task(
-            download_and_listen(user_bot_client, meili, policy_service, progress_registry)
+            download_and_listen(
+                user_bot_client, meili, policy_service, progress_registry,
+                config_store=service_container.config_store,
+                scheduler_ready_callback=scheduler_ready_callback,
+            )
         )
 
         # 这里可以添加其他需要并行运行的任务
@@ -160,10 +195,16 @@ async def run(
     *,
     services: ServiceContainer | None = None,
     on_ready: Any | None = None,
+    scheduler_ready_callback: Any | None = None,
 ):
     try:
         _maybe_validate_config()
-        await main(progress_registry, services=services, on_ready=on_ready)
+        await main(
+            progress_registry,
+            services=services,
+            on_ready=on_ready,
+            scheduler_ready_callback=scheduler_ready_callback,
+        )
     except KeyboardInterrupt:
         logger.info("Bot stopped by user")
 
