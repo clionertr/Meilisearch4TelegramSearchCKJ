@@ -5,24 +5,30 @@
 import { toast as hotToast } from 'react-hot-toast';
 
 const DURATION = 3000;
+const ariaProps = {
+    role: 'status',
+    'aria-live': 'polite' as const,
+};
 
 const toast = {
     success: (message: string) =>
-        hotToast.success(message, { duration: DURATION }),
+        hotToast.success(message, { duration: DURATION, ariaProps }),
 
     error: (message: string) =>
-        hotToast.error(message, { duration: DURATION }),
+        hotToast.error(message, { duration: DURATION, ariaProps }),
 
     warning: (message: string) =>
         hotToast(message, {
             duration: DURATION,
-            icon: '⚠️',
+            icon: '!',
+            ariaProps,
         }),
 
     info: (message: string) =>
         hotToast(message, {
             duration: DURATION,
-            icon: 'ℹ️',
+            icon: 'i',
+            ariaProps,
         }),
 };
 

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useDashboardActivities, useDashboardBrief } from '@/hooks/queries/useDashboard';
 import Header from '@/components/layout/Header';
 import BriefCard from '@/components/dashboard/BriefCard';
@@ -10,6 +11,7 @@ import { Skeleton } from '@/components/common/Skeleton';
 
 const Dashboard: React.FC = () => {
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const [searchQuery, setSearchQuery] = useState('');
 
     const {
@@ -35,7 +37,7 @@ const Dashboard: React.FC = () => {
     };
 
     return (
-        <div className="flex flex-col gap-6 pb-24">
+        <div className="flex flex-col gap-6 pb-24 md:pb-8">
             <Header onSettingsClick={() => navigate('/settings')} />
 
             {/* Search */}
@@ -46,15 +48,17 @@ const Dashboard: React.FC = () => {
                     </div>
                     <input
                         className="block w-full pl-10 pr-10 py-3.5 border-none rounded-xl bg-surface-light dark:bg-surface-dark text-slate-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/50 shadow-sm dark:shadow-none"
-                        placeholder="Search history (CJK support)..."
+                        placeholder={t('dashboard.searchPlaceholder')}
                         type="text"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
+                        aria-label={t('a11y.searchMessages')}
                     />
                     <div className="absolute inset-y-0 right-0 pr-2 flex items-center">
                         <button
                             type="submit"
-                            className="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-white/5 text-gray-400"
+                            className="focus-ring p-1 rounded-md hover:bg-gray-100 dark:hover:bg-white/5 text-gray-400"
+                            aria-label={t('search.openFilters')}
                         >
                             <span className="material-symbols-outlined !text-[20px]">tune</span>
                         </button>
@@ -93,10 +97,12 @@ const Dashboard: React.FC = () => {
                 <ActivityList activities={activities} />
             )}
 
-            <div className="fixed bottom-24 right-6 z-40">
+            <div className="fixed bottom-24 right-6 z-40 md:bottom-8">
                 <button
+                    type="button"
                     onClick={() => navigate('/select-chats')}
-                    className="flex items-center justify-center w-14 h-14 bg-primary text-white rounded-full shadow-lg hover:bg-primary/90 transition-all hover:scale-105"
+                    className="focus-ring flex items-center justify-center w-14 h-14 bg-primary text-white rounded-full shadow-lg hover:bg-primary/90 transition-all hover:scale-105"
+                    aria-label={t('dashboard.addChats')}
                 >
                     <span className="material-symbols-outlined">chat_add_on</span>
                 </button>

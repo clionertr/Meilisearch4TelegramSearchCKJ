@@ -3,12 +3,12 @@ import { HashRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'r
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import { AnimatePresence, MotionConfig } from 'framer-motion';
-import BottomNav from '@/components/BottomNav';
 import Login from '@/pages/Login';       // Login: eager (首屏必需)
 import { ProtectedRoute } from '@/components/common/ProtectedRoute';
 import { PageTransition } from '@/components/common/PageTransition';
 import { PageSkeleton } from '@/components/common/PageSkeleton';
 import { ConfirmProvider } from '@/components/common/ConfirmProvider';
+import { AppLayout } from '@/components/layout/AppLayout';
 import { useStatusWebSocket } from '@/hooks/useWebSocket';
 import { ProgressData, useStatusStore } from '@/store/statusStore';
 import { AUTH_EXPIRED_EVENT } from '@/api/client';
@@ -56,28 +56,44 @@ const AppContent: React.FC = () => {
     };
   }, [navigate]);
 
-  const showBottomNav = location.pathname !== '/login';
-
   return (
-    <div className="min-h-screen bg-background-light dark:bg-background-dark max-w-md mx-auto relative shadow-2xl overflow-hidden">
-      <Suspense fallback={<PageSkeleton />}>
-        <AnimatePresence mode="wait" initial={false}>
-          <Routes location={location} key={location.pathname}>
-            <Route path="/login" element={<PageTransition><Login /></PageTransition>} />
+    <Suspense fallback={<PageSkeleton />}>
+      <AnimatePresence mode="wait" initial={false}>
+        <Routes location={location} key={location.pathname}>
+          <Route path="/login" element={<PageTransition><Login /></PageTransition>} />
 
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<ProtectedRoute><PageTransition><Dashboard /></PageTransition></ProtectedRoute>} />
-            <Route path="/settings" element={<ProtectedRoute><PageTransition><Settings /></PageTransition></ProtectedRoute>} />
-            <Route path="/search" element={<ProtectedRoute><PageTransition><Search /></PageTransition></ProtectedRoute>} />
-            <Route path="/synced-chats" element={<ProtectedRoute><PageTransition><SyncedChats /></PageTransition></ProtectedRoute>} />
-            <Route path="/select-chats" element={<ProtectedRoute><PageTransition><SelectChats /></PageTransition></ProtectedRoute>} />
-            <Route path="/storage" element={<ProtectedRoute><PageTransition><Storage /></PageTransition></ProtectedRoute>} />
-            <Route path="/ai-config" element={<ProtectedRoute><PageTransition><AIConfig /></PageTransition></ProtectedRoute>} />
-          </Routes>
-        </AnimatePresence>
-      </Suspense>
-      {showBottomNav && <BottomNav />}
-    </div>
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route
+            path="/dashboard"
+            element={<ProtectedRoute><AppLayout><PageTransition><Dashboard /></PageTransition></AppLayout></ProtectedRoute>}
+          />
+          <Route
+            path="/settings"
+            element={<ProtectedRoute><AppLayout><PageTransition><Settings /></PageTransition></AppLayout></ProtectedRoute>}
+          />
+          <Route
+            path="/search"
+            element={<ProtectedRoute><AppLayout><PageTransition><Search /></PageTransition></AppLayout></ProtectedRoute>}
+          />
+          <Route
+            path="/synced-chats"
+            element={<ProtectedRoute><AppLayout><PageTransition><SyncedChats /></PageTransition></AppLayout></ProtectedRoute>}
+          />
+          <Route
+            path="/select-chats"
+            element={<ProtectedRoute><AppLayout><PageTransition><SelectChats /></PageTransition></AppLayout></ProtectedRoute>}
+          />
+          <Route
+            path="/storage"
+            element={<ProtectedRoute><AppLayout><PageTransition><Storage /></PageTransition></AppLayout></ProtectedRoute>}
+          />
+          <Route
+            path="/ai-config"
+            element={<ProtectedRoute><AppLayout><PageTransition><AIConfig /></PageTransition></AppLayout></ProtectedRoute>}
+          />
+        </Routes>
+      </AnimatePresence>
+    </Suspense>
   );
 };
 

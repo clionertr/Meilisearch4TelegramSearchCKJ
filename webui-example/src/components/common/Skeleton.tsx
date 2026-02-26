@@ -29,6 +29,7 @@ export const Skeleton: React.FC<SkeletonProps> = ({ variant, width, height, coun
             key={i}
             className={`${baseClass} ${variantClass} ${className}`}
             style={getStyle()}
+            role={i === 0 ? "status" : undefined}
             aria-busy={i === 0 ? "true" : undefined}
         />
     ));

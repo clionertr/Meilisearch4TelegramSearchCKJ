@@ -1,5 +1,6 @@
-import React, { useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useEffect, useRef } from 'react';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 
 export interface ConfirmDialogProps {
     open: boolean;
@@ -17,30 +18,63 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
     title,
     message,
     variant = 'default',
-    confirmLabel = 'Confirm',
-    cancelLabel = 'Cancel',
+    confirmLabel,
+    cancelLabel,
     onConfirm,
     onCancel,
 }) => {
+    const { t } = useTranslation();
+    const shouldReduceMotion = useReducedMotion();
+    const dialogRef = useRef<HTMLDivElement>(null);
+    const cancelButtonRef = useRef<HTMLButtonElement>(null);
+
     // Close on Escape key
     useEffect(() => {
         if (!open) return;
         const handler = (e: KeyboardEvent) => {
             if (e.key === 'Escape') onCancel();
+            if (e.key === 'Tab' && dialogRef.current) {
+                const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
+                    'button, [href], input, select, textarea, [tabindex]:not([tabindex=\"-1\"])'
+                );
+                if (focusable.length === 0) return;
+
+                const first = focusable[0];
+                const last = focusable[focusable.length - 1];
+                const activeElement = document.activeElement as HTMLElement | null;
+
+                if (e.shiftKey && activeElement === first) {
+                    e.preventDefault();
+                    last.focus();
+                } else if (!e.shiftKey && activeElement === last) {
+                    e.preventDefault();
+                    first.focus();
+                }
+            }
         };
         document.addEventListener('keydown', handler);
         return () => document.removeEventListener('keydown', handler);
     }, [open, onCancel]);
+
+    useEffect(() => {
+        if (!open) return;
+        const previousFocus = document.activeElement as HTMLElement | null;
+        cancelButtonRef.current?.focus();
+        return () => previousFocus?.focus();
+    }, [open]);
+
+    const resolvedConfirmLabel = confirmLabel ?? t('common.confirm');
+    const resolvedCancelLabel = cancelLabel ?? t('common.cancel');
 
     return (
         <AnimatePresence>
             {open && (
                 <motion.div
                     key="confirm-overlay"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.15 }}
+                    initial={shouldReduceMotion ? false : { opacity: 0 }}
+                    animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1 }}
+                    exit={shouldReduceMotion ? { opacity: 1 } : { opacity: 0 }}
+                    transition={{ duration: shouldReduceMotion ? 0 : 0.15 }}
                     className="fixed inset-0 z-[999] flex items-center justify-center p-4"
                     aria-modal="true"
                     role="alertdialog"
@@ -55,10 +89,12 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
 
                     {/* Card */}
                     <motion.div
-                        initial={{ scale: 0.92, opacity: 0, y: 8 }}
-                        animate={{ scale: 1, opacity: 1, y: 0 }}
-                        exit={{ scale: 0.92, opacity: 0, y: 8 }}
+                        ref={dialogRef}
+                        initial={shouldReduceMotion ? false : { scale: 0.92, opacity: 0, y: 8 }}
+                        animate={shouldReduceMotion ? { scale: 1, opacity: 1, y: 0 } : { scale: 1, opacity: 1, y: 0 }}
+                        exit={shouldReduceMotion ? { scale: 1, opacity: 1, y: 0 } : { scale: 0.92, opacity: 0, y: 8 }}
                         transition={{ type: 'spring', stiffness: 350, damping: 28 }}
+                        tabIndex={-1}
                         className="relative w-full max-w-sm bg-white dark:bg-card-dark rounded-2xl shadow-2xl p-6 border border-slate-100 dark:border-white/5"
                     >
                         {/* Icon */}
@@ -87,19 +123,22 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
 
                         <div className="flex gap-3">
                             <button
+                                type="button"
+                                ref={cancelButtonRef}
                                 onClick={onCancel}
-                                className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
+                                className="focus-ring flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
                             >
-                                {cancelLabel}
+                                {resolvedCancelLabel}
                             </button>
                             <button
+                                type="button"
                                 onClick={onConfirm}
-                                className={`flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-colors ${variant === 'danger'
+                                className={`focus-ring flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-colors ${variant === 'danger'
                                         ? 'bg-red-500 hover:bg-red-600'
                                         : 'bg-primary hover:bg-sky-500'
                                     }`}
                             >
-                                {confirmLabel}
+                                {resolvedConfirmLabel}
                             </button>
                         </div>
                     </motion.div>

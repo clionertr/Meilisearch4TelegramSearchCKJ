@@ -9,6 +9,9 @@ Telegram 消息搜索的 Web 管理界面，基于 React 19 + TypeScript + Vite 
 - 存储统计 & 缓存清理
 - AI 配置管理
 - 实时进度推送（WebSocket）
+- 响应式布局（移动端 BottomNav / 桌面端 SideNav）
+- 国际化（English / 简体中文）
+- 可访问性优化（焦点环、键盘导航、ARIA、reduced-motion）
 
 ## 前置条件
 - Node.js 18+

@@ -22,8 +22,24 @@
 }
 
 body {
-    background-color: var(--color-background-dark);
+    background-color: var(--color-background-light);
+    color: #0f172a;
     min-height: 100vh;
+}
+
+.dark body {
+    background-color: var(--color-background-dark);
+    color: #f8fafc;
+}
+
+*:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}
+
+.focus-ring:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
 }
 
 .no-scrollbar::-webkit-scrollbar {
@@ -41,4 +57,13 @@ body {
 
 .material-symbols-outlined.fill-1 {
     font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
 }

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { DashboardActivityItem } from '@/api/dashboard';
 import { formatTime, getInitial } from '@/utils/formatters';
 import { gradients } from '@/utils/constants';
@@ -10,18 +11,20 @@ interface ActivityListProps {
 }
 
 const ActivityList: React.FC<ActivityListProps> = ({ activities }) => {
+    const { t, i18n } = useTranslation();
+
     return (
         <section className="flex flex-col">
             <div className="px-4 flex items-center justify-between mb-2">
-                <h2 className="text-lg font-bold text-slate-800 dark:text-white">Recent Activity</h2>
-                <span className="text-xs text-slate-400">{activities.length} chats</span>
+                <h2 className="text-lg font-bold text-slate-800 dark:text-white">{t('dashboard.recentActivity')}</h2>
+                <span className="text-xs text-slate-400">{t('dashboard.chatsCount', { count: activities.length })}</span>
             </div>
             {activities.length === 0 ? (
                 <div className="px-4">
                     <EmptyState
                         icon="inbox"
-                        title="No recent activity"
-                        description="There has been no activity in your synced chats in the last 24 hours."
+                        title={t('dashboard.noRecentActivityTitle')}
+                        description={t('dashboard.noRecentActivityDescription')}
                         className="py-12"
                     />
                 </div>
@@ -51,7 +54,7 @@ const ActivityList: React.FC<ActivityListProps> = ({ activities }) => {
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-baseline justify-between mb-0.5">
                                     <h3 className="text-sm font-semibold text-slate-900 dark:text-white truncate pr-2">{activity.chat_title}</h3>
-                                    <span className="text-[10px] text-gray-400 shrink-0">{formatTime(activity.latest_message_time)}</span>
+                                    <span className="text-[10px] text-gray-400 shrink-0">{formatTime(activity.latest_message_time, i18n.language)}</span>
                                 </div>
                                 <div className="flex gap-1.5 items-start">
                                     <span className="material-symbols-outlined text-primary text-[14px] mt-0.5 shrink-0">smart_toy</span>

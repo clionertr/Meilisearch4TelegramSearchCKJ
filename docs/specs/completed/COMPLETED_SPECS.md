@@ -26,6 +26,11 @@
 | SPEC-P2-confirmation-dialog.md | 2026-02-25 | `ConfirmDialog.tsx`、`ConfirmProvider.tsx`、`useConfirm` hook，替换 Settings/Storage 的 `window.confirm()` | 二次确认对话框系统 |
 | SPEC-P2-code-splitting.md | 2026-02-25 | `App.tsx` `React.lazy` + `Suspense` + `PageSkeleton`，`vite.config.ts` `manualChunks`（vendor/query/motion） | 路由懒加载 + 代码分割 |
 | SPEC-P2-search-enhancements.md | 2026-02-25 | `searchHistory.ts`、`telegramLinks.ts`、Search.tsx 接入 `react-virtuoso` 虚拟滚动、搜索历史/建议下拉、"Open in Telegram" 链接 | 搜索增强 |
+| SPEC-P3-a11y.md | 2026-02-26 | 全局 `:focus-visible` + `prefers-reduced-motion`、ARIA 补全、ConfirmDialog 键盘焦点约束、Toast `aria-live` | 可访问性（WCAG AA 基线） |
+| SPEC-P3-responsive-layout.md | 2026-02-26 | `AppLayout` + `SideNav`（`md+`）、`BottomNav` 仅移动端、Search `xl` 右侧信息面板、页面底部区域响应式调整 | 多端响应式布局 |
+| SPEC-P3-i18n.md | 2026-02-26 | 引入 `i18next` + `react-i18next`，新增 `en-US`/`zh-CN` 资源，Settings 语言切换与持久化，页面文案 `t('key')` 化 | 国际化双语支持 |
+| SPEC-P1-docs-utils-cleanup.md（增量） | 2026-02-26 | WebUI README 与 SPEC 归档索引同步更新，格式化/可访问性工具函数统一 | 文档/工具整理增量 |
+| SPEC-P3-dead-code-cleanup.md（增量） | 2026-02-26 | 删除未引用 `DonutChart.tsx` 与旧 `hooks/useSearch.ts`，导航配置抽离复用 | 死代码清理增量 |
 
 ---
 

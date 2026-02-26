@@ -1,13 +1,16 @@
-export const formatTime = (isoStr: string) => {
+export const formatTime = (isoStr: string, locale: string = 'en-US') => {
     try {
         const d = new Date(isoStr);
         const now = new Date();
         const diffMs = now.getTime() - d.getTime();
-        if (diffMs < 60 * 60 * 1000) return `${Math.floor(diffMs / 60000)}m ago`;
-        if (diffMs < 24 * 60 * 60 * 1000) {
-            return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        if (diffMs < 60 * 60 * 1000) {
+            const mins = Math.max(1, Math.floor(diffMs / 60000));
+            return new Intl.RelativeTimeFormat(locale, { numeric: 'auto' }).format(-mins, 'minute');
         }
-        return 'Yesterday';
+        if (diffMs < 24 * 60 * 60 * 1000) {
+            return d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
+        }
+        return d.toLocaleDateString(locale, { month: 'short', day: 'numeric' });
     } catch {
         return '';
     }

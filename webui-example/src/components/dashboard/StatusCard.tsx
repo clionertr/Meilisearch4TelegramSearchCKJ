@@ -3,6 +3,7 @@
  * 展示 3 个 KPI：MeiliSearch 连接状态、总索引消息数、已同步聊天数
  */
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSystemStatus } from '@/hooks/queries/useStatus';
 import { useSyncedDialogsCount } from '@/hooks/queries/useDashboardStatus';
 import { useSearchStats } from '@/hooks/queries/useDashboardStatus';
@@ -36,6 +37,7 @@ const KpiCard: React.FC<KpiCardProps> = ({ label, value, icon, iconColor = 'text
 );
 
 const StatusCard: React.FC = () => {
+    const { t } = useTranslation();
     const { data: status, isLoading: statusLoading, isError: statusError } = useSystemStatus();
     const { data: totalMessages, isLoading: statsLoading, isError: statsError } = useSearchStats();
     const { data: syncedCount, isLoading: dialogsLoading, isError: dialogsError } = useSyncedDialogsCount();
@@ -43,30 +45,30 @@ const StatusCard: React.FC = () => {
     return (
         <section className="px-4">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">
-                System Status
+                {t('status.systemStatus')}
             </h2>
             <div className="grid grid-cols-3 gap-3">
                 <KpiCard
-                    label="MeiliSearch"
+                    label={t('status.meilisearch')}
                     icon={status?.meili_connected ? 'cloud_done' : 'cloud_off'}
                     iconColor={
                         statusLoading ? 'text-slate-400' :
                             statusError ? 'text-red-500' :
                                 status?.meili_connected ? 'text-green-500' : 'text-red-500'
                     }
-                    value={status?.meili_connected ? 'Online' : 'Offline'}
+                    value={status?.meili_connected ? t('status.online') : t('status.offline')}
                     isLoading={statusLoading}
                     isError={statusError}
                 />
                 <KpiCard
-                    label="Indexed Messages"
+                    label={t('status.indexedMessages')}
                     icon="database"
                     value={(totalMessages ?? 0).toLocaleString()}
                     isLoading={statsLoading}
                     isError={statsError}
                 />
                 <KpiCard
-                    label="Synced Chats"
+                    label={t('status.syncedChats')}
                     icon="sync"
                     value={syncedCount ?? 0}
                     isLoading={dialogsLoading}

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Virtuoso } from 'react-virtuoso';
 import { extractApiErrorMessage } from '@/api/error';
 import { Highlight } from '@/components/common/Highlight';
@@ -8,7 +9,7 @@ import { DateFilter } from '@/components/search/DateFilter';
 import { SenderFilter } from '@/components/search/SenderFilter';
 import { Skeleton } from '@/components/common/Skeleton';
 import { EmptyState } from '@/components/common/EmptyState';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import {
     addSearchHistory,
     getSearchHistory,
@@ -16,8 +17,6 @@ import {
     getSuggestions,
 } from '@/utils/searchHistory';
 import { getTelegramLink } from '@/utils/telegramLinks';
-
-// ─── Search Suggestions Dropdown ────────────────────────────────────────────
 
 interface SearchSuggestionsProps {
     suggestions: string[];
@@ -32,6 +31,8 @@ const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
     onClearHistory,
     hasHistory,
 }) => {
+    const { t } = useTranslation();
+
     if (suggestions.length === 0) return null;
     return (
         <motion.div
@@ -40,17 +41,20 @@ const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.15 }}
             className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-dropdown-dark rounded-xl shadow-xl border border-slate-100 dark:border-border-dark z-50 overflow-hidden"
+            role="listbox"
+            aria-label={t('search.recentSearches')}
         >
             <div className="flex items-center justify-between px-4 py-2 border-b border-slate-100 dark:border-border-dark">
                 <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                    Recent searches
+                    {t('search.recentSearches')}
                 </span>
                 {hasHistory && (
                     <button
+                        type="button"
                         onClick={onClearHistory}
-                        className="text-xs text-red-400 hover:text-red-600 font-medium"
+                        className="focus-ring text-xs text-red-500 hover:text-red-600 font-medium"
                     >
-                        Clear history
+                        {t('search.clearHistory')}
                     </button>
                 )}
             </div>
@@ -58,10 +62,11 @@ const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
                 {suggestions.map((item) => (
                     <li key={item}>
                         <button
+                            type="button"
                             onMouseDown={(e) => { e.preventDefault(); onSelect(item); }}
-                            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-surface-dark transition-colors text-left"
+                            className="focus-ring w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-surface-dark transition-colors text-left"
                         >
-                            <span className="material-symbols-outlined text-[16px] text-slate-400">history</span>
+                            <span className="material-symbols-outlined text-[16px] text-slate-400" aria-hidden="true">history</span>
                             {item}
                         </button>
                     </li>
@@ -70,8 +75,6 @@ const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
         </motion.div>
     );
 };
-
-// ─── Search Result Card ─────────────────────────────────────────────────────
 
 interface SearchResultCardProps {
     result: {
@@ -86,6 +89,7 @@ interface SearchResultCardProps {
 }
 
 const SearchResultCard: React.FC<SearchResultCardProps> = ({ result }) => {
+    const { t, i18n } = useTranslation();
     const tgLink = getTelegramLink(result.chat.id, result.msg_id ?? null, result.chat.username);
 
     return (
@@ -102,11 +106,11 @@ const SearchResultCard: React.FC<SearchResultCardProps> = ({ result }) => {
                 <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-start gap-2">
                         <h3 className="text-sm font-bold text-slate-900 dark:text-white line-clamp-1 break-all">
-                            {result.chat.title || result.chat.username || `Chat ${result.chat.id}`}
+                            {result.chat.title || result.chat.username || t('search.chatFallback', { id: result.chat.id })}
                         </h3>
                         <div className="flex items-center gap-2 shrink-0">
                             <span className="text-xs text-slate-400 whitespace-nowrap">
-                                {new Date(result.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                {new Date(result.date).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}
                             </span>
                             {tgLink && (
                                 <a
@@ -114,16 +118,17 @@ const SearchResultCard: React.FC<SearchResultCardProps> = ({ result }) => {
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     onClick={(e) => e.stopPropagation()}
-                                    title="Open in Telegram"
-                                    className="text-slate-400 hover:text-primary transition-colors"
+                                    aria-label={t('a11y.openInTelegram')}
+                                    title={t('a11y.openInTelegram')}
+                                    className="focus-ring text-slate-400 hover:text-primary transition-colors"
                                 >
-                                    <span className="material-symbols-outlined text-[16px]">open_in_new</span>
+                                    <span className="material-symbols-outlined text-[16px]" aria-hidden="true">open_in_new</span>
                                 </a>
                             )}
                         </div>
                     </div>
                     <p className="text-xs text-primary truncate">
-                        Sender: {result.from_user?.username || `User ${result.from_user?.id ?? 'Unknown'}`}
+                        {t('search.senderPrefix')}: {result.from_user?.username || t('search.senderUser', { id: result.from_user?.id ?? t('search.senderUnknown') })}
                     </p>
                 </div>
             </div>
@@ -136,11 +141,12 @@ const SearchResultCard: React.FC<SearchResultCardProps> = ({ result }) => {
     );
 };
 
-// ─── Main Search Page ────────────────────────────────────────────────────────
-
 const Search: React.FC = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
+    const { t } = useTranslation();
+    const shouldReduceMotion = useReducedMotion();
+
     const initialQuery = searchParams.get('q') ?? '';
     const [query, setQuery] = useState(initialQuery);
     const [debouncedQuery, setDebouncedQuery] = useState(initialQuery);
@@ -148,13 +154,11 @@ const Search: React.FC = () => {
     const [debouncedFilters, setDebouncedFilters] = useState<SearchFilters>({});
     const [dateRangeType, setDateRangeType] = useState<string>('anytime');
 
-    // Suggestions dropdown state
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [suggestions, setSuggestions] = useState<string[]>([]);
     const [historyExists, setHistoryExists] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
 
-    // Debounce query + filters
     useEffect(() => {
         const timer = setTimeout(() => {
             setDebouncedQuery(query);
@@ -163,10 +167,9 @@ const Search: React.FC = () => {
         return () => clearTimeout(timer);
     }, [query, filters]);
 
-    // Update suggestions when query changes
     useEffect(() => {
-        const s = getSuggestions(query);
-        setSuggestions(s);
+        const suggestionList = getSuggestions(query);
+        setSuggestions(suggestionList);
         setHistoryExists(getSearchHistory().length > 0);
     }, [query, showSuggestions]);
 
@@ -176,10 +179,9 @@ const Search: React.FC = () => {
         hasNextPage,
         isFetchingNextPage,
         isLoading,
-        error
+        error,
     } = useSearchQuery(debouncedQuery, 20, debouncedFilters);
 
-    // Record search history when a debounced query fires
     useEffect(() => {
         if (debouncedQuery.trim().length >= 2) {
             addSearchHistory(debouncedQuery.trim());
@@ -189,10 +191,11 @@ const Search: React.FC = () => {
     const isPending = query.trim() !== debouncedQuery.trim();
 
     const allResults = useMemo(() => {
-        return data?.pages.flatMap(page => page.data.data.hits) || [];
+        return data?.pages.flatMap((page) => page.data.data.hits) || [];
     }, [data]);
 
     const totalResults = debouncedQuery ? (data?.pages[0]?.data.data.total_hits || 0) : 0;
+    const activeFilterCount = Number(Boolean(filters.senderUsername)) + Number(dateRangeType !== 'anytime');
 
     const handleSelectSuggestion = useCallback((item: string) => {
         setQuery(item);
@@ -214,151 +217,178 @@ const Search: React.FC = () => {
     }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
     return (
-        <div className="flex flex-col h-screen relative bg-background-light dark:bg-background-dark overflow-hidden">
-            {/* Header & Search Bar */}
-            <div className="px-4 pt-6 pb-2 shrink-0 z-30 bg-background-light dark:bg-background-dark sticky top-0">
-                <div className="flex items-center justify-between mb-4">
-                    <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-full hover:bg-slate-200 dark:hover:bg-surface-dark transition-colors text-slate-500 dark:text-slate-400">
-                        <span className="material-symbols-outlined">arrow_back</span>
-                    </button>
-                    <h1 className="text-lg font-semibold flex-1 text-center pr-8 dark:text-white">Search</h1>
+        <div className="min-h-screen bg-background-light dark:bg-background-dark overflow-hidden xl:grid xl:grid-cols-[minmax(0,1fr)_18rem]">
+            <div className="flex min-h-screen min-w-0 flex-col overflow-hidden">
+                <div className="px-4 pt-6 pb-2 shrink-0 z-30 bg-background-light dark:bg-background-dark sticky top-0">
+                    <div className="flex items-center justify-between mb-4">
+                        <button
+                            type="button"
+                            onClick={() => navigate(-1)}
+                            aria-label={t('a11y.back')}
+                            className="focus-ring p-2 -ml-2 rounded-full hover:bg-slate-200 dark:hover:bg-surface-dark transition-colors text-slate-500 dark:text-slate-400"
+                        >
+                            <span className="material-symbols-outlined" aria-hidden="true">arrow_back</span>
+                        </button>
+                        <h1 className="text-lg font-semibold flex-1 text-center pr-8 dark:text-white">{t('search.title')}</h1>
+                    </div>
+
+                    <div className="relative w-full group">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <span className="material-symbols-outlined text-primary" aria-hidden="true">search</span>
+                        </div>
+                        <input
+                            ref={inputRef}
+                            className="block w-full pl-10 pr-10 py-3 rounded-xl border-none bg-surface-light dark:bg-surface-dark text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-primary/50 shadow-sm text-base"
+                            placeholder={t('search.placeholder')}
+                            type="text"
+                            value={query}
+                            onChange={(e) => setQuery(e.target.value)}
+                            onFocus={() => setShowSuggestions(true)}
+                            onBlur={() => setTimeout(() => setShowSuggestions(false), 100)}
+                            aria-label={t('a11y.searchMessages')}
+                            aria-autocomplete="list"
+                            aria-expanded={showSuggestions && suggestions.length > 0}
+                        />
+                        {query && (
+                            <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                                <button
+                                    type="button"
+                                    onClick={() => setQuery('')}
+                                    aria-label={t('a11y.clearSearch')}
+                                    className="focus-ring text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                                >
+                                    <span className="material-symbols-outlined text-[20px]" aria-hidden="true">cancel</span>
+                                </button>
+                            </div>
+                        )}
+
+                        {showSuggestions && suggestions.length > 0 && (
+                            <SearchSuggestions
+                                suggestions={suggestions}
+                                onSelect={handleSelectSuggestion}
+                                onClearHistory={handleClearHistory}
+                                hasHistory={historyExists}
+                            />
+                        )}
+                    </div>
                 </div>
 
-                <div className="relative w-full group">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <span className="material-symbols-outlined text-primary">search</span>
-                    </div>
-                    <input
-                        ref={inputRef}
-                        className="block w-full pl-10 pr-10 py-3 rounded-xl border-none bg-surface-light dark:bg-surface-dark text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-primary/50 shadow-sm text-base"
-                        placeholder="Search messages..."
-                        type="text"
-                        value={query}
-                        onChange={(e) => setQuery(e.target.value)}
-                        onFocus={() => setShowSuggestions(true)}
-                        onBlur={() => setTimeout(() => setShowSuggestions(false), 100)}
-                        aria-label="Search messages"
-                        aria-autocomplete="list"
-                        aria-expanded={showSuggestions && suggestions.length > 0}
+                <div className="px-4 py-2 shrink-0 flex flex-wrap gap-2 pb-4 relative z-20">
+                    <DateFilter
+                        rangeType={dateRangeType}
+                        onChange={(rangeType, dateFrom) => {
+                            setDateRangeType(rangeType);
+                            setFilters((prev) => ({ ...prev, dateFrom }));
+                        }}
                     />
-                    {query && (
-                        <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                            <button
-                                onClick={() => setQuery('')}
-                                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                            >
-                                <span className="material-symbols-outlined text-[20px]">cancel</span>
-                            </button>
+                    <SenderFilter
+                        value={filters.senderUsername}
+                        onChange={(senderUsername) => setFilters((prev) => ({ ...prev, senderUsername }))}
+                    />
+                    {(dateRangeType !== 'anytime' || filters.senderUsername) && (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setFilters({});
+                                setDateRangeType('anytime');
+                            }}
+                            className="focus-ring flex items-center gap-1 px-4 py-1.5 rounded-full bg-slate-100 dark:bg-code-dark border border-slate-200 dark:border-divider-dark text-sm font-medium hover:text-red-500 dark:hover:text-red-400 whitespace-nowrap shadow-sm transition-colors text-slate-500 dark:text-slate-400"
+                        >
+                            <span className="material-symbols-outlined text-[16px]" aria-hidden="true">filter_alt_off</span>
+                            {t('search.clearFilters')}
+                        </button>
+                    )}
+                </div>
+
+                <div className="px-4 py-2 flex items-center justify-between text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400 shrink-0">
+                    {(isLoading || isPending) ? (
+                        <Skeleton variant="text" width="6rem" className="h-4" />
+                    ) : (
+                        <span>{debouncedQuery ? t('search.matchesFound', { count: totalResults }) : t('search.enterKeywords')}</span>
+                    )}
+                    {debouncedQuery && <span className="text-primary">{totalResults > 0 ? t('search.sortedByRelevance') : ''}</span>}
+                </div>
+
+                <div className="flex-1 overflow-hidden" aria-live="polite">
+                    {error && (
+                        <div className="px-4 py-4 text-center text-red-500">
+                            {extractApiErrorMessage(error, t('search.fetchError'))}
                         </div>
                     )}
 
-                    {/* Suggestions dropdown */}
-                    {showSuggestions && suggestions.length > 0 && (
-                        <SearchSuggestions
-                            suggestions={suggestions}
-                            onSelect={handleSelectSuggestion}
-                            onClearHistory={handleClearHistory}
-                            hasHistory={historyExists}
+                    {(isLoading || isPending) && (
+                        <div className="space-y-4 px-4 pt-2" aria-busy="true">
+                            {[1, 2, 3].map((i) => (
+                                <Skeleton key={i} variant="card" height="9rem" />
+                            ))}
+                        </div>
+                    )}
+
+                    {!isLoading && !isPending && allResults.length > 0 && (
+                        <Virtuoso
+                            style={{ height: '100%' }}
+                            data={allResults}
+                            endReached={loadMore}
+                            overscan={200}
+                            className="no-scrollbar"
+                            itemContent={(_, result) => (
+                                <motion.div
+                                    key={result.id}
+                                    className="pb-4 px-4"
+                                    initial={shouldReduceMotion ? false : { opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: shouldReduceMotion ? 0 : 0.2 }}
+                                >
+                                    <SearchResultCard result={result as SearchResultCardProps['result']} />
+                                </motion.div>
+                            )}
+                            components={{
+                                Footer: () => (
+                                    hasNextPage ? (
+                                        <div className="py-4 text-center">
+                                            <span className="text-primary text-sm font-medium">
+                                                {isFetchingNextPage ? t('search.loadingMore') : ''}
+                                            </span>
+                                        </div>
+                                    ) : null
+                                ),
+                            }}
                         />
+                    )}
+
+                    {debouncedQuery && !isLoading && !isPending && allResults.length === 0 && (
+                        <div className="mt-8 px-4">
+                            <EmptyState
+                                icon="search_off"
+                                title={t('search.noResultsTitle')}
+                                description={t('search.noResultsDescription', { query: debouncedQuery })}
+                            />
+                        </div>
                     )}
                 </div>
             </div>
 
-            {/* Filter Chips */}
-            <div className="px-4 py-2 shrink-0 flex flex-wrap gap-2 pb-4 relative z-20">
-                <DateFilter
-                    rangeType={dateRangeType}
-                    onChange={(rangeType, dateFrom) => {
-                        setDateRangeType(rangeType);
-                        setFilters(prev => ({ ...prev, dateFrom }));
-                    }}
-                />
-                <SenderFilter
-                    value={filters.senderUsername}
-                    onChange={(senderUsername) => setFilters(prev => ({ ...prev, senderUsername }))}
-                />
-                {(dateRangeType !== 'anytime' || filters.senderUsername) && (
-                    <button
-                        onClick={() => {
-                            setFilters({});
-                            setDateRangeType('anytime');
-                        }}
-                        className="flex items-center gap-1 px-4 py-1.5 rounded-full bg-slate-100 dark:bg-code-dark border border-slate-200 dark:border-divider-dark text-sm font-medium hover:text-red-500 dark:hover:text-red-400 whitespace-nowrap shadow-sm transition-colors text-slate-500 dark:text-slate-400"
-                    >
-                        <span className="material-symbols-outlined text-[16px]">filter_alt_off</span>
-                        Clear filters
-                    </button>
-                )}
-            </div>
-
-            {/* Results Info */}
-            <div className="px-4 py-2 flex items-center justify-between text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400 shrink-0">
-                {(isLoading || isPending) ? (
-                    <Skeleton variant="text" width="6rem" className="h-4" />
-                ) : (
-                    <span>{debouncedQuery ? `${totalResults} matches found` : 'Enter keywords to search'}</span>
-                )}
-                {debouncedQuery && <span className="text-primary">{totalResults > 0 ? 'Sorted by relevance' : ''}</span>}
-            </div>
-
-            {/* Results List */}
-            <div className="flex-1 overflow-hidden">
-                {error && (
-                    <div className="px-4 py-4 text-center text-red-500">
-                        Error: {extractApiErrorMessage(error, 'Failed to fetch results')}
+            <aside className="hidden xl:block border-l border-slate-200/80 dark:border-white/5 bg-white/60 dark:bg-background-dark/40 p-5">
+                <div className="sticky top-5 space-y-4">
+                    <div className="rounded-2xl border border-slate-200 dark:border-white/10 p-4 bg-white dark:bg-card-dark/70">
+                        <h2 className="text-sm font-bold text-slate-900 dark:text-white mb-2">{t('search.rightPanelTitle')}</h2>
+                        <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">{t('search.rightPanelDescription')}</p>
                     </div>
-                )}
-
-                {(isLoading || isPending) && (
-                    <div className="space-y-4 px-4 pt-2">
-                        {[1, 2, 3].map(i => (
-                            <Skeleton key={i} variant="card" height="9rem" />
-                        ))}
+                    <div className="rounded-2xl border border-slate-200 dark:border-white/10 p-4 bg-white dark:bg-card-dark/70">
+                        <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">{t('search.rightPanelStatsTitle')}</h3>
+                        <div className="space-y-2 text-sm">
+                            <div className="flex items-center justify-between">
+                                <span className="text-slate-500 dark:text-slate-400">{t('search.queryLength')}</span>
+                                <span className="font-semibold text-slate-800 dark:text-slate-100">{query.trim().length}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-slate-500 dark:text-slate-400">{t('search.activeFilters')}</span>
+                                <span className="font-semibold text-slate-800 dark:text-slate-100">{activeFilterCount}</span>
+                            </div>
+                        </div>
                     </div>
-                )}
-
-                {!isLoading && !isPending && allResults.length > 0 && (
-                    <Virtuoso
-                        style={{ height: '100%' }}
-                        data={allResults}
-                        endReached={loadMore}
-                        overscan={200}
-                        className="no-scrollbar"
-                        itemContent={(_, result) => (
-                            <motion.div
-                                key={result.id}
-                                className="pb-4 px-4"
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.2 }}
-                            >
-                                <SearchResultCard result={result as SearchResultCardProps['result']} />
-                            </motion.div>
-                        )}
-                        components={{
-                            Footer: () => (
-                                hasNextPage ? (
-                                    <div className="py-4 text-center">
-                                        <span className="text-primary text-sm font-medium">
-                                            {isFetchingNextPage ? 'Loading more...' : ''}
-                                        </span>
-                                    </div>
-                                ) : null
-                            ),
-                        }}
-                    />
-                )}
-
-                {debouncedQuery && !isLoading && !isPending && allResults.length === 0 && (
-                    <div className="mt-8 px-4">
-                        <EmptyState
-                            icon="search_off"
-                            title="No results found"
-                            description={`We couldn't find any matches for "${debouncedQuery}". Try different keywords or adjust your filters.`}
-                        />
-                    </div>
-                )}
-            </div>
+                </div>
+            </aside>
         </div>
     );
 };

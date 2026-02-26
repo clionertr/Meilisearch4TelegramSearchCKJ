@@ -3,9 +3,11 @@
  * 消费 useStatusStore.tasks，展示当前下载的聊天和进度条
  */
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { useStatusStore } from '@/store/statusStore';
 
 const SyncProgress: React.FC = () => {
+    const { t } = useTranslation();
     const tasks = useStatusStore((s) => s.tasks);
     const overallStatus = useStatusStore((s) => s.overallStatus);
 
@@ -18,9 +20,9 @@ const SyncProgress: React.FC = () => {
     }
 
     return (
-        <section className="px-4">
+        <section className="px-4" aria-live="polite">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">
-                Sync Progress
+                {t('dashboard.syncProgress')}
             </h2>
             <div className="space-y-3">
                 {activeTasks.map((task) => (
@@ -34,7 +36,7 @@ const SyncProgress: React.FC = () => {
                                     sync
                                 </span>
                                 <p className="text-sm font-semibold dark:text-white truncate max-w-[180px]">
-                                    {task.dialog_title || `Chat ${task.dialog_id}`}
+                                    {task.dialog_title || t('search.chatFallback', { id: task.dialog_id })}
                                 </p>
                             </div>
                             <span className="text-xs font-bold text-primary">{task.percentage}%</span>
@@ -46,7 +48,10 @@ const SyncProgress: React.FC = () => {
                             />
                         </div>
                         <p className="text-xs text-slate-400 mt-1">
-                            {task.current.toLocaleString()} / {task.total.toLocaleString()} messages
+                            {t('dashboard.progressMessages', {
+                                current: task.current.toLocaleString(),
+                                total: task.total.toLocaleString(),
+                            })}
                         </p>
                     </div>
                 ))}
