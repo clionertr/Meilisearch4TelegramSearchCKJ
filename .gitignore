@@ -39,6 +39,7 @@ coverage.xml
 # IDE 配置文件
 .vscode/
 .idea/
+.agents/
 
 # 环境变量
 .env
@@ -64,3 +65,4 @@ src/tg_search/config/config.ini
 
 tests/integration/.test_groups.json
 session/auth_tokens.json
+
