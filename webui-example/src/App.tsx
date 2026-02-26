@@ -57,43 +57,41 @@ const AppContent: React.FC = () => {
   }, [navigate]);
 
   return (
-    <Suspense fallback={<PageSkeleton />}>
-      <AnimatePresence mode="wait" initial={false}>
-        <Routes location={location} key={location.pathname}>
-          <Route path="/login" element={<PageTransition><Login /></PageTransition>} />
+    <AnimatePresence mode="wait" initial={false}>
+      <Routes location={location} key={location.pathname}>
+        <Route path="/login" element={<PageTransition><Login /></PageTransition>} />
 
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route
-            path="/dashboard"
-            element={<ProtectedRoute><AppLayout><PageTransition><Dashboard /></PageTransition></AppLayout></ProtectedRoute>}
-          />
-          <Route
-            path="/settings"
-            element={<ProtectedRoute><AppLayout><PageTransition><Settings /></PageTransition></AppLayout></ProtectedRoute>}
-          />
-          <Route
-            path="/search"
-            element={<ProtectedRoute><AppLayout><PageTransition><Search /></PageTransition></AppLayout></ProtectedRoute>}
-          />
-          <Route
-            path="/synced-chats"
-            element={<ProtectedRoute><AppLayout><PageTransition><SyncedChats /></PageTransition></AppLayout></ProtectedRoute>}
-          />
-          <Route
-            path="/select-chats"
-            element={<ProtectedRoute><AppLayout><PageTransition><SelectChats /></PageTransition></AppLayout></ProtectedRoute>}
-          />
-          <Route
-            path="/storage"
-            element={<ProtectedRoute><AppLayout><PageTransition><Storage /></PageTransition></AppLayout></ProtectedRoute>}
-          />
-          <Route
-            path="/ai-config"
-            element={<ProtectedRoute><AppLayout><PageTransition><AIConfig /></PageTransition></AppLayout></ProtectedRoute>}
-          />
-        </Routes>
-      </AnimatePresence>
-    </Suspense>
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route
+          path="/dashboard"
+          element={<ProtectedRoute><AppLayout><PageTransition><Dashboard /></PageTransition></AppLayout></ProtectedRoute>}
+        />
+        <Route
+          path="/settings"
+          element={<ProtectedRoute><AppLayout><PageTransition><Settings /></PageTransition></AppLayout></ProtectedRoute>}
+        />
+        <Route
+          path="/search"
+          element={<ProtectedRoute><AppLayout><PageTransition><Search /></PageTransition></AppLayout></ProtectedRoute>}
+        />
+        <Route
+          path="/synced-chats"
+          element={<ProtectedRoute><AppLayout><PageTransition><SyncedChats /></PageTransition></AppLayout></ProtectedRoute>}
+        />
+        <Route
+          path="/select-chats"
+          element={<ProtectedRoute><AppLayout><PageTransition><SelectChats /></PageTransition></AppLayout></ProtectedRoute>}
+        />
+        <Route
+          path="/storage"
+          element={<ProtectedRoute><AppLayout><PageTransition><Storage /></PageTransition></AppLayout></ProtectedRoute>}
+        />
+        <Route
+          path="/ai-config"
+          element={<ProtectedRoute><AppLayout><PageTransition><AIConfig /></PageTransition></AppLayout></ProtectedRoute>}
+        />
+      </Routes>
+    </AnimatePresence>
   );
 };
 

@@ -1,6 +1,7 @@
 import { motion, useReducedMotion } from 'framer-motion';
 import { useLocation } from 'react-router-dom';
-import React, { PropsWithChildren } from 'react';
+import React, { PropsWithChildren, Suspense } from 'react';
+import { PageSkeleton } from './PageSkeleton';
 
 const variants = {
     enter: { opacity: 0, x: 20 },
@@ -13,7 +14,7 @@ export function PageTransition({ children }: PropsWithChildren) {
     const shouldReduceMotion = useReducedMotion();
 
     if (shouldReduceMotion) {
-        return <>{children}</>;
+        return <Suspense fallback={<PageSkeleton />}>{children}</Suspense>;
     }
 
     return (
@@ -24,7 +25,9 @@ export function PageTransition({ children }: PropsWithChildren) {
             transition={{ duration: 0.2 }}
             className="w-full min-h-screen"
         >
-            {children}
+            <Suspense fallback={<PageSkeleton />}>
+                {children}
+            </Suspense>
         </motion.div>
     );
 }
