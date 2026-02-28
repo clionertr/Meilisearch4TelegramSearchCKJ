@@ -385,6 +385,7 @@ async def post_sync_dialogs(
 
             new_dialogs[str_id] = DialogSyncState(
                 sync_state=request.default_sync_state,
+                date_from=request.date_from.isoformat() if request.date_from is not None else None,
                 last_synced_at=None,
                 updated_at=_now_iso(),
             )

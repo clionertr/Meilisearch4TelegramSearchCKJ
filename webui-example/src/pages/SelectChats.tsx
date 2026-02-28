@@ -93,11 +93,7 @@ const SelectChats: React.FC = () => {
             dateFrom = d.toISOString();
         }
 
-        // 目前后端 SyncRequest 仅接受 dialog_ids + default_sync_state
-        // dateFrom 作为前端范围提示，未来可扩展到后端
-        void dateFrom; // suppress unused warning until backend supports date_from
-
-        syncMutation.mutate(Array.from(selected), {
+        syncMutation.mutate({ dialogIds: Array.from(selected), dateFrom }, {
             onSuccess: () => {
                 navigate('/synced-chats');
             },
@@ -197,8 +193,8 @@ const SelectChats: React.FC = () => {
                                     type="button"
                                     onClick={() => setDateRange(preset.key)}
                                     className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all focus-ring ${dateRange === preset.key
-                                            ? 'bg-primary text-white shadow-md shadow-primary/30'
-                                            : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
+                                        ? 'bg-primary text-white shadow-md shadow-primary/30'
+                                        : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
                                         }`}
                                     aria-pressed={dateRange === preset.key}
                                 >
@@ -280,8 +276,8 @@ const SelectChats: React.FC = () => {
                             <div
                                 key={dialog.id}
                                 className={`flex items-center justify-between p-4 rounded-2xl border shadow-sm transition-all cursor-pointer ${isChecked
-                                        ? 'bg-primary/5 dark:bg-primary/10 border-primary/30 dark:border-primary/40'
-                                        : 'bg-white dark:bg-surface-alt-dark border-slate-100 dark:border-slate-800/50'
+                                    ? 'bg-primary/5 dark:bg-primary/10 border-primary/30 dark:border-primary/40'
+                                    : 'bg-white dark:bg-surface-alt-dark border-slate-100 dark:border-slate-800/50'
                                     }`}
                                 onClick={() => toggleSelect(dialog.id)}
                                 role="checkbox"

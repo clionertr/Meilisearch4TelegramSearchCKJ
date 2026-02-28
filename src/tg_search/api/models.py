@@ -345,6 +345,7 @@ class SyncRequest(BaseModel):
         description="要同步的 dialog ID 列表（1-200 个，自动去重）",
     )
     default_sync_state: SyncStateInput = Field(default="active", description="初始同步状态: active | paused")
+    date_from: Optional[datetime] = Field(None, description="下载起始时间（ISO8601），None 表示下载全部历史")
 
 
 class SyncResult(BaseModel):

@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Awaitable, Callable
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
 from tg_search.core.logger import setup_logger
@@ -236,6 +237,23 @@ class DialogDownloadScheduler:
         latest_msg_config = await asyncio.to_thread(read_config_from_meili, self._meili)
         offset_id = get_latest_msg_id4_meili(latest_msg_config, dialog_id)
 
+        # 5a. 是否有时间过滤（仅在首次下载，即 offset_id==0 时应用）
+        offset_date: datetime | None = None
+        if offset_id == 0 and dialog_state.date_from:
+            try:
+                offset_date = datetime.fromisoformat(dialog_state.date_from)
+                if offset_date.tzinfo is None:
+                    offset_date = offset_date.replace(tzinfo=timezone.utc)
+                logger.info(
+                    "[DownloadScheduler] applying date_from=%s for dialog %d",
+                    dialog_state.date_from, dialog_id,
+                )
+            except ValueError:
+                logger.warning(
+                    "[DownloadScheduler] invalid date_from=%r for dialog %d, ignoring",
+                    dialog_state.date_from, dialog_id,
+                )
+
         # 6. 上报进度开始
         if self._progress_registry is not None:
             await self._progress_registry.update_progress(
@@ -255,6 +273,7 @@ class DialogDownloadScheduler:
                 peer,
                 limit=None,
                 offset_id=offset_id,
+                offset_date=offset_date,
                 latest_msg_config=latest_msg_config,
                 meili=self._meili,
                 dialog_id=dialog_id,

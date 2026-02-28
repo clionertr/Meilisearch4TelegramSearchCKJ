@@ -43,6 +43,7 @@ class DialogSyncState(BaseModel):
     """单个对话的同步状态"""
 
     sync_state: str = "inactive"
+    date_from: str | None = None  # 下载起始日期（ISO8601），None 表示下载全部历史
     last_synced_at: str | None = None
     updated_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 

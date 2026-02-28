@@ -44,6 +44,7 @@ export interface SyncedDialogsData {
 export interface SyncRequest {
     dialog_ids: number[];
     default_sync_state?: 'active' | 'paused';
+    date_from?: string; // ISO8601，None 表示下载全部历史
 }
 
 export interface SyncResult {

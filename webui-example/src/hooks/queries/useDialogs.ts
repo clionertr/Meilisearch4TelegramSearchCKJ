@@ -36,9 +36,12 @@ export const useSyncDialogs = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async (dialogIds: number[]) => {
+        mutationFn: async ({ dialogIds, dateFrom }: { dialogIds: number[]; dateFrom?: string }) => {
             try {
-                const response = await dialogsApi.sync({ dialog_ids: dialogIds });
+                const response = await dialogsApi.sync({
+                    dialog_ids: dialogIds,
+                    ...(dateFrom ? { date_from: dateFrom } : {}),
+                });
                 return response.data.data;
             } catch (err) {
                 throw new Error(extractApiErrorMessage(err, 'Failed to start sync'));
