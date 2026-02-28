@@ -217,8 +217,8 @@ const Search: React.FC = () => {
     }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
     return (
-        <div className="min-h-screen bg-background-light dark:bg-background-dark overflow-hidden xl:grid xl:grid-cols-[minmax(0,1fr)_18rem]">
-            <div className="flex min-h-screen min-w-0 flex-col overflow-hidden">
+        <div className="min-h-screen bg-background-light dark:bg-background-dark xl:grid xl:grid-cols-[minmax(0,1fr)_18rem]">
+            <div className="flex min-h-screen min-w-0 flex-col">
                 <div className="px-4 pt-6 pb-2 shrink-0 z-30 bg-background-light dark:bg-background-dark sticky top-0">
                     <div className="flex items-center justify-between mb-4">
                         <button
@@ -309,7 +309,7 @@ const Search: React.FC = () => {
                     {debouncedQuery && <span className="text-primary">{totalResults > 0 ? t('search.sortedByRelevance') : ''}</span>}
                 </div>
 
-                <div className="flex-1 overflow-hidden" aria-live="polite">
+                <div className="flex-1 pb-24 md:pb-8" aria-live="polite">
                     {error && (
                         <div className="px-4 py-4 text-center text-red-500">
                             {extractApiErrorMessage(error, t('search.fetchError'))}
@@ -326,11 +326,10 @@ const Search: React.FC = () => {
 
                     {!isLoading && !isPending && allResults.length > 0 && (
                         <Virtuoso
-                            style={{ height: '100%' }}
+                            useWindowScroll
                             data={allResults}
                             endReached={loadMore}
                             overscan={200}
-                            className="no-scrollbar"
                             itemContent={(_, result) => (
                                 <motion.div
                                     key={result.id}
