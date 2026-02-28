@@ -67,3 +67,4 @@ src/tg_search/config/config.ini
 
 tests/integration/.test_groups.json
 session/auth_tokens.json
+webui-example/.env.development
