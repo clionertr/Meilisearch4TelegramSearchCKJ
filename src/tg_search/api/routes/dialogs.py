@@ -372,28 +372,25 @@ async def post_sync_dialogs(
     accepted: list[int] = []
     ignored: list[int] = []
     not_found: list[int] = []
-
-    new_dialogs = dict(global_config.sync.dialogs)  # 浅拷贝
+    upserts: dict[int, dict[str, str | None]] = {}
 
     for did in deduped:
         str_id = str(did)
-        if str_id in new_dialogs:
+        if str_id in global_config.sync.dialogs:
             ignored.append(did)
         elif did in available_ids:
             accepted.append(did)
-            from tg_search.config.config_store import DialogSyncState
-
-            new_dialogs[str_id] = DialogSyncState(
-                sync_state=request.default_sync_state,
-                date_from=request.date_from.isoformat() if request.date_from is not None else None,
-                last_synced_at=None,
-                updated_at=_now_iso(),
-            )
+            upserts[did] = {
+                "sync_state": request.default_sync_state,
+                "date_from": request.date_from.isoformat() if request.date_from is not None else None,
+                "last_synced_at": None,
+                "updated_at": _now_iso(),
+            }
         else:
             not_found.append(did)
 
     if accepted:
-        config_store.update_section("sync", {"dialogs": {k: v.model_dump() for k, v in new_dialogs.items()}})
+        config_store.upsert_dialog_states(upserts)
 
     # 缓存失效（§3.3：POST/PATCH/DELETE /dialogs/* 成功后清除）
     cache.invalidate()
@@ -440,16 +437,21 @@ async def patch_sync_state(
         )
 
     # 更新状态
-    new_dialogs = {k: v.model_dump() for k, v in global_config.sync.dialogs.items()}
-    new_dialogs[str_id]["sync_state"] = request.sync_state
-    new_dialogs[str_id]["updated_at"] = _now_iso()
-
-    config_store.update_section("sync", {"dialogs": new_dialogs})
+    existing = global_config.sync.dialogs[str_id]
+    updated_at = _now_iso()
+    config_store.upsert_dialog_states(
+        {
+            dialog_id: {
+                "sync_state": request.sync_state,
+                "date_from": existing.date_from,
+                "last_synced_at": existing.last_synced_at,
+                "updated_at": updated_at,
+            }
+        }
+    )
     # 缓存失效
     cache = _get_cache(app_state)
     cache.invalidate()
-
-    updated_at = new_dialogs[str_id]["updated_at"]
 
     # 动态触发下载调度器：active 时入队下载
     if request.sync_state == "active":
@@ -499,9 +501,7 @@ async def delete_sync(
         )
 
     # 移除同步配置
-    new_dialogs = {k: v.model_dump() for k, v in global_config.sync.dialogs.items()}
-    del new_dialogs[str_id]
-    config_store.update_section("sync", {"dialogs": new_dialogs})
+    config_store.delete_dialog_state(dialog_id)
 
     # 缓存失效（§3.3）
     cache = _get_cache(app_state)

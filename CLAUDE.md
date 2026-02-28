@@ -2,11 +2,18 @@
 
 > 基于 Telethon + MeiliSearch 的 Telegram 中文/日文/韩文 (CJK) 消息搜索解决方案
 
-**生成时间**: 2026-02-06（最近同步: 2026-02-26）
+**生成时间**: 2026-02-06（最近同步: 2026-02-28）
 
 ---
 
 ## 变更记录 (Changelog)
+
+### 2026-02-28
+- `ConfigStore` 从 MeiliSearch 配置文档迁移到 SQLite（`CONFIG_DB_PATH`）
+- 运行时状态拆分：`system_config`（全局配置） + `dialog_state`（会话状态 + `latest_msg_id`）
+- Dialog Sync 写路径改为行级 upsert/delete，不再覆盖整份 `sync.dialogs`
+- 兼容迁移：SQLite 空库时自动导入 legacy Meili `system_config` + `sync_offsets`
+- `DownloadScheduler` 断点续传改为直接读写 ConfigStore `latest_msg_id`
 
 ### 2026-02-26
 - 文档体系同步更新：重写根 README / `webui-example/README.md`，补齐 API + Bot + WebUI 联调示例
@@ -236,7 +243,7 @@ Meilisearch4TelegramSearchCKJ/
 │       ├── config/              # 配置模块
 │       │   ├── __init__.py
 │       │   ├── settings.py      # 环境变量配置
-│       │   ├── config_store.py  # ConfigStore 配置持久化 (基于 MeiliSearch)
+│       │   ├── config_store.py  # ConfigStore 配置持久化 (SQLite)
 │       │   └── CLAUDE.md        # 模块文档
 │       ├── core/                # 核心业务逻辑
 │       │   ├── __init__.py
@@ -387,6 +394,7 @@ ruff format src/
 |------|--------|------|
 | `WHITE_LIST` | `[1]` | 策略服务冷启动白名单默认值 |
 | `BLACK_LIST` | `[]` | 策略服务冷启动黑名单默认值 |
+| `CONFIG_DB_PATH` | `session/config_store.sqlite3` | 运行时配置/会话状态 SQLite 路径 |
 | `POLICY_REFRESH_TTL_SEC` | `10` | Telegram 监听器策略刷新间隔（秒） |
 | `OWNER_IDS` | `[]` | Bot 管理员 ID |
 | `SESSION_STRING` | - | Telethon 会话字符串 |

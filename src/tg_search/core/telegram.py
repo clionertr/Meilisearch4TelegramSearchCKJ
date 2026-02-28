@@ -408,6 +408,7 @@ class TelegramUserBot:
         dialog_id=None,
         progress_callback: Callable[[int], Awaitable[None]] | None = None,
         state_checker: Callable[[], Awaitable[bool]] | None = None,
+        latest_msg_id_setter: Callable[[int], Awaitable[None]] | None = None,
     ):
         """
         下载历史消息
@@ -419,12 +420,26 @@ class TelegramUserBot:
         :param offset_date:
         :param offset_id:
         :param state_checker: 每批次后调用，返回 False 时优雅停止下载
+        :param latest_msg_id_setter: 写入增量断点的回调（优先于 legacy meili config 写入）
         """
         from tg_search.services.download_scheduler import DownloadPausedError
 
+        async def _flush_latest_msg_id(last_seen_id: int) -> None:
+            if latest_msg_id_setter is not None:
+                await latest_msg_id_setter(last_seen_id)
+                return
+            if dialog_id is None or latest_msg_config is None or meili is None:
+                return
+            await update_latest_msg_config4_meili(
+                dialog_id,
+                {"id": f"{dialog_id}-{last_seen_id}"},
+                latest_msg_config,
+                meili,
+            )
+
         try:
             messages = []
-            last_seen_marker = None
+            last_seen_msg_id: int | None = None
             total_messages = 0
 
             async for message in self.client.iter_messages(
@@ -437,7 +452,7 @@ class TelegramUserBot:
             ):
                 # 用于记录增量位置：即使序列化失败，也应推进 offset，避免下次重复下载
                 if dialog_id is not None:
-                    last_seen_marker = {"id": f"{dialog_id}-{message.id}"}
+                    last_seen_msg_id = int(message.id)
 
                 serialized = await serialize_message(message)
                 if serialized is not None:
@@ -447,8 +462,8 @@ class TelegramUserBot:
 
                 # 批量处理
                 if len(messages) >= batch_size:
-                    if last_seen_marker is not None and latest_msg_config is not None and meili is not None:
-                        await update_latest_msg_config4_meili(dialog_id, last_seen_marker, latest_msg_config, meili)
+                    if last_seen_msg_id is not None:
+                        await _flush_latest_msg_id(last_seen_msg_id)
                     await self._process_message_batch(messages)
                     messages = []
 
@@ -474,16 +489,16 @@ class TelegramUserBot:
 
             # 处理剩余消息
             if messages:
-                if last_seen_marker is not None and latest_msg_config is not None and meili is not None:
-                    await update_latest_msg_config4_meili(dialog_id, last_seen_marker, latest_msg_config, meili)
+                if last_seen_msg_id is not None:
+                    await _flush_latest_msg_id(last_seen_msg_id)
                 await self._process_message_batch(messages)
                 messages = []
                 gc.collect()
                 logger.log(25, f"Download completed for {peer.id}")
                 if progress_callback is not None:
                     await progress_callback(total_messages)
-            elif last_seen_marker is not None and latest_msg_config is not None and meili is not None:
-                await update_latest_msg_config4_meili(dialog_id, last_seen_marker, latest_msg_config, meili)
+            elif last_seen_msg_id is not None:
+                await _flush_latest_msg_id(last_seen_msg_id)
                 if progress_callback is not None:
                     await progress_callback(total_messages)
             elif progress_callback is not None:

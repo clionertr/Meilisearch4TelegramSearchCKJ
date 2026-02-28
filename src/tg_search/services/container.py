@@ -38,6 +38,7 @@ def build_service_container(
     meili_host: str | None = None,
     meili_key: str | None = None,
     config_index_name: str = "system_config",
+    config_db_path: str | None = None,
     bootstrap_white_list: Sequence[int] | None = None,
     bootstrap_black_list: Sequence[int] | None = None,
     progress_registry: object | None = None,
@@ -49,7 +50,11 @@ def build_service_container(
 ) -> ServiceContainer:
     """Build a fully wired service container."""
     client = meili_client or MeiliSearchClient(meili_host or MEILI_HOST, meili_key or MEILI_PASS)
-    config_store = ConfigStore(client, index_name=config_index_name)
+    config_store = ConfigStore(
+        client,
+        index_name=config_index_name,
+        db_path=config_db_path,
+    )
     config_policy_service = ConfigPolicyService(
         config_store,
         bootstrap_white_list=bootstrap_white_list,
@@ -80,7 +85,7 @@ def build_service_container(
 
         if container_ref is None:  # pragma: no cover - defensive
             raise RuntimeError("service container is not initialized")
-        
+
         on_ready = None
         if runtime_on_ready_getter is not None:
             on_ready = runtime_on_ready_getter()
@@ -88,9 +93,9 @@ def build_service_container(
         sched_cb = None
         if scheduler_ready_callback_getter is not None:
             sched_cb = scheduler_ready_callback_getter()
-            
+
         await run(
-            progress_registry=_progress_registry(), 
+            progress_registry=_progress_registry(),
             services=container_ref,
             on_ready=on_ready,
             scheduler_ready_callback=sched_cb,

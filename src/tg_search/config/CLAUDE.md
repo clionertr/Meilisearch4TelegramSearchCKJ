@@ -107,6 +107,7 @@ validate_config()  # 如果配置无效会抛出 ConfigurationError
 | 变量 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `TIME_ZONE` | `str` | `"Asia/Shanghai"` | 时区（用于消息时间显示） |
+| `CONFIG_DB_PATH` | `str` | `"session/config_store.sqlite3"` | 运行时配置与会话状态 SQLite 路径 |
 | `TELEGRAM_REACTIONS` | `dict[str, float]` | 预定义 | 表情反应情感分数权重 |
 | `INDEX_CONFIG` | `dict` | 预定义 | MeiliSearch 索引配置 |
 
@@ -324,6 +325,12 @@ src/tg_search/config/
 
 ## 变更记录 (Changelog)
 
+### 2026-02-28
+- ConfigStore 底层从 MeiliSearch 迁移到 SQLite（`CONFIG_DB_PATH`）
+- 拆分持久化模型：`system_config`（全局配置） + `dialog_state`（会话状态 + latest_msg_id）
+- 新增 legacy 自动迁移：SQLite 空库时自动导入 Meili `system_config` + `sync_offsets`
+- 新增粒度化接口：`upsert_dialog_states`、`delete_dialog_state`、`get/set_latest_msg_id`
+
 ### 2026-02-05
 - 创建模块文档
 - 记录所有配置项及其默认值
@@ -341,27 +348,20 @@ src/tg_search/config/
 
 ### 概述
 
-`ConfigStore` 将全局运行时配置持久化到 MeiliSearch（`system_config` 索引，主键 `id="global"`），
-提供 10 秒内存缓存、版本乐观锁和坏文档自动回退，**无需额外数据库**。
+`ConfigStore` 将运行时配置持久化到 SQLite（默认 `session/config_store.sqlite3`），
+保留 `GlobalConfig` 读取契约，同时将高频会话状态拆分到行级表中，避免整文档覆盖写入。
 
 ### 数据模型
 
 ```
-GlobalConfig
-├── id: str = "global"
-├── version: int = 0             # 每次写操作递增
-├── updated_at: str              # ISO8601 UTC 时间戳
-├── sync: SyncConfig
-│   ├── dialogs: dict[str, DialogSyncState]
-│   └── available_cache_ttl_sec: int = 120
-├── storage: StorageConfig
-│   ├── auto_clean_enabled: bool = False
-│   └── media_retention_days: int = 30
-└── ai: AiConfig
-    ├── provider: str = "openai_compatible"
-    ├── base_url: str = "https://api.openai.com/v1"
-    ├── model: str = "gpt-4o-mini"
-    └── api_key: str = ""
+SQLite Tables
+├── system_meta(id=1, version, updated_at)
+├── system_config(key, value_json)
+│   ├── storage
+│   ├── ai
+│   ├── policy
+│   └── sync_available_cache_ttl_sec
+└── dialog_state(dialog_id PK, sync_state, latest_msg_id, date_from, last_synced_at, updated_at)
 ```
 
 ### 使用示例
@@ -370,7 +370,7 @@ GlobalConfig
 from tg_search.config.config_store import ConfigStore
 from tg_search.core.meilisearch import MeiliSearchClient
 
-# 初始化（会自动创建 system_config 索引 + 写入默认文档）
+# 初始化（会自动创建 SQLite 表；空库时自动尝试从 Meili 迁移旧数据）
 meili = MeiliSearchClient(host, master_key, auto_create_index=False)
 store = ConfigStore(meili)
 
@@ -378,7 +378,7 @@ store = ConfigStore(meili)
 cfg = store.load_config()
 print(cfg.ai.model)           # "gpt-4o-mini"
 
-# 强制刷新（跳过缓存，直接读 MeiliSearch）
+# 强制刷新（跳过缓存，直接读 SQLite）
 cfg = store.load_config(refresh=True)
 
 # 更新单个 section（只改 ai，不影响 sync/storage）
@@ -398,6 +398,21 @@ try:
     store.save_config({"storage": {"auto_clean_enabled": True}}, expected_version=3)
 except ValueError as e:
     print(f"并发冲突: {e}")
+
+# 粒度化更新会话状态（不覆盖整份 sync.dialogs）
+store.upsert_dialog_states(
+    {
+        -1001234567890: {
+            "sync_state": "active",
+            "date_from": None,
+            "last_synced_at": None,
+            "updated_at": "2026-02-28T12:00:00+00:00",
+        }
+    }
+)
+
+# 增量断点写入（高频，不递增 GlobalConfig.version）
+store.set_latest_msg_id(-1001234567890, 123456)
 ```
 
 ### 监控日志格式
@@ -407,20 +422,18 @@ except ValueError as e:
 | 缓存命中 | INFO | `[ConfigStore] load_config: cache_hit=true version=5` |
 | 缓存未命中（正常） | INFO | `[ConfigStore] load_config: 12.3ms cache_hit=false version=5` |
 | 读取慢（>100ms） | WARNING | `[ConfigStore] load_config slow: 143.2ms (threshold=100ms) cache_hit=false version=5` |
-| 写入正常 | INFO | `[ConfigStore] _write_to_meili: 45.0ms version=6` |
-| 写入慢（>500ms） | WARNING | `[ConfigStore] _write_to_meili slow: 612.0ms (threshold=500ms) version=6` |
-| 坏文档回退 | WARNING | `[ConfigStore] Config document schema invalid, falling back to defaults. Error: ...` |
-| 首次初始化 | INFO | `[ConfigStore] No config document found, initializing with defaults` |
+| 写入正常 | INFO | `[ConfigStore] save_config: 8.4ms version=6 changed_sections=['ai']` |
+| 慢写告警 | WARNING | `[ConfigStore] save_config slow: 181.0ms (threshold=120ms) version=6 changed_sections=['sync']` |
+| 会话粒度更新 | INFO | `[ConfigStore] upsert_dialog_states count=3 version=8 duration_ms=5.7` |
+| legacy 迁移 | INFO | `[ConfigStore] migrated legacy config from Meili index=system_config dialogs=12 offsets=10` |
 
 ### 测试
 
 ```bash
-# 单元级（真实 MeiliSearch，需设置真实凭据）
-export MEILI_HOST=http://localhost:7700
-export MEILI_MASTER_KEY=<real_key>
-pytest tests/test_config_store.py -v
+# 单元测试（不依赖 Meili 配置存储）
+pytest tests/unit/test_configparser.py tests/unit/test_config_policy_service.py -v
 
-# E2E 集成测试（须先启动 MeiliSearch）
+# E2E 集成测试（搜索相关仍需 MeiliSearch）
 RUN_INTEGRATION_TESTS=true pytest tests/integration/test_config_store_e2e.py -v -s
 
 # 通过集成运行器执行（覆盖整个 tests/integration/ 目录）

@@ -61,6 +61,8 @@ TOKEN = os.getenv("BOT_TOKEN", "")
 ## MeiliSearch 设置
 MEILI_HOST = os.getenv("MEILI_HOST", "")
 MEILI_PASS = os.getenv("MEILI_MASTER_KEY", "")
+# 运行时配置/会话状态 SQLite 文件路径
+CONFIG_DB_PATH = os.getenv("CONFIG_DB_PATH", "session/config_store.sqlite3")
 
 #### 可选 ####
 ### 建议设置 ###

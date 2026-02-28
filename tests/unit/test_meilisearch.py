@@ -1,37 +1,48 @@
-"""Unit tests for Meili-related helpers in message_tracker."""
+"""Unit tests for legacy message_tracker helpers (now backed by SQLite ConfigStore)."""
 
+from __future__ import annotations
+
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
 
-from tg_search.utils.message_tracker import read_config_from_meili, write_config2_meili
+from tg_search.utils import message_tracker as tracker
 
 pytestmark = [pytest.mark.unit]
 
 
-def test_read_config_from_meili_returns_first_hit():
+def _use_temp_db(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("CONFIG_DB_PATH", str(tmp_path / "config_store_test.sqlite3"))
+    tracker._STORE_CACHE.clear()
+
+
+def test_read_config_from_meili_returns_default_when_empty(monkeypatch, tmp_path):
+    _use_temp_db(monkeypatch, tmp_path)
     meili = MagicMock()
-    meili.search.return_value = {"hits": [{"id": 7, "k": "v"}]}
 
-    result = read_config_from_meili(meili)
-
-    meili.create_index.assert_called_once_with("config")
-    assert result == {"id": 7, "k": "v"}
-
-
-def test_read_config_from_meili_on_error_returns_default():
-    meili = MagicMock()
-    meili.search.side_effect = RuntimeError("boom")
-
-    result = read_config_from_meili(meili)
+    result = tracker.read_config_from_meili(meili)
 
     assert result == {"id": 0}
 
 
-def test_write_config2_meili_adds_single_document():
+def test_write_config2_meili_persists_latest_msg_ids(monkeypatch, tmp_path):
+    _use_temp_db(monkeypatch, tmp_path)
     meili = MagicMock()
-    payload = {"id": "global", "version": 1}
+    payload = {"id": "global", "123": 456, "-1001": "789"}
 
-    write_config2_meili(meili, payload)
+    tracker.write_config2_meili(meili, payload)
+    result = tracker.read_config_from_meili(meili)
 
-    meili.add_documents.assert_called_once_with([payload], "config")
+    assert result["123"] == 456
+    assert result["-1001"] == 789
+
+
+def test_read_config_from_meili_on_store_error_returns_default(monkeypatch, tmp_path):
+    _use_temp_db(monkeypatch, tmp_path)
+    meili = MagicMock()
+    monkeypatch.setattr(tracker, "_get_config_store", lambda _meili: (_ for _ in ()).throw(RuntimeError("boom")))
+
+    result = tracker.read_config_from_meili(meili)
+
+    assert result == {"id": 0}

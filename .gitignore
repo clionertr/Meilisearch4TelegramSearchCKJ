@@ -53,6 +53,8 @@ src/tg_search/session/*.session
 src/tg_search/session/*.session-journal
 session/*.session
 session/*.session-journal
+session/*.sqlite
+session/*.sqlite3
 
 # 配置文件
 src/tg_search/config/config.ini
@@ -65,4 +67,3 @@ src/tg_search/config/config.ini
 
 tests/integration/.test_groups.json
 session/auth_tokens.json
-
