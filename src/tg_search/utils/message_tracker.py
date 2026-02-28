@@ -1,4 +1,5 @@
 import configparser
+import threading
 from typing import Any
 
 from tg_search.core.meilisearch import MeiliSearchClient
@@ -43,22 +44,33 @@ def get_latest_msg_id(config, chat_id: str | int):
 
 
 def read_config_from_meili(meili: MeiliSearchClient):
-    """从Meilisearch读取配置文件"""
-    meili.create_index("sync_offsets")
+    """兼容旧接口：从 SQLite 读取 latest_msg_id 映射。"""
     try:
-        client_bot_config = meili.search(None, "sync_offsets", limit=1)
-        return client_bot_config["hits"][0] if client_bot_config["hits"] else {"id": 0}
+        store = _get_config_store(meili)
+        return store.get_latest_msg_map()
     except Exception as e:
-        print(f"Failed to read config from MeiliSearch: {str(e)}")
+        print(f"Failed to read config from SQLite ConfigStore: {str(e)}")
         return {"id": 0}
 
 
 def write_config2_meili(meili: MeiliSearchClient, config):
-    """写入配置文件到Meilisearch"""
+    """兼容旧接口：将 latest_msg_id 映射写入 SQLite。"""
     try:
-        meili.add_documents([config], "sync_offsets")
+        store = _get_config_store(meili)
+        for key, value in config.items():
+            if key == "id":
+                continue
+            try:
+                dialog_id = int(key)
+            except (TypeError, ValueError):
+                continue
+            try:
+                latest_msg_id = int(value)
+            except (TypeError, ValueError):
+                continue
+            store.set_latest_msg_id(dialog_id, latest_msg_id)
     except Exception as e:
-        print(f"Failed to write config to MeiliSearch: {str(e)}")
+        print(f"Failed to write config to SQLite ConfigStore: {str(e)}")
 
 
 def get_latest_msg_id4_meili(config, chat_id: int):
@@ -87,7 +99,29 @@ async def update_latest_msg_config4_meili(
     # Use rsplit to always extract msg_id safely.
     msg_id = int(str(message["id"]).rsplit("-", 1)[-1])
     config[str(dialog_id)] = msg_id
-    # This function is called from async download loops; avoid blocking the event loop.
+    store = _get_config_store(meili)
     import asyncio
 
-    await asyncio.to_thread(write_config2_meili, meili, config)
+    await asyncio.to_thread(store.set_latest_msg_id, dialog_id, msg_id)
+
+
+_STORE_LOCK = threading.Lock()
+_STORE_CACHE: dict[int, Any] = {}
+
+
+def _get_config_store(meili: MeiliSearchClient):
+    """
+    懒加载 ConfigStore（兼容旧 message_tracker API）。
+
+    这里不直接暴露到模块顶层 import，避免启动时引入循环依赖风险。
+    """
+    cache_key = id(meili)
+    with _STORE_LOCK:
+        store = _STORE_CACHE.get(cache_key)
+        if store is not None:
+            return store
+        from tg_search.config.config_store import ConfigStore
+
+        store = ConfigStore(meili)
+        _STORE_CACHE[cache_key] = store
+        return store

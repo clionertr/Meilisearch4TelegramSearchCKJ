@@ -33,7 +33,7 @@
 | `test_configparser.py` | 配置解析测试 |
 | `test_dashboard.py` | Dashboard 单元测试 |
 | `test_logger.py` | 日志配置测试 |
-| `test_meilisearch.py` | MeiliSearch 基础测试 |
+| `test_meilisearch.py` | message_tracker 兼容层测试（SQLite ConfigStore 后端） |
 | `test_meilisearch_handler.py` | MeiliSearch 客户端测试 (4 个测试类) |
 | `test_observability_service.py` | ObservabilityService 单元测试 |
 | `test_service_layer_import_lint.py` | Service 层导入边界防腐检查 |

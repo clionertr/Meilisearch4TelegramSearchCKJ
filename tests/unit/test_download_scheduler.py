@@ -22,9 +22,16 @@ class FakeConfigStore:
 
     def __init__(self, initial: GlobalConfig | None = None):
         self._config = initial or GlobalConfig()
+        self._latest_msg_ids: dict[int, int] = {}
 
     def load_config(self, refresh: bool = False) -> GlobalConfig:
         return GlobalConfig.model_validate(self._config.model_dump())
+
+    def get_latest_msg_id(self, dialog_id: int) -> int:
+        return int(self._latest_msg_ids.get(dialog_id, 0))
+
+    def set_latest_msg_id(self, dialog_id: int, latest_msg_id: int) -> None:
+        self._latest_msg_ids[dialog_id] = int(latest_msg_id)
 
 
 class FakeProgressRegistry:

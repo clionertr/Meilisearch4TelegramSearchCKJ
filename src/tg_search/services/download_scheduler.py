@@ -19,10 +19,6 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
 from tg_search.core.logger import setup_logger
-from tg_search.utils.message_tracker import (
-    get_latest_msg_id4_meili,
-    read_config_from_meili,
-)
 
 if TYPE_CHECKING:
     from tg_search.api.state import ProgressRegistry
@@ -234,8 +230,10 @@ class DialogDownloadScheduler:
             )
 
         # 5. 计算断点
-        latest_msg_config = await asyncio.to_thread(read_config_from_meili, self._meili)
-        offset_id = get_latest_msg_id4_meili(latest_msg_config, dialog_id)
+        offset_id = await asyncio.to_thread(self._config_store.get_latest_msg_id, dialog_id)
+
+        async def latest_msg_id_setter(msg_id: int, did: int = dialog_id) -> None:
+            await asyncio.to_thread(self._config_store.set_latest_msg_id, did, msg_id)
 
         # 5a. 是否有时间过滤（仅在首次下载，即 offset_id==0 时应用）
         offset_date: datetime | None = None
@@ -274,11 +272,10 @@ class DialogDownloadScheduler:
                 limit=None,
                 offset_id=offset_id,
                 offset_date=offset_date,
-                latest_msg_config=latest_msg_config,
-                meili=self._meili,
                 dialog_id=dialog_id,
                 progress_callback=progress_callback,
                 state_checker=state_checker,
+                latest_msg_id_setter=latest_msg_id_setter,
             )
             # 正常完成
             if self._progress_registry is not None:

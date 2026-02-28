@@ -17,7 +17,7 @@
 - Telegram Bot 搜索与分页
 - FastAPI REST API + WebSocket 进度推送
 - WebUI 管理界面（登录、搜索、会话同步、存储、AI 配置、Dashboard）
-- 白名单/黑名单动态策略持久化（`system_config.policy`）
+- 运行时配置与会话状态持久化（SQLite：`system_config` + `dialog_state`）
 
 ## 架构概览
 
@@ -89,9 +89,13 @@ npm run dev
 请基于 `.env.example` 配置，关键变量：
 
 - 必填：`APP_ID`, `APP_HASH`, `BOT_TOKEN`, `MEILI_HOST`, `MEILI_MASTER_KEY`
+- 运行时状态库：`CONFIG_DB_PATH`（默认 `session/config_store.sqlite3`）
 - 鉴权：`API_KEY`, `API_KEY_HEADER`, `AUTH_TOKEN_STORE_FILE`
 - 可观测性：`OBS_SNAPSHOT_TIMEOUT_SEC`, `OBS_SNAPSHOT_WARN_MS`
 - 访问日志：`API_ACCESS_LOG_ENABLED`, `API_ACCESS_LOG_SLOW_MS`, `API_ACCESS_LOG_SKIP_PATHS`, `API_REQUEST_ID_HEADER`
+
+首次升级到 SQLite 配置存储时，如果 `CONFIG_DB_PATH` 指向的数据库为空，系统会自动尝试从旧版
+MeiliSearch `system_config`（配置）和 `sync_offsets`（断点）导入数据。
 
 ### WebUI（`webui-example/.env*`）
 
