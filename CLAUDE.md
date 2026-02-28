@@ -2,89 +2,6 @@
 
 > 基于 Telethon + MeiliSearch 的 Telegram 中文/日文/韩文 (CJK) 消息搜索解决方案
 
-**生成时间**: 2026-02-06（最近同步: 2026-02-28）
-
----
-
-## 变更记录 (Changelog)
-
-### 2026-02-28
-- `ConfigStore` 从 MeiliSearch 配置文档迁移到 SQLite（`CONFIG_DB_PATH`）
-- 运行时状态拆分：`system_config`（全局配置） + `dialog_state`（会话状态 + `latest_msg_id`）
-- Dialog Sync 写路径改为行级 upsert/delete，不再覆盖整份 `sync.dialogs`
-- 兼容迁移：SQLite 空库时自动导入 legacy Meili `system_config` + `sync_offsets`
-- `DownloadScheduler` 断点续传改为直接读写 ConfigStore `latest_msg_id`
-
-### 2026-02-26
-- 文档体系同步更新：重写根 README / `webui-example/README.md`，补齐 API + Bot + WebUI 联调示例
-- 新增 WebUI 环境变量模板：`webui-example/.env.example` 与 `.env.development.example`
-- 新增 FastAPI 统一访问日志中间件：`[api.access]`（`request_id/method/path/status/duration_ms/client/ua`）
-- API 响应统一回传 `X-Request-ID`（可通过 `API_REQUEST_ID_HEADER` 自定义）
-- 新增前端 telemetry：`api.start/api.end/api.error/ws.state/ws.message`，用于前后端 request_id 串联排障
-- `webui-example/webui_gap_analysis.md` 改造为“Done + Backlog”遗留问题台账
-- `.env.example` 补充 API 访问日志与登录会话相关配置说明
-
-### 2026-02-25
-- 落地 **SearchService** (`src/tg_search/services/search_service.py`)，统一 Bot/API 搜索过滤、高亮解析、分页与缓存策略
-- API `/api/v1/search` 改为薄路由，统一调用 SearchService（保持 OpenAPI schema 不变）
-- Bot 搜索链路改为调用 SearchService，分页 callback 从 `split("_")` 迁移为 `base64(json)` + 短 token 回退
-- 新增搜索服务真实环境回归：`tests/integration/test_search_service_e2e.py`（API/Bot 首屏一致、`foo_bar` 翻页、无结果语义）
-- 新增搜索服务单测：`tests/unit/test_search_service.py`（过滤构建、解析、缓存、分页编码兼容）
-- 落地 **ConfigPolicyService** (`src/tg_search/services/config_policy_service.py`)，统一白/黑名单读写入口
-- `ConfigStore` 增加 `policy` section（`GlobalConfig.policy`），作为运行时策略单一真源
-- API `/api/v1/config/*` 改为调用 ConfigPolicyService，不再读写进程内可变列表
-- Bot `/set_white_list2meili`、`/set_black_list2meili` 改为调用 ConfigPolicyService
-- 下载与监听链路改为读取统一策略（白/黑名单），并增加策略刷新日志与 TTL 配置
-- 新增 `src/tg_search/services/` 包和单测 `tests/unit/test_config_policy_service.py`
-- 更新 README 与 `.env.example`：明确“静态配置来自 `.env`，动态策略来自 ConfigStore.policy”
-- 新增 `ServiceContainer`（`src/tg_search/services/container.py`），在 API lifespan / BotHandler / `main.run()` 共享同一 service 实例
-- `ConfigPolicyService` 新增 `DomainError` 错误模型与 `subscribe()` 推送机制，配置写后即时通知运行时消费者
-- 新增 SLA 真实环境回归：`tests/integration/test_service_layer_architecture_e2e.py`（共享容器注入 + `<1s` 配置可见性）
-- 落地 **ObservabilityService** (`src/tg_search/services/observability_service.py`)，统一 `/status`、`/search/stats`、`/storage/stats` 与 Bot `/ping` 状态采集
-- API `/api/v1/status`、`/api/v1/search/stats`、`/api/v1/storage/stats` 改为调用 ObservabilityService 快照
-- Bot `/ping` 改为仅负责文本渲染，Meili 不可用时返回统一“服务不可用”文案
-- 新增可观测性回归测试：`tests/unit/test_observability_service.py` + `tests/integration/test_observability_service_e2e.py`
-- 新增可观测性配置：`OBS_SNAPSHOT_TIMEOUT_SEC`、`OBS_SNAPSHOT_WARN_MS`
-- 落地 **RuntimeControlService** (`src/tg_search/services/runtime_control_service.py`)，统一 Bot/API 的任务启停状态机与并发锁
-- API `/api/v1/client/*` 与 Bot `/start_client` `/stop_client` 切换为同一运行控制 service，移除 `BotHandler.download_task` 状态源
-- 新增运行控制 E2E：`tests/integration/test_runtime_control_service_e2e.py`（并发、API-only、一致性、强制取消后重启）
-- 新增运行控制单测：`tests/unit/test_runtime_control_service.py`、`tests/unit/test_control_route_error_mapping.py`
-- 控制链路新增结构化日志：`control.start/control.stop/control.status`，并增加 `status()>50ms` 慢查询告警
-
-### 2026-02-24
-- 新增 **ConfigStore** 配置持久化模块 (`config/config_store.py`)，基于 MeiliSearch 实现全局配置读写
-- 新增 **Dialog Sync API** (`routes/dialogs.py`)：会话同步管理（available / synced / sync / patch / delete）
-- 新增 **AI Config API** (`routes/ai_config.py`)：AI 配置读写与连通性测试
-- 新增 **Storage API** (`routes/storage.py`)：存储统计与缓存清理
-- 新增 **Dashboard API** (`routes/dashboard.py`)：活动聚合与规则摘要
-- 测试目录重组为 `tests/unit/` + `tests/integration/` 二级结构
-- 新增大量集成测试：`test_dialog_sync.py`, `test_ai_config.py`, `test_storage.py`, `test_dashboard_e2e.py` 等
-- 更新 `.env.example` 补充 `CORS_ORIGINS` 配置
-- 更新 `docker-compose.yml` 为生产可用配置
-- 更新 `.dockerignore` 适配当前目录结构
-- 全面更新所有文档以与代码同步
-
-### 2026-02-17
-- 同步重构进度：Phase 1-3 已完成，Phase 4 P0 已完成（主链路打通）
-- 修复 WebUI 搜索字段契约，前端对齐后端 `SearchResult`（`total_hits/chat/from_user/formatted_text`）
-- 修复 WebUI WebSocket 事件契约，前端按 `type=progress` + `data.dialog_id` 消费
-- 清理 Search 页重复防抖逻辑，统一为 300ms
-- 删除已冗余的阶段性计划文档 `.claude/plan/phase4_p0_webui.md`
-
-### 2026-02-06 13:48:06
-- 新增 **api** 模块文档（FastAPI REST API + WebSocket）
-- 新增 **webui-example** 模块文档（React + TypeScript 前端）
-- 更新模块结构图，添加 API 层和 WebUI 层
-- 更新项目统计：42 个 Python 文件 + 23 个 TypeScript 文件
-- 更新测试覆盖：新增 test_api.py、test_api_integration.py
-- 更新入口点：新增 API 模式（all/api-only/bot-only）
-
-### 2026-02-05 18:19:02
-- 完成项目架构扫描，生成完整文档
-- 添加模块结构图（Mermaid）
-- 生成 `.claude/index.json` 索引文件
-- 创建模块级文档（config、core、utils、tests）
-
 ---
 
 ## 项目概述
@@ -370,6 +287,7 @@ docker-compose up -d
 - `POST /api/v1/auth/send-code`
 - `POST /api/v1/auth/signin`
 - `POST /api/v1/auth/token-login`
+- `POST /api/v1/auth/dev/issue-token`
 - `GET /api/v1/auth/me`
 - `POST /api/v1/auth/logout`
 
@@ -413,7 +331,7 @@ docker-compose up -d
 - Dialog Sync:
   - `GET /api/v1/dialogs/available`
   - `GET /api/v1/dialogs/synced`
-  - `POST /api/v1/dialogs/sync`
+  - `POST /api/v1/dialogs/sync` (支持基于日期的增量同步)
   - `PATCH /api/v1/dialogs/{id}/sync-state`
   - `DELETE /api/v1/dialogs/{id}/sync`
 
@@ -465,7 +383,6 @@ docker-compose up -d
 - `MAX_PAGE`, `RESULTS_PER_PAGE`
 - `SEARCH_PRESENTATION_MAX_HITS`, `SEARCH_CALLBACK_TOKEN_TTL_SEC`
 - `BATCH_MSG_UNM`, `NOT_RECORD_MSG`
-- `CONFIG_STORE_WAIT_TASK_TIMEOUT_MS`
 
 ### 7.4 鉴权与联调
 
@@ -475,6 +392,7 @@ docker-compose up -d
 - `ALLOW_TEST_TOKEN_ISSUE`
 - `DISABLE_THREAD_OFFLOAD`
 - `CORS_ORIGINS`
+- `SKIP_CONFIG_VALIDATION`
 
 ---
 
@@ -582,6 +500,8 @@ ruff format src/
 | POST | `/api/v1/auth/signin` | 验证码登录 |
 | GET | `/api/v1/auth/me` | 获取当前用户信息 |
 | POST | `/api/v1/auth/logout` | 登出 |
+| POST | `/api/v1/auth/token-login` | Token 直接登录 |
+| POST | `/api/v1/auth/dev/issue-token` | 签发测试 Token (需配置允许) |
 
 ### 搜索端点 (需要认证)
 
@@ -653,7 +573,7 @@ ruff format src/
 |------|------|------|
 | GET | `/api/v1/dialogs/available` | 可用会话列表（带 120s 缓存） |
 | GET | `/api/v1/dialogs/synced` | 已同步会话列表 |
-| POST | `/api/v1/dialogs/sync` | 批量开启会话同步 |
+| POST | `/api/v1/dialogs/sync` | 批量开启会话同步 (支持日期过滤) |
 | PATCH | `/api/v1/dialogs/{id}/sync-state` | 修改同步状态 |
 | DELETE | `/api/v1/dialogs/{id}/sync` | 删除同步配置 |
 
@@ -826,15 +746,4 @@ pytest -m unit -v
 
 ---
 
-## 11. 历史兼容与遗留说明
 
-- `src/tg_search/app.py` 是 Flask 遗留健康检查入口，不属于当前推荐主链路。
-- 当前推荐统一入口: `python -m tg_search`（由 `__main__.py` 驱动）。
-
----
-
-## 12. 本次更新（2026-02-28）
-
-- 全面清理过期目录/端点/测试路径描述，确保与代码一致。
-- 补充真实鉴权矩阵、环境变量分组、可观测性日志点。
-- 补充遗留入口说明，降低新成员误判风险。
