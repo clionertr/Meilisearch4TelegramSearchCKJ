@@ -133,11 +133,11 @@ class SearchService:
                 username=chat_data.get("username"),
             ),
             date=date_value,
-            text=hit.get("text", ""),
+            text=hit.get("text") or "",
             from_user=from_user,
             reactions=hit.get("reactions") or {},
             reactions_scores=hit.get("reactions_scores") or 0.0,
-            text_len=hit.get("text_len") or len(hit.get("text", "")),
+            text_len=hit.get("text_len") or len(hit.get("text") or ""),
             formatted=formatted if isinstance(formatted, dict) else None,
             formatted_text=formatted_text,
         )
