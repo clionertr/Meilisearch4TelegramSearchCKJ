@@ -53,6 +53,11 @@ body {
 
 .material-symbols-outlined {
     font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    line-height: 24px;
+    vertical-align: middle;
 }
 
 .material-symbols-outlined.fill-1 {
@@ -60,7 +65,10 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after {
+
+    *,
+    *::before,
+    *::after {
         animation-duration: 0.01ms !important;
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;

@@ -7,7 +7,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
     <div className="min-h-screen bg-background-light dark:bg-background-dark md:grid md:grid-cols-[16rem_minmax(0,1fr)]">
       <SideNav />
       <div className="min-w-0">
-        <main id="main-content" className="mx-auto w-full max-w-md md:max-w-none">
+        <main id="main-content" className="mx-auto w-full max-w-md md:max-w-none pb-28 md:pb-8">
           {children}
         </main>
       </div>
