@@ -51,7 +51,12 @@ export const useStatusWebSocket = () => {
   }, [token, wsBaseUrl]);
 
   const { lastJsonMessage, readyState, sendMessage } = useWebSocket(wsUrl, {
-    shouldReconnect: () => true,
+    shouldReconnect: (closeEvent) => {
+      if (closeEvent.code === 4401 || closeEvent.code === 4503) {
+        return false;
+      }
+      return true;
+    },
     reconnectInterval: 3000,
   });
 
