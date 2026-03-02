@@ -86,7 +86,7 @@ POLICY_REFRESH_TTL_SEC = int(os.getenv("POLICY_REFRESH_TTL_SEC", "10"))
 
 # 统一可观测性快照超时（秒）
 # ObservabilityService 采集 Meili 状态时的单次采集超时阈值
-OBS_SNAPSHOT_TIMEOUT_SEC = float(os.getenv("OBS_SNAPSHOT_TIMEOUT_SEC", "0.8"))
+OBS_SNAPSHOT_TIMEOUT_SEC = float(os.getenv("OBS_SNAPSHOT_TIMEOUT_SEC", "3.0"))
 
 # 统一可观测性慢日志阈值（毫秒）
 # 任一快照采集耗时超过该值时记录 WARNING
