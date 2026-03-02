@@ -40,29 +40,26 @@ const Dashboard: React.FC = () => {
         }
     };
 
-    const meiliOk = systemStatus?.meili_connected ?? null;
-    const telegramOk = systemStatus?.telegram_connected ?? null;
-
     return (
         <div className="flex flex-col gap-6 pb-24 md:pb-8">
             <Header onSettingsClick={() => navigate('/settings')} />
 
-            {/* Connection Status Strip */}
+            {/* Connection Status Strip — only shown once status is loaded */}
             {systemStatus && (
                 <section className="px-4 -mt-2">
                     <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-white dark:bg-card-dark border border-slate-200 dark:border-white/5 shadow-sm">
                         <div className="flex items-center gap-2">
-                            <span className={`w-2 h-2 rounded-full ${meiliOk ? 'bg-green-500' : 'bg-red-500'}`} />
+                            <span className={`w-2 h-2 rounded-full ${systemStatus.meili_connected === true ? 'bg-green-500' : systemStatus.meili_connected === false ? 'bg-red-500' : 'bg-slate-300'}`} />
                             <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{t('status.meilisearch')}</span>
                         </div>
                         <div className="w-px h-4 bg-slate-200 dark:bg-white/10" />
                         <div className="flex items-center gap-2">
-                            <span className={`w-2 h-2 rounded-full ${telegramOk ? 'bg-green-500' : 'bg-red-500'}`} />
+                            <span className={`w-2 h-2 rounded-full ${systemStatus.telegram_connected === true ? 'bg-green-500' : systemStatus.telegram_connected === false ? 'bg-red-500' : 'bg-slate-300'}`} />
                             <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{t('status.telegram')}</span>
                         </div>
                         <div className="ml-auto flex items-center gap-1.5">
-                            <span className={`text-xs font-semibold ${meiliOk && telegramOk ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'}`}>
-                                {meiliOk && telegramOk ? t('status.online') : t('status.offline')}
+                            <span className={`text-xs font-semibold ${systemStatus.meili_connected && systemStatus.telegram_connected ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                                {systemStatus.meili_connected && systemStatus.telegram_connected ? t('status.online') : t('status.offline')}
                             </span>
                         </div>
                     </div>

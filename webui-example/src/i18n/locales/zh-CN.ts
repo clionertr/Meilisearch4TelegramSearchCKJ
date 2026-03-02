@@ -14,6 +14,7 @@ const zhCN = {
     loading: '加载中...',
     save: '保存',
     clear: '清除',
+    retry: '重试',
     back: '返回',
     close: '关闭',
     open: '打开',
@@ -249,6 +250,7 @@ const zhCN = {
   },
   syncManagement: {
     title: '同步管理',
+    addChats: '添加同步会话',
     tabSynced: '已同步',
     tabAvailable: '可用会话',
     tabPolicy: '策略',

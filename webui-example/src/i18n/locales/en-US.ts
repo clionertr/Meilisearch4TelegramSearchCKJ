@@ -14,6 +14,7 @@ const enUS = {
     loading: 'Loading...',
     save: 'Save',
     clear: 'Clear',
+    retry: 'Retry',
     back: 'Back',
     close: 'Close',
     open: 'Open',
@@ -249,6 +250,7 @@ const enUS = {
   },
   syncManagement: {
     title: 'Sync Management',
+    addChats: 'Add chats to sync',
     tabSynced: 'Synced',
     tabAvailable: 'Available',
     tabPolicy: 'Policy',

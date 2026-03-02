@@ -1,21 +1,25 @@
 /**
  * ConnectionBanner — global WebSocket connection status indicator.
- * Displays a subtle banner when the WebSocket connection is disconnected.
+ * Reads wsReadyState from the statusStore (updated once in AppContent)
+ * to avoid creating a second WebSocket connection.
  */
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { useStatusWebSocket } from '@/hooks/useWebSocket';
-import { ReadyState } from 'react-use-websocket';
+import { useStatusStore } from '@/store/statusStore';
 import { motion, AnimatePresence } from 'framer-motion';
+
+// ReadyState constants (mirrors react-use-websocket ReadyState enum)
+const CONNECTING = 0;
+const CLOSED = 3;
 
 const ConnectionBanner: React.FC = () => {
     const { t } = useTranslation();
-    const { connectionStatus } = useStatusWebSocket();
+    const wsReadyState = useStatusStore((state) => state.wsReadyState);
 
-    const isDisconnected = connectionStatus === ReadyState.CLOSED || connectionStatus === ReadyState.CLOSING;
-    const isConnecting = connectionStatus === ReadyState.CONNECTING;
-
-    const showBanner = isDisconnected || isConnecting;
+    // -1 = not yet initialised (before first render), hide banner
+    const isConnecting = wsReadyState === CONNECTING;
+    const isDisconnected = wsReadyState === CLOSED;
+    const showBanner = isConnecting || isDisconnected;
 
     return (
         <AnimatePresence>

@@ -17,7 +17,7 @@ import { ErrorAlert } from '@/components/common/ErrorAlert';
 import toast from '@/components/Toast/toast';
 
 // ── Tabs ─────────────────────────────────────────────────────────────────
-type SyncTab = 'synced' | 'available' | 'policy';
+type SyncTab = 'synced' | 'policy';
 
 // ── Policy ID parser (reused from old Settings) ──────────────────────────
 const parsePolicyId = (value: string): number | null => {
@@ -404,7 +404,6 @@ const SyncManagement: React.FC = () => {
 
     const tabs: { key: SyncTab; labelKey: string; icon: string }[] = [
         { key: 'synced', labelKey: 'syncManagement.tabSynced', icon: 'cloud_done' },
-        { key: 'available', labelKey: 'syncManagement.tabAvailable', icon: 'add_circle' },
         { key: 'policy', labelKey: 'syncManagement.tabPolicy', icon: 'policy' },
     ];
 
@@ -416,26 +415,28 @@ const SyncManagement: React.FC = () => {
                 <h2 className="text-lg font-bold leading-tight tracking-tight flex-1 text-center dark:text-white">
                     {t('syncManagement.title')}
                 </h2>
-                <div className="w-10" />
+                {/* Add chats shortcut in header */}
+                <button
+                    type="button"
+                    onClick={() => navigate('/select-chats')}
+                    aria-label={t('syncManagement.addChats')}
+                    className="focus-ring w-10 h-10 flex items-center justify-center rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                >
+                    <span className="material-symbols-outlined text-primary text-2xl" aria-hidden="true">add_circle</span>
+                </button>
             </div>
 
-            {/* Tab bar */}
+            {/* Tab bar — only real sub-panels */}
             <div className="px-4 pt-2 pb-4">
                 <div className="p-1 rounded-xl bg-slate-100 dark:bg-card-dark border border-slate-200 dark:border-white/5 flex gap-1">
                     {tabs.map((tab) => (
                         <button
                             key={tab.key}
                             type="button"
-                            onClick={() => {
-                                if (tab.key === 'available') {
-                                    navigate('/select-chats');
-                                } else {
-                                    setActiveTab(tab.key);
-                                }
-                            }}
-                            className={`focus-ring flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-sm font-semibold transition-all ${activeTab === tab.key && tab.key !== 'available'
-                                ? 'bg-white dark:bg-white/10 text-primary shadow-sm dark:text-white'
-                                : 'text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'
+                            onClick={() => setActiveTab(tab.key)}
+                            className={`focus-ring flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-sm font-semibold transition-all ${activeTab === tab.key
+                                    ? 'bg-white dark:bg-white/10 text-primary shadow-sm dark:text-white'
+                                    : 'text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'
                                 }`}
                         >
                             <span className="material-symbols-outlined text-[18px]" aria-hidden="true">{tab.icon}</span>

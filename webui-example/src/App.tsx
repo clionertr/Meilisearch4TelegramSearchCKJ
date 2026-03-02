@@ -33,10 +33,17 @@ const queryClient = new QueryClient({
 });
 
 const AppContent: React.FC = () => {
-  const { lastMessage } = useStatusWebSocket();
+  const { lastMessage, connectionStatus } = useStatusWebSocket();
   const updateTask = useStatusStore((state) => state.updateTask);
+  const setWsReadyState = useStatusStore((state) => state.setWsReadyState);
   const location = useLocation();
   const navigate = useNavigate();
+
+  // Sync WebSocket ready-state into the store so other components (e.g.
+  // ConnectionBanner) can read it without opening a second WS connection.
+  useEffect(() => {
+    setWsReadyState(connectionStatus);
+  }, [connectionStatus, setWsReadyState]);
 
   // Handle WebSocket status updates
   useEffect(() => {

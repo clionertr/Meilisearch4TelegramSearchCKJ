@@ -3,6 +3,7 @@
  * Replaces inconsistent ad-hoc error divs across pages.
  */
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 export interface ErrorAlertProps {
     message: string;
@@ -17,8 +18,11 @@ export const ErrorAlert: React.FC<ErrorAlertProps> = ({
     icon = 'error',
     className = '',
     onRetry,
-    retryLabel = 'Retry',
+    retryLabel,
 }) => {
+    const { t } = useTranslation();
+    const label = retryLabel ?? t('common.retry');
+
     return (
         <div
             role="alert"
@@ -36,7 +40,7 @@ export const ErrorAlert: React.FC<ErrorAlertProps> = ({
                     onClick={onRetry}
                     className="focus-ring shrink-0 px-3 py-1 rounded-lg text-xs font-semibold text-red-600 dark:text-red-300 bg-red-100 dark:bg-red-900/30 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
                 >
-                    {retryLabel}
+                    {label}
                 </button>
             )}
         </div>
