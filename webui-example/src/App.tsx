@@ -17,6 +17,7 @@ import { AUTH_EXPIRED_EVENT } from '@/api/client';
 const Dashboard = lazy(() => import('@/pages/Dashboard'));
 const Settings = lazy(() => import('@/pages/Settings'));
 const Search = lazy(() => import('@/pages/Search'));
+const SyncManagement = lazy(() => import('@/pages/SyncManagement'));
 const SyncedChats = lazy(() => import('@/pages/SyncedChats'));
 const SelectChats = lazy(() => import('@/pages/SelectChats'));
 const Storage = lazy(() => import('@/pages/Storage'));
@@ -73,6 +74,10 @@ const AppContent: React.FC = () => {
         <Route
           path="/search"
           element={<ProtectedRoute><AppLayout><PageTransition><Search /></PageTransition></AppLayout></ProtectedRoute>}
+        />
+        <Route
+          path="/sync"
+          element={<ProtectedRoute><AppLayout><PageTransition><SyncManagement /></PageTransition></AppLayout></ProtectedRoute>}
         />
         <Route
           path="/synced-chats"

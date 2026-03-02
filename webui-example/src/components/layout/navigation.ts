@@ -1,5 +1,5 @@
 export interface NavItem {
-  key: 'dashboard' | 'search' | 'settings';
+  key: 'dashboard' | 'search' | 'sync' | 'settings';
   to: string;
   icon: string;
   labelKey: string;
@@ -12,7 +12,7 @@ export const NAV_ITEMS: NavItem[] = [
     to: '/dashboard',
     icon: 'forum',
     labelKey: 'nav.chats',
-    matchPrefixes: ['/dashboard', '/synced-chats', '/select-chats'],
+    matchPrefixes: ['/dashboard'],
   },
   {
     key: 'search',
@@ -20,6 +20,13 @@ export const NAV_ITEMS: NavItem[] = [
     icon: 'search',
     labelKey: 'nav.search',
     matchPrefixes: ['/search'],
+  },
+  {
+    key: 'sync',
+    to: '/sync',
+    icon: 'sync',
+    labelKey: 'nav.sync',
+    matchPrefixes: ['/sync', '/synced-chats', '/select-chats'],
   },
   {
     key: 'settings',

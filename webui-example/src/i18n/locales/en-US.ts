@@ -2,6 +2,7 @@ const enUS = {
   nav: {
     chats: 'Chats',
     search: 'Search',
+    sync: 'Sync',
     settings: 'Settings',
   },
   layout: {
@@ -53,6 +54,10 @@ const enUS = {
     connected: 'Connected',
     disconnected: 'Disconnected',
   },
+  connection: {
+    reconnecting: 'Reconnecting to server...',
+    disconnected: 'Connection lost. Reconnecting...',
+  },
   search: {
     title: 'Search',
     placeholder: 'Search messages...',
@@ -79,6 +84,7 @@ const enUS = {
     fetchError: 'Failed to fetch results',
     noResultsTitle: 'No results found',
     noResultsDescription: 'No match for "{{query}}". Try different keywords or adjust filters.',
+    syncMoreChats: 'Sync more chats',
     rightPanelTitle: 'Search Tips',
     rightPanelDescription: 'Use filters and history to narrow results quickly on large indexes.',
     rightPanelStatsTitle: 'Current Query',
@@ -240,6 +246,12 @@ const enUS = {
     noResults: 'No chats found',
     // Sync summary
     syncSummary: '{{count}} chats · {{range}} of history',
+  },
+  syncManagement: {
+    title: 'Sync Management',
+    tabSynced: 'Synced',
+    tabAvailable: 'Available',
+    tabPolicy: 'Policy',
   },
   aiConfig: {
     title: 'AI Configuration',

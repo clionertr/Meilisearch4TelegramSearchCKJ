@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Virtuoso } from 'react-virtuoso';
 import { extractApiErrorMessage } from '@/api/error';
+import { ErrorAlert } from '@/components/common/ErrorAlert';
 import { Highlight } from '@/components/common/Highlight';
 import { useSearchQuery, SearchFilters } from '@/hooks/queries/useSearch';
 import { DateFilter } from '@/components/search/DateFilter';
@@ -311,8 +312,8 @@ const Search: React.FC = () => {
 
                 <div className="flex-1 pb-24 md:pb-8" aria-live="polite">
                     {error && (
-                        <div className="px-4 py-4 text-center text-red-500">
-                            {extractApiErrorMessage(error, t('search.fetchError'))}
+                        <div className="px-4 py-4">
+                            <ErrorAlert message={extractApiErrorMessage(error, t('search.fetchError'))} />
                         </div>
                     )}
 
@@ -361,6 +362,8 @@ const Search: React.FC = () => {
                                 icon="search_off"
                                 title={t('search.noResultsTitle')}
                                 description={t('search.noResultsDescription', { query: debouncedQuery })}
+                                actionLabel={t('search.syncMoreChats')}
+                                onAction={() => navigate('/sync')}
                             />
                         </div>
                     )}

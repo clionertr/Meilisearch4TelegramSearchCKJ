@@ -95,7 +95,7 @@ const SelectChats: React.FC = () => {
 
         syncMutation.mutate({ dialogIds: Array.from(selected), dateFrom }, {
             onSuccess: () => {
-                navigate('/synced-chats');
+                navigate('/sync');
             },
         });
     };

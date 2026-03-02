@@ -1,16 +1,9 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Skeleton } from '@/components/common/Skeleton';
 import { useStorageStats } from '@/hooks/queries/useStorage';
 import { useSystemStatus } from '@/hooks/queries/useStatus';
-import {
-  useAddToBlacklist,
-  useAddToWhitelist,
-  useRemoveFromBlacklist,
-  useRemoveFromWhitelist,
-  useSystemConfig,
-} from '@/hooks/queries/useConfig';
 import { useClientStatus, useStartClient, useStopClient } from '@/hooks/queries/useControl';
 import { formatBytes } from '@/utils/formatters';
 import { authApi } from '@/api/auth';
@@ -18,31 +11,15 @@ import { useAuthStore } from '@/store/authStore';
 import { useTheme } from '@/hooks/useTheme';
 import toast from '@/components/Toast/toast';
 import { useConfirm } from '@/hooks/useConfirm';
-
-const parsePolicyId = (value: string): number | null => {
-  const trimmed = value.trim();
-  if (!/^-?\d+$/.test(trimmed)) {
-    return null;
-  }
-  const parsed = Number(trimmed);
-  return Number.isSafeInteger(parsed) ? parsed : null;
-};
+import { ErrorAlert } from '@/components/common/ErrorAlert';
 
 const Settings: React.FC = () => {
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
 
-  const [whitelistInput, setWhitelistInput] = useState('');
-  const [blacklistInput, setBlacklistInput] = useState('');
-
   const { data: storageStats, isLoading: storageLoading, error: storageError } = useStorageStats();
   const { data: systemStatus, isLoading: statusLoading, error: statusError } = useSystemStatus();
-  const { data: systemConfig, isLoading: configLoading, error: configError } = useSystemConfig();
   const { data: clientStatus, isLoading: clientStatusLoading, error: clientStatusError } = useClientStatus();
-  const addToWhitelistMutation = useAddToWhitelist();
-  const removeFromWhitelistMutation = useRemoveFromWhitelist();
-  const addToBlacklistMutation = useAddToBlacklist();
-  const removeFromBlacklistMutation = useRemoveFromBlacklist();
   const startClientMutation = useStartClient();
   const stopClientMutation = useStopClient();
 
@@ -52,20 +29,7 @@ const Settings: React.FC = () => {
   const loading = storageLoading || statusLoading;
   const error = storageError?.message || statusError?.message;
   const runtimeError = clientStatusError?.message || startClientMutation.error?.message || stopClientMutation.error?.message;
-  const policyError =
-    configError?.message ||
-    addToWhitelistMutation.error?.message ||
-    removeFromWhitelistMutation.error?.message ||
-    addToBlacklistMutation.error?.message ||
-    removeFromBlacklistMutation.error?.message;
-
   const isRuntimePending = startClientMutation.isPending || stopClientMutation.isPending;
-  const isWhitelistPending = addToWhitelistMutation.isPending || removeFromWhitelistMutation.isPending;
-  const isBlacklistPending = addToBlacklistMutation.isPending || removeFromBlacklistMutation.isPending;
-
-  const whitelist = systemConfig?.white_list ?? [];
-  const blacklist = systemConfig?.black_list ?? [];
-  const ownerIds = systemConfig?.owner_ids ?? [];
 
   const runtimeState = clientStatus?.state ?? 'unknown';
   const runtimeStateLabel = t(`settings.runtimeStates.${runtimeState}`, { defaultValue: runtimeState });
@@ -98,9 +62,7 @@ const Settings: React.FC = () => {
   };
 
   const handleRuntimeAction = () => {
-    if (!clientStatus) {
-      return;
-    }
+    if (!clientStatus) return;
 
     if (clientStatus.is_running) {
       stopClientMutation.mutate(undefined, {
@@ -123,56 +85,6 @@ const Settings: React.FC = () => {
     });
   };
 
-  const handleAddPolicyId = (kind: 'whitelist' | 'blacklist') => {
-    const rawValue = kind === 'whitelist' ? whitelistInput : blacklistInput;
-    const parsedId = parsePolicyId(rawValue);
-
-    if (parsedId === null) {
-      toast.error(t('settings.policyInvalidId'));
-      return;
-    }
-
-    const targetList = kind === 'whitelist' ? whitelist : blacklist;
-    if (targetList.includes(parsedId)) {
-      toast.info(t('settings.policyAlreadyExists', { id: parsedId }));
-      return;
-    }
-
-    if (kind === 'whitelist') {
-      addToWhitelistMutation.mutate([parsedId], {
-        onSuccess: () => {
-          setWhitelistInput('');
-          toast.success(t('settings.policyAdded', { id: parsedId, list: t('settings.whitelist') }));
-        },
-      });
-      return;
-    }
-
-    addToBlacklistMutation.mutate([parsedId], {
-      onSuccess: () => {
-        setBlacklistInput('');
-        toast.success(t('settings.policyAdded', { id: parsedId, list: t('settings.blacklist') }));
-      },
-    });
-  };
-
-  const handleRemovePolicyId = (kind: 'whitelist' | 'blacklist', id: number) => {
-    if (kind === 'whitelist') {
-      removeFromWhitelistMutation.mutate([id], {
-        onSuccess: () => {
-          toast.success(t('settings.policyRemoved', { id, list: t('settings.whitelist') }));
-        },
-      });
-      return;
-    }
-
-    removeFromBlacklistMutation.mutate([id], {
-      onSuccess: () => {
-        toast.success(t('settings.policyRemoved', { id, list: t('settings.blacklist') }));
-      },
-    });
-  };
-
   return (
     <div className="pb-24 md:pb-8">
       <div className="flex items-center p-4 pb-2 justify-between sticky top-0 z-10 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md">
@@ -185,9 +97,7 @@ const Settings: React.FC = () => {
           <span className="material-symbols-outlined text-2xl" aria-hidden="true">arrow_back_ios_new</span>
         </button>
         <h2 className="text-lg font-bold leading-tight tracking-tight flex-1 text-center dark:text-white">{t('settings.title')}</h2>
-        <button type="button" className="focus-ring flex items-center justify-center w-10 h-10 rounded-full hover:bg-black/5 dark:hover:bg-white/5" aria-label={t('settings.moreOptions')}>
-          <span className="material-symbols-outlined text-2xl" aria-hidden="true">more_horiz</span>
-        </button>
+        <div className="w-10" />
       </div>
 
       {loading && (
@@ -201,11 +111,12 @@ const Settings: React.FC = () => {
       )}
 
       {error && (
-        <div className="mx-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg text-sm mb-3">
-          {error}
+        <div className="px-4 mb-3">
+          <ErrorAlert message={error} />
         </div>
       )}
 
+      {/* Storage quick card */}
       <div className="p-4">
         <div className="flex flex-col items-stretch justify-start rounded-xl p-5 shadow-lg bg-white dark:bg-card-dark border border-slate-200 dark:border-white/5">
           <div className="flex items-center justify-between mb-6">
@@ -222,7 +133,7 @@ const Settings: React.FC = () => {
               </div>
               <p className="text-slate-500 dark:text-muted-dark text-xs font-normal leading-relaxed mt-1">
                 {systemStatus
-                  ? t('settings.indexedMessagesHint', { count: systemStatus.indexed_messages.toLocaleString() })
+                  ? t('settings.indexedMessagesHint', { count: systemStatus.indexed_messages })
                   : t('settings.loadingStatus')
                 }
               </p>
@@ -237,13 +148,11 @@ const Settings: React.FC = () => {
               <span className="material-symbols-outlined text-lg" aria-hidden="true">cleaning</span>
               <span>{t('settings.quickClean')}</span>
             </button>
-            <button type="button" className="focus-ring w-12 flex items-center justify-center rounded-lg h-12 bg-slate-100 dark:bg-button-secondary-dark text-slate-600 dark:text-white border border-slate-200 dark:border-white/5" aria-label={t('settings.configurations')}>
-              <span className="material-symbols-outlined" aria-hidden="true">settings</span>
-            </button>
           </div>
         </div>
       </div>
 
+      {/* System Status */}
       {systemStatus && (
         <div className="px-4 py-2">
           <h3 className="text-lg font-bold leading-tight tracking-tight mb-4 dark:text-white">{t('settings.systemStatus')}</h3>
@@ -282,9 +191,9 @@ const Settings: React.FC = () => {
         </div>
       )}
 
+      {/* Runtime Control */}
       <div className="px-4 py-4">
         <h3 className="text-lg font-bold leading-tight tracking-tight mb-4 dark:text-white">{t('settings.runtimeControl')}</h3>
-
         {clientStatusLoading ? (
           <Skeleton variant="card" height="10rem" />
         ) : (
@@ -346,148 +255,7 @@ const Settings: React.FC = () => {
         )}
       </div>
 
-      <div className="px-4 py-4">
-        <h3 className="text-lg font-bold leading-tight tracking-tight mb-4 dark:text-white">{t('settings.syncPolicy')}</h3>
-
-        {configLoading ? (
-          <Skeleton variant="card" height="13rem" />
-        ) : (
-          <div className="space-y-3">
-            {policyError && (
-              <div className="p-3 rounded-lg bg-red-100 border border-red-400 text-red-700 text-sm">
-                {policyError}
-              </div>
-            )}
-
-            <div className="rounded-xl p-4 bg-white dark:bg-card-dark border border-slate-200 dark:border-white/5 shadow-sm space-y-3">
-              <div className="flex items-center justify-between">
-                <h4 className="text-sm font-bold dark:text-white">{t('settings.whitelist')}</h4>
-                <span className="text-xs text-slate-500 dark:text-slate-400">{whitelist.length}</span>
-              </div>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={whitelistInput}
-                  onChange={(e) => setWhitelistInput(e.target.value)}
-                  placeholder={t('settings.policyInputPlaceholder')}
-                  className="flex-1 h-10 rounded-lg border border-slate-200 dark:border-white/10 px-3 bg-white dark:bg-slate-900/40 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                  aria-label={t('settings.policyInputWhitelistA11y')}
-                />
-                <button
-                  type="button"
-                  onClick={() => handleAddPolicyId('whitelist')}
-                  disabled={isWhitelistPending}
-                  className="focus-ring h-10 px-3 rounded-lg bg-primary text-white text-sm font-semibold disabled:opacity-60"
-                >
-                  {t('settings.policyAddWhitelist')}
-                </button>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {whitelist.length === 0 && (
-                  <p className="text-xs text-slate-500 dark:text-slate-400">{t('settings.policyEmptyWhitelist')}</p>
-                )}
-                {whitelist.map((id) => (
-                  <span key={`white-${id}`} className="inline-flex items-center gap-1 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 px-3 py-1 text-xs font-medium">
-                    <span className="font-mono">{id}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemovePolicyId('whitelist', id)}
-                      disabled={isWhitelistPending}
-                      aria-label={t('settings.policyRemoveA11y', { id, list: t('settings.whitelist') })}
-                      className="focus-ring rounded-full hover:bg-green-200/70 dark:hover:bg-green-800/60"
-                    >
-                      <span className="material-symbols-outlined text-sm" aria-hidden="true">close</span>
-                    </button>
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <div className="rounded-xl p-4 bg-white dark:bg-card-dark border border-slate-200 dark:border-white/5 shadow-sm space-y-3">
-              <div className="flex items-center justify-between">
-                <h4 className="text-sm font-bold dark:text-white">{t('settings.blacklist')}</h4>
-                <span className="text-xs text-slate-500 dark:text-slate-400">{blacklist.length}</span>
-              </div>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={blacklistInput}
-                  onChange={(e) => setBlacklistInput(e.target.value)}
-                  placeholder={t('settings.policyInputPlaceholder')}
-                  className="flex-1 h-10 rounded-lg border border-slate-200 dark:border-white/10 px-3 bg-white dark:bg-slate-900/40 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                  aria-label={t('settings.policyInputBlacklistA11y')}
-                />
-                <button
-                  type="button"
-                  onClick={() => handleAddPolicyId('blacklist')}
-                  disabled={isBlacklistPending}
-                  className="focus-ring h-10 px-3 rounded-lg bg-slate-900 dark:bg-slate-200 text-white dark:text-slate-900 text-sm font-semibold disabled:opacity-60"
-                >
-                  {t('settings.policyAddBlacklist')}
-                </button>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {blacklist.length === 0 && (
-                  <p className="text-xs text-slate-500 dark:text-slate-400">{t('settings.policyEmptyBlacklist')}</p>
-                )}
-                {blacklist.map((id) => (
-                  <span key={`black-${id}`} className="inline-flex items-center gap-1 rounded-full bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300 px-3 py-1 text-xs font-medium">
-                    <span className="font-mono">{id}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemovePolicyId('blacklist', id)}
-                      disabled={isBlacklistPending}
-                      aria-label={t('settings.policyRemoveA11y', { id, list: t('settings.blacklist') })}
-                      className="focus-ring rounded-full hover:bg-slate-300/70 dark:hover:bg-slate-700/70"
-                    >
-                      <span className="material-symbols-outlined text-sm" aria-hidden="true">close</span>
-                    </button>
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <div className="rounded-xl p-4 bg-white dark:bg-card-dark border border-slate-200 dark:border-white/5 shadow-sm space-y-3">
-              <h4 className="text-sm font-bold dark:text-white">{t('settings.policySummary')}</h4>
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div className="rounded-lg border border-slate-200 dark:border-white/10 p-3">
-                  <p className="text-xs text-slate-500 dark:text-slate-400">{t('settings.policyResultsPerPage')}</p>
-                  <p className="font-semibold dark:text-white">{systemConfig?.results_per_page ?? '-'}</p>
-                </div>
-                <div className="rounded-lg border border-slate-200 dark:border-white/10 p-3">
-                  <p className="text-xs text-slate-500 dark:text-slate-400">{t('settings.policyMaxPage')}</p>
-                  <p className="font-semibold dark:text-white">{systemConfig?.max_page ?? '-'}</p>
-                </div>
-                <div className="rounded-lg border border-slate-200 dark:border-white/10 p-3">
-                  <p className="text-xs text-slate-500 dark:text-slate-400">{t('settings.policyCache')}</p>
-                  <p className="font-semibold dark:text-white">
-                    {systemConfig?.search_cache ? t('settings.policyEnabled') : t('settings.policyDisabled')}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-slate-200 dark:border-white/10 p-3">
-                  <p className="text-xs text-slate-500 dark:text-slate-400">{t('settings.policyCacheExpire')}</p>
-                  <p className="font-semibold dark:text-white">{systemConfig?.cache_expire_seconds ?? '-'}</p>
-                </div>
-              </div>
-              <div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">{t('settings.policyOwnerIds')}</p>
-                {ownerIds.length === 0 ? (
-                  <p className="text-sm text-slate-500 dark:text-slate-400">{t('settings.policyNoOwner')}</p>
-                ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {ownerIds.map((id) => (
-                      <span key={`owner-${id}`} className="inline-flex rounded-full px-3 py-1 text-xs font-medium bg-primary/10 text-primary">
-                        <span className="font-mono">{id}</span>
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
+      {/* Appearance */}
       <div className="px-4 py-4">
         <h3 className="text-lg font-bold leading-tight tracking-tight mb-4 dark:text-white">{t('settings.appearance')}</h3>
         <div className="p-1 rounded-xl bg-slate-100 dark:bg-card-dark border border-slate-200 dark:border-white/5 flex gap-1">
@@ -511,6 +279,7 @@ const Settings: React.FC = () => {
         </div>
       </div>
 
+      {/* Language */}
       <div className="px-4 py-4">
         <h3 className="text-lg font-bold leading-tight tracking-tight mb-4 dark:text-white">{t('settings.language')}</h3>
         <div className="p-1 rounded-xl bg-slate-100 dark:bg-card-dark border border-slate-200 dark:border-white/5 flex gap-1">
@@ -537,6 +306,7 @@ const Settings: React.FC = () => {
         </div>
       </div>
 
+      {/* Configurations */}
       <div className="px-4 py-4">
         <h3 className="text-lg font-bold leading-tight tracking-tight mb-4 dark:text-white">{t('settings.configurations')}</h3>
         <div className="grid grid-cols-2 gap-4">
@@ -558,23 +328,24 @@ const Settings: React.FC = () => {
           </button>
           <button
             type="button"
-            onClick={() => navigate('/synced-chats')}
+            onClick={() => navigate('/storage')}
             className="focus-ring text-left flex flex-col gap-4 p-4 rounded-xl bg-white dark:bg-card-dark border border-slate-200 dark:border-white/5 shadow-sm cursor-pointer active:scale-95 transition-transform"
           >
             <div className="flex items-center justify-between">
               <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
-                <span className="material-symbols-outlined text-primary" aria-hidden="true">sync</span>
+                <span className="material-symbols-outlined text-primary" aria-hidden="true">hard_drive</span>
               </div>
               <span className="material-symbols-outlined text-slate-400 text-sm" aria-hidden="true">arrow_forward_ios</span>
             </div>
             <div>
-              <p className="font-bold text-base dark:text-white">{t('settings.syncedChats')}</p>
-              <p className="text-slate-500 dark:text-muted-dark text-xs mt-1">{t('settings.manageSyncSettings')}</p>
+              <p className="font-bold text-base dark:text-white">{t('storage.title')}</p>
+              <p className="text-slate-500 dark:text-muted-dark text-xs mt-1">{t('storage.info')}</p>
             </div>
           </button>
         </div>
       </div>
 
+      {/* Logout */}
       <div className="px-4 pb-6 pt-2">
         <button
           type="button"

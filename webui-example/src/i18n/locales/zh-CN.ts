@@ -2,6 +2,7 @@ const zhCN = {
   nav: {
     chats: '会话',
     search: '搜索',
+    sync: '同步',
     settings: '设置',
   },
   layout: {
@@ -53,6 +54,10 @@ const zhCN = {
     connected: '已连接',
     disconnected: '未连接',
   },
+  connection: {
+    reconnecting: '正在重新连接服务器...',
+    disconnected: '连接已断开，正在重新连接...',
+  },
   search: {
     title: '搜索',
     placeholder: '搜索消息...',
@@ -79,6 +84,7 @@ const zhCN = {
     fetchError: '获取搜索结果失败',
     noResultsTitle: '未找到结果',
     noResultsDescription: '没有找到“{{query}}”相关内容，请尝试其他关键词或调整筛选。',
+    syncMoreChats: '同步更多会话',
     rightPanelTitle: '搜索建议',
     rightPanelDescription: '在大索引中可结合筛选与历史记录快速定位结果。',
     rightPanelStatsTitle: '当前查询',
@@ -240,6 +246,12 @@ const zhCN = {
     noResults: '未找到会话',
     // Sync summary
     syncSummary: '{{count}} 个会话 · 近 {{range}}历史',
+  },
+  syncManagement: {
+    title: '同步管理',
+    tabSynced: '已同步',
+    tabAvailable: '可用会话',
+    tabPolicy: '策略',
   },
   aiConfig: {
     title: 'AI 配置',
