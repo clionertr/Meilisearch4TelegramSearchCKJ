@@ -111,6 +111,7 @@ graph TD
     I --> I4["observability_service.py<br/>统一可观测性服务"];
     I --> I5["container.py<br/>Service 容器"];
     I --> I6["runtime_control_service.py<br/>运行控制服务"];
+    I --> I7["download_scheduler.py<br/>下载调度服务"];
     G --> G1["app.py<br/>FastAPI应用"];
     G --> G2["routes/<br/>API路由"];
     G --> G3["models.py<br/>Pydantic模型"];
@@ -144,11 +145,9 @@ Meilisearch4TelegramSearchCKJ/
 ├── docker-compose-windows.yml   # Windows Docker 配置
 ├── docs/
 │   ├── specs/                   # API 规格文档
-│   │   ├── SPEC-P0-config-policy-service.md
-│   │   ├── SPEC-P0-runtime-control-service.md
-│   │   ├── SPEC-P0-search-service.md
-│   │   ├── SPEC-P0-service-layer-architecture.md
-│   │   ├── SPEC-P1-observability-service.md
+│   │   ├── completed/           # 已完成的规格说明
+│   │   ├── archived/            # 已归档的规格说明
+│   │   └── SPEC-P0-webui-api-integration.md
 │   └── operations/              # 运维手册
 │       └── observability.md     # 日志与链路追踪 runbook
 ├── src/
@@ -184,6 +183,7 @@ Meilisearch4TelegramSearchCKJ/
 │       │   ├── runtime_control_service.py # 运行控制服务
 │       │   ├── config_policy_service.py   # 策略服务
 │       │   ├── observability_service.py   # 统一可观测性服务
+│       │   ├── download_scheduler.py      # 下载调度服务
 │       │   └── container.py               # Service 容器
 │       └── api/                 # REST API 模块 (v0.2.0)
 │           ├── __init__.py
@@ -206,41 +206,20 @@ Meilisearch4TelegramSearchCKJ/
 │           │   └── ws.py        # WebSocket 端点
 │           └── CLAUDE.md        # 模块文档
 ├── tests/                       # 测试文件
-│   ├── conftest.py              # pytest 配置和 fixtures
-│   ├── CLAUDE.md                # 模块文档
-│   ├── TESTING_GUIDELINES.md     # 测试指南
-│   ├── helpers/                 # 测试辅助模块
-│   ├── unit/                    # 单元测试
-│   │   ├── conftest.py
-│   │   ├── test_api.py          # API 端点单元测试
-│   │   ├── test_auth_store.py   # 认证存储测试
-│   │   ├── test_configparser.py # 配置解析测试
-│   │   ├── test_dashboard.py    # Dashboard 单元测试
-│   │   ├── test_runtime_control_service.py # Runtime Control 单元测试
-│   │   ├── test_control_route_error_mapping.py # Control 路由错误映射测试
-│   │   ├── test_logger.py       # 日志测试
-│   │   ├── test_meilisearch.py  # MeiliSearch 测试
-│   │   ├── test_meilisearch_handler.py # MeiliSearch 客户端测试
-│   │   ├── test_observability_service.py # ObservabilityService 单测
-│   │   └── test_utils.py        # 工具函数测试
-│   └── integration/             # 集成测试
-│       ├── conftest.py
-│       ├── config.py            # 集成测试配置
-│       ├── env_manager.py       # 环境管理器
-│       ├── run.py               # 集成测试运行器
-│       ├── test_api_e2e.py      # API 端到端测试
-│       ├── test_ai_config.py    # AI 配置集成测试
-│       ├── test_config_store.py # ConfigStore 集成测试
-│       ├── test_config_store_e2e.py  # ConfigStore E2E 测试
-│       ├── test_dashboard_e2e.py    # Dashboard E2E 测试
-│       ├── test_dialog_sync.py      # Dialog Sync 集成测试
-│       ├── test_dialog_sync_e2e.py  # Dialog Sync E2E 测试
-│       ├── test_runtime_control_service_e2e.py # Runtime Control E2E 测试
-│       ├── test_group_setup.py      # 测试组配置
-│       ├── test_observability_service_e2e.py  # Observability E2E 测试
-│       └── test_storage.py          # Storage 集成测试
+│   ├── conftest.py
+│   ├── unit/                    # 单元测试 (Mock 驱动)
+│   │   ├── test_api.py          # API 端点
+│   │   ├── test_search_service.py
+│   │   └── test_meilisearch_handler.py
+│   └── integration/             # 集成测试 (真实 MeiliSearch)
+│       ├── run.py               # 测试运行器
+│       ├── test_api_e2e.py      # 端到端测试
+│       └── legacy/              # 遗留测试
 └── webui-example/               # 前端管理界面 (React + TypeScript)
     ├── src/
+    │   ├── App.tsx              # 应用入口组件
+    │   ├── main.tsx             # 渲染入口
+    │   ├── i18n/                # 国际化配置
     │   ├── pages/               # 页面组件
     │   ├── api/                 # API 层
     │   ├── components/          # 公共组件
