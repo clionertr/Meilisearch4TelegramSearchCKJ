@@ -120,7 +120,6 @@ def start_api_server() -> None:
     # 由测试用例当需手动调用 /api/v1/client/start 触发
     env["DISABLE_BOT_AUTOSTART"] = "true"
     env.setdefault("DISABLE_AUTH_CLEANUP_TASK", "true")
-    env.setdefault("ALLOW_TEST_TOKEN_ISSUE", "true")
 
     # 从 TEST_API_BASE_URL 提取 host 和 port
     from urllib.parse import urlparse

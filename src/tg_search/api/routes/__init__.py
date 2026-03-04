@@ -6,7 +6,7 @@ API 路由模块
 
 from fastapi import APIRouter, Depends
 
-from tg_search.api.deps import verify_api_key_or_bearer_token, verify_bearer_token
+from tg_search.api.deps import verify_bearer_token
 from tg_search.api.routes import ai_config, auth, config, control, dashboard, dialogs, search, status, storage, ws
 
 # 创建主路由器
@@ -19,44 +19,44 @@ api_router.include_router(
     tags=["Auth"],
 )
 
-# 搜索端点 - 需要认证（支持 API Key 或 Bearer Token）
+# 搜索端点 - Bearer-only
 api_router.include_router(
     search.router,
     prefix="/search",
     tags=["Search"],
-    dependencies=[Depends(verify_api_key_or_bearer_token)],
+    dependencies=[Depends(verify_bearer_token)],
 )
 
-# 状态端点 - 需要认证
+# 状态端点 - Bearer-only
 api_router.include_router(
     status.router,
     prefix="/status",
     tags=["Status"],
-    dependencies=[Depends(verify_api_key_or_bearer_token)],
+    dependencies=[Depends(verify_bearer_token)],
 )
 
-# 配置端点 - 需要认证
+# 配置端点 - Bearer-only
 api_router.include_router(
     config.router,
     prefix="/config",
     tags=["Config"],
-    dependencies=[Depends(verify_api_key_or_bearer_token)],
+    dependencies=[Depends(verify_bearer_token)],
 )
 
-# 控制端点 - 需要认证
+# 控制端点 - Bearer-only
 api_router.include_router(
     control.router,
     prefix="/client",
     tags=["Control"],
-    dependencies=[Depends(verify_api_key_or_bearer_token)],
+    dependencies=[Depends(verify_bearer_token)],
 )
 
-# Storage 端点 - 需要认证 (P1-ST)
+# Storage 端点 - Bearer-only (P1-ST)
 api_router.include_router(
     storage.router,
     prefix="/storage",
     tags=["Storage"],
-    dependencies=[Depends(verify_api_key_or_bearer_token)],
+    dependencies=[Depends(verify_bearer_token)],
 )
 
 # AI Config 端点 - Bearer-only（与 SPEC-P1-ai-config AC-1 对齐）

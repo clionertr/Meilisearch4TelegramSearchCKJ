@@ -17,7 +17,7 @@ sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parents[2]
 
 from tests.integration.config import (
     TEST_API_BASE_URL,
-    TEST_API_KEY,
+    TEST_BEARER_TOKEN,
     is_enabled,
     load_test_groups,
 )
@@ -55,11 +55,11 @@ _API_SKIP_REASON = _check_api_server_available()
 def api_client() -> Generator[httpx.Client, None, None]:
     """
     会话级 HTTP 客户端，用于调用 API。
-    自动附带 API Key header（如果配置了的话）。
+    自动附带 Bearer 认证头（如果配置了 TEST_BEARER_TOKEN）。
     """
     headers = {}
-    if TEST_API_KEY:
-        headers["X-API-Key"] = TEST_API_KEY
+    if TEST_BEARER_TOKEN:
+        headers["Authorization"] = f"Bearer {TEST_BEARER_TOKEN}"
 
     with httpx.Client(
         base_url=TEST_API_BASE_URL,

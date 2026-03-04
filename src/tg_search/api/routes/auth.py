@@ -6,10 +6,9 @@
 
 import os
 import re
-from datetime import datetime
 from typing import TYPE_CHECKING
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 from telethon import TelegramClient
 from telethon.errors import (
     FloodWaitError,
@@ -21,7 +20,7 @@ from telethon.errors import (
 )
 
 from tg_search.api.auth_store import AuthStore
-from tg_search.api.deps import get_auth_store, verify_api_key, verify_bearer_token
+from tg_search.api.deps import get_auth_store, verify_bearer_token
 from tg_search.api.models import (
     ApiResponse,
     AuthUserInfo,
@@ -31,7 +30,6 @@ from tg_search.api.models import (
     SendCodeResponse,
     SignInRequest,
     SignInResponse,
-    TokenLoginRequest,
 )
 from tg_search.config.settings import APP_HASH, APP_ID, PROXY, IPv6
 from tg_search.core.logger import setup_logger
@@ -302,75 +300,3 @@ async def logout(
     logger.info(f"User {auth_token.user_id} logged out")
 
     return ApiResponse(data=LogoutResponse(revoked=revoked))
-
-
-@router.post("/token-login", response_model=ApiResponse[SignInResponse])
-async def token_login(
-    request_data: TokenLoginRequest,
-    auth_store: AuthStore = Depends(get_auth_store),
-):
-    """
-    Token 直接登录
-
-    使用已签发的 Bearer Token 直接登录，跳过手机号验证流程。
-    复用已有的 api_auth.session。
-    """
-    token = request_data.token.strip()
-    if not token:
-        raise HTTPException(status_code=400, detail="TOKEN_EMPTY")
-
-    auth_token = await auth_store.validate_token(token)
-    if auth_token is None:
-        raise HTTPException(
-            status_code=401,
-            detail="TOKEN_INVALID",
-        )
-
-    logger.info(f"User {auth_token.user_id} logged in via token")
-
-    # 计算剩余有效时间（秒）
-    remaining = int((auth_token.expires_at - datetime.utcnow()).total_seconds())
-
-    return ApiResponse(data=SignInResponse(
-        token=auth_token.token,
-        token_type="Bearer",
-        expires_in=max(remaining, 0),
-        user=AuthUserInfo(
-            id=auth_token.user_id,
-            username=auth_token.username,
-            first_name=auth_token.first_name,
-            last_name=auth_token.last_name,
-        ),
-    ))
-
-
-@router.post("/dev/issue-token", include_in_schema=False)
-async def issue_dev_token(
-    request: Request,
-    auth_store: AuthStore = Depends(get_auth_store),
-    _api_key: str | None = Depends(verify_api_key),
-):
-    """
-    签发测试用 Bearer Token（仅集成测试）。
-
-    仅当环境变量 ALLOW_TEST_TOKEN_ISSUE=true 时启用。
-    """
-    if os.getenv("ALLOW_TEST_TOKEN_ISSUE", "").lower() not in ("1", "true", "yes"):
-        raise HTTPException(status_code=404, detail="NOT_FOUND")
-
-    payload = await request.json() if request.headers.get("content-type", "").startswith("application/json") else {}
-    user_id = int(payload.get("user_id", 99999))
-    phone_number = str(payload.get("phone_number", "+10000000000"))
-    username = payload.get("username", "integration_tester")
-
-    auth_token = await auth_store.issue_token(
-        user_id=user_id,
-        phone_number=phone_number,
-        username=username,
-    )
-
-    return ApiResponse(data={
-        "token": auth_token.token,
-        "expires_at": auth_token.expires_at.isoformat(),
-        "user_id": user_id,
-    })

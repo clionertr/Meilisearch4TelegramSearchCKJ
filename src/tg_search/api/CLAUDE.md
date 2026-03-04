@@ -359,10 +359,10 @@ offset: int = 0           # 偏移量
 
 ### WebSocket (`/api/v1/ws`)
 
-#### `/progress` - 实时进度推送
+#### `/status` - 实时进度推送
 
 ```python
-# 连接: ws://localhost:8000/api/v1/ws/progress?token=<bearer_token>
+# 连接: ws://localhost:8000/api/v1/ws/status?token=<bearer_token>
 
 # 接收消息格式
 {
@@ -414,8 +414,7 @@ from tg_search.config.settings import APP_ID, APP_HASH
 
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
-| `API_KEY` | `None` | API 密钥（未设置则无需认证） |
-| `API_KEY_HEADER` | `X-API-Key` | API 密钥请求头名称 |
+| `AUTH_TOKEN_STORE_FILE` | `session/auth_tokens.json` | Bearer Token 持久化文件路径 |
 | `CORS_ORIGINS` | `http://localhost:5173,http://localhost:3000` | 允许的 CORS 源 |
 | `API_ONLY` | `false` | 是否为 API-only 模式 |
 | `DEBUG` | `false` | 是否启用调试模式 |
@@ -524,7 +523,7 @@ pytest tests/
 # routes/my_route.py
 from fastapi import APIRouter, Depends
 from tg_search.api.models import ApiResponse
-from tg_search.api.deps import verify_api_key_or_bearer_token
+from tg_search.api.deps import verify_bearer_token
 
 router = APIRouter()
 
@@ -539,23 +538,16 @@ api_router.include_router(
     my_route.router,
     prefix="/my",
     tags=["My"],
-    dependencies=[Depends(verify_api_key_or_bearer_token)],
+    dependencies=[Depends(verify_bearer_token)],
 )
 ```
 
 ### Q2: 认证机制如何工作？
 
-**A:** 支持两种认证方式：
-
-1. **API Key 认证**（适合服务端调用）
-   ```
-   Header: X-API-Key: your_api_key
-   ```
-
-2. **Bearer Token 认证**（适合 WebUI）
-   ```
-   Header: Authorization: Bearer <token>
-   ```
+**A:** 统一使用 Bearer Token 认证：
+```
+Header: Authorization: Bearer <token>
+```
 
 认证流程：
 1. 用户调用 `/auth/send-code` 发送验证码
@@ -590,7 +582,7 @@ let ws;
 let reconnectInterval = 1000;
 
 function connect() {
-    ws = new WebSocket(`ws://localhost:8000/api/v1/ws/progress?token=${token}`);
+    ws = new WebSocket(`ws://localhost:8000/api/v1/ws/status?token=${token}`);
 
     ws.onopen = () => {
         reconnectInterval = 1000; // 重置重连间隔

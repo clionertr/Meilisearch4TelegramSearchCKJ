@@ -99,10 +99,14 @@ async def api_client(service_container: ServiceContainer):
         state.api_only = False
         state.runtime_control_service.set_api_only_getter(lambda: state.api_only)
 
-        headers: dict[str, str] = {}
-        api_key = os.environ.get("API_KEY")
-        if api_key:
-            headers["X-API-Key"] = api_key
+        auth_store = state.auth_store
+        assert auth_store is not None
+        token_obj = await auth_store.issue_token(
+            user_id=99101,
+            phone_number="+10000099101",
+            username="sla_e2e_user",
+        )
+        headers = {"Authorization": f"Bearer {token_obj.token}"}
 
         transport = httpx.ASGITransport(app=app, raise_app_exceptions=True)
         async with httpx.AsyncClient(

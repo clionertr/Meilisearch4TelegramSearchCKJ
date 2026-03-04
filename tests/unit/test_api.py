@@ -200,6 +200,13 @@ async def test_client(mock_meili_client):
         app = build_app()
         async with lifespan(app):
             transport = httpx.ASGITransport(app=app, raise_app_exceptions=True)
+            auth_store = app.state.app_state.auth_store
+            assert auth_store is not None
+            auth_token = await auth_store.issue_token(
+                user_id=424242,
+                phone_number="+10000000000",
+                username="unit_tester",
+            )
             async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
                 # lifespan 会被执行，app_state 会被创建；确保 meili_client 为 mock
                 from tg_search.services.search_service import SearchService
@@ -211,6 +218,7 @@ async def test_client(mock_meili_client):
                 app.state.app_state.runtime_control_service = FakeRuntimeControlService(
                     api_only_getter=lambda: app.state.app_state.api_only
                 )
+                client.headers["Authorization"] = f"Bearer {auth_token.token}"
                 yield client
 
 

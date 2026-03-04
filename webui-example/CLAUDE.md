@@ -12,7 +12,7 @@
 
 `webui-example/` 是后端 `src/tg_search/api/` 的前端管理界面，覆盖以下场景：
 
-- 登录认证（手机号验证码 / Token）
+- 登录认证（手机号验证码）
 - 消息搜索（高亮、分页）
 - 会话同步管理（available/synced/sync-state）
 - 存储统计和缓存清理

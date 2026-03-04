@@ -275,12 +275,6 @@ class LogoutResponse(BaseModel):
     revoked: bool = Field(..., description="是否成功撤销")
 
 
-class TokenLoginRequest(BaseModel):
-    """Token 登录请求"""
-
-    token: str = Field(..., description="Bearer Token")
-
-
 # ============ Dialog Sync 相关（P0-DS）============
 
 

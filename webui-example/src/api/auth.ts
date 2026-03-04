@@ -35,7 +35,6 @@ export interface SignInResponse {
 export const authApi = {
   sendCode: (data: SendCodeRequest) => api.post<{ data: SendCodeResponse }>('/auth/send-code', data),
   signIn: (data: SignInRequest) => api.post<{ data: SignInResponse }>('/auth/signin', data),
-  tokenLogin: (data: { token: string }) => api.post<{ data: SignInResponse }>('/auth/token-login', data),
   me: () => api.get<{ data: { user: UserInfo, token_expires_at: string } }>('/auth/me'),
   logout: () => api.post<{ data: { revoked: boolean } }>('/auth/logout'),
 };

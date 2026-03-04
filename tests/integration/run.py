@@ -36,8 +36,6 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-import httpx
-
 # 确保项目根目录在 sys.path 中
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -116,53 +114,16 @@ def list_available_tests() -> None:
 
 def prepare_test_bearer_token() -> str | None:
     """
-    自动准备 Dialog Sync E2E 所需的 TEST_BEARER_TOKEN。
+    准备 Dialog Sync E2E 所需的 TEST_BEARER_TOKEN。
 
-    优先使用现有 TEST_BEARER_TOKEN；否则调用测试专用端点签发。
+    /api/v1/auth/dev/issue-token 已移除，因此此处仅复用已有环境变量。
     """
-    from tests.integration.config import TEST_API_BASE_URL, TEST_API_KEY
-
     existing = os.getenv("TEST_BEARER_TOKEN", "").strip()
     if existing:
         print("✅ 检测到已有 TEST_BEARER_TOKEN，复用现有 token")
         return existing
-
-    headers: dict[str, str] = {}
-    if TEST_API_KEY:
-        headers["X-API-Key"] = TEST_API_KEY
-
-    try:
-        response = httpx.post(
-            f"{TEST_API_BASE_URL}/api/v1/auth/dev/issue-token",
-            json={
-                "user_id": 99999,
-                "phone_number": "+10000000000",
-                "username": "integration_tester",
-            },
-            headers=headers,
-            timeout=8.0,
-        )
-    except Exception as exc:
-        print(f"❌ 自动签发 Bearer Token 失败: {exc}")
-        return None
-
-    if response.status_code != 200:
-        print(f"❌ 自动签发 Bearer Token 失败: HTTP {response.status_code}")
-        try:
-            print(f"   响应: {response.text[:300]}")
-        except Exception:
-            pass
-        return None
-
-    body = response.json()
-    token = (((body or {}).get("data") or {}).get("token") or "").strip()
-    if not token:
-        print("❌ 自动签发 Bearer Token 失败: 响应中无 token")
-        return None
-
-    os.environ["TEST_BEARER_TOKEN"] = token
-    print(f"✅ 已自动签发 TEST_BEARER_TOKEN: {token[:8]}...{token[-6:]}")
-    return token
+    print("❌ 未设置 TEST_BEARER_TOKEN，且已移除自动签发测试 token 的后门端点。")
+    return None
 
 
 def main() -> int:
@@ -231,8 +192,8 @@ def main() -> int:
     else:
         print("⏭️  Step 2: 跳过群组创建（--skip-setup）\n")
 
-    # ====== Step 3: 准备 Bearer Token（Dialog Sync E2E） ======
-    print("🔐 Step 3: 自动准备 Bearer Token...")
+    # ====== Step 3: 校验 Bearer Token（Dialog Sync E2E） ======
+    print("🔐 Step 3: 校验 TEST_BEARER_TOKEN...")
     print("-" * 40)
     token = prepare_test_bearer_token()
     if not token:

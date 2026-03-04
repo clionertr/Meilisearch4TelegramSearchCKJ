@@ -6,14 +6,10 @@
 
 import asyncio
 import os
-from dataclasses import dataclass
 from functools import partial
-from typing import TYPE_CHECKING, Any, Literal, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from fastapi import Depends, Header, HTTPException, Request
-from fastapi.security import APIKeyHeader
-
-from tg_search.config.settings import API_KEY, API_KEY_HEADER
 
 if TYPE_CHECKING:
     from tg_search.api.auth_store import AuthStore, AuthToken
@@ -24,51 +20,6 @@ if TYPE_CHECKING:
     from tg_search.services.observability_service import ObservabilityService
     from tg_search.services.runtime_control_service import RuntimeControlService
     from tg_search.services.search_service import SearchService
-
-
-# API Key 安全依赖
-api_key_header = APIKeyHeader(name=API_KEY_HEADER, auto_error=False)
-
-
-async def verify_api_key(api_key: Optional[str] = Depends(api_key_header)) -> Optional[str]:
-    """
-    验证 API Key
-
-    如果 API_KEY 未配置，则跳过验证（开发模式）
-    如果 API_KEY 已配置但请求未提供或不匹配，返回 401
-
-    Returns:
-        验证通过的 API Key 或 None（无需认证时）
-
-    Raises:
-        HTTPException: 401 认证失败
-    """
-    # 如果未配置 API_KEY，跳过认证
-    if API_KEY is None:
-        return None
-
-    # 检查请求是否提供了 API Key
-    if api_key is None:
-        raise HTTPException(
-            status_code=401,
-            detail={
-                "error_code": "MISSING_API_KEY",
-                "message": f"API Key required. Please provide it in the '{API_KEY_HEADER}' header.",
-            },
-        )
-
-    # 验证 API Key
-    if api_key != API_KEY:
-        raise HTTPException(
-            status_code=401,
-            detail={
-                "error_code": "INVALID_API_KEY",
-                "message": "Invalid API Key.",
-            },
-        )
-
-    return api_key
-
 
 async def get_app_state(request: Request) -> "AppState":
     """获取应用状态"""
@@ -256,6 +207,29 @@ def parse_bearer_token(authorization: Optional[str]) -> Optional[str]:
     return parts[1]
 
 
+def _unauthorized(error_code: str, message: str) -> HTTPException:
+    """构造统一的 401 认证异常。"""
+    return HTTPException(
+        status_code=401,
+        detail={
+            "error_code": error_code,
+            "message": message,
+        },
+    )
+
+
+async def validate_auth_token(
+    auth_store: "AuthStore",
+    token: Optional[str],
+) -> Optional["AuthToken"]:
+    """
+    统一 Bearer token 校验函数（供 HTTP / WebSocket 复用）。
+    """
+    if token is None or not token.strip():
+        return None
+    return await auth_store.validate_token(token.strip())
+
+
 async def verify_bearer_token(
     request: Request,
     authorization: Optional[str] = Header(None, alias="Authorization"),
@@ -275,81 +249,18 @@ async def verify_bearer_token(
     token = parse_bearer_token(authorization)
 
     if token is None:
-        raise HTTPException(
-            status_code=401,
-            detail={
-                "error_code": "TOKEN_MISSING",
-                "message": "Bearer token required. Please provide it in the 'Authorization' header.",
-            },
+        raise _unauthorized(
+            error_code="TOKEN_MISSING",
+            message="Bearer token required. Please provide it in the 'Authorization' header.",
         )
 
     auth_store = await get_auth_store(request)
-    auth_token = await auth_store.validate_token(token)
+    auth_token = await validate_auth_token(auth_store, token)
 
     if auth_token is None:
-        raise HTTPException(
-            status_code=401,
-            detail={
-                "error_code": "TOKEN_INVALID",
-                "message": "Invalid or expired token.",
-            },
+        raise _unauthorized(
+            error_code="TOKEN_INVALID",
+            message="Invalid or expired token.",
         )
 
     return auth_token
-
-
-# ============ 双通道鉴权 ============
-
-
-@dataclass
-class AuthContext:
-    """认证上下文"""
-
-    auth_type: Literal["api_key", "bearer", "none"]
-    user: Optional["AuthToken"] = None
-
-
-async def verify_api_key_or_bearer_token(
-    request: Request,
-    api_key: Optional[str] = Depends(api_key_header),
-    authorization: Optional[str] = Header(None, alias="Authorization"),
-) -> AuthContext:
-    """
-    双通道鉴权：API Key 或 Bearer Token 任意通过
-
-    优先级：
-    1. 如果未配置 API_KEY，直接通过（开发模式）
-    2. 如果提供了有效的 Bearer Token，通过
-    3. 如果提供了有效的 API Key，通过
-    4. 否则返回 401
-
-    Returns:
-        AuthContext 包含认证类型和用户信息
-
-    Raises:
-        HTTPException: 401 认证失败
-    """
-    # 开发模式：未配置 API_KEY 则跳过认证
-    if API_KEY is None:
-        return AuthContext(auth_type="none")
-
-    # 尝试 Bearer Token 认证
-    token = parse_bearer_token(authorization)
-    if token is not None:
-        auth_store = await get_auth_store(request)
-        auth_token = await auth_store.validate_token(token)
-        if auth_token is not None:
-            return AuthContext(auth_type="bearer", user=auth_token)
-
-    # 尝试 API Key 认证
-    if api_key is not None and api_key == API_KEY:
-        return AuthContext(auth_type="api_key")
-
-    # 都失败了，返回 401
-    raise HTTPException(
-        status_code=401,
-        detail={
-            "error_code": "UNAUTHORIZED",
-            "message": "Valid API Key or Bearer token required.",
-        },
-    )

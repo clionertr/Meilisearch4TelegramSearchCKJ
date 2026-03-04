@@ -145,12 +145,7 @@ SEARCH_CALLBACK_TOKEN_TTL_SEC = int(os.getenv("SEARCH_CALLBACK_TOKEN_TTL_SEC", C
 # 控制meilisearch中的消息的时间显示
 TIME_ZONE = os.getenv("TIME_ZONE", "Asia/Shanghai")
 
-## API 认证设置
-# API Key 用于保护 REST API 端点
-# 如果不设置，API 将不需要认证（不推荐在生产环境使用）
-API_KEY = os.getenv("API_KEY", None)
-# API Key 请求头名称
-API_KEY_HEADER = os.getenv("API_KEY_HEADER", "X-API-Key")
+## API 认证设置（Bearer-only）
 # Bearer Token 持久化文件路径（为空表示仅内存，不持久化）
 AUTH_TOKEN_STORE_FILE = os.getenv("AUTH_TOKEN_STORE_FILE", "session/auth_tokens.json")
 

@@ -14,7 +14,6 @@ Uses real MeiliSearch (no mocks) with isolated ConfigStore index per module.
 import os
 import time
 from contextlib import contextmanager
-from unittest import mock
 
 import pytest
 
@@ -65,19 +64,16 @@ def _cleanup_config_index(index_name: str) -> None:
 
 
 def _issue_bearer_header(client: TestClient) -> dict[str, str]:
-    """通过测试端点签发 Bearer token，并返回 Authorization header。"""
-    resp = client.post(
-        "/api/v1/auth/dev/issue-token",
-        json={
-            "user_id": 10001,
-            "phone_number": "+10000000001",
-            "username": "ai_config_test_user",
-        },
+    """通过 app 内 AuthStore 直接签发 Bearer token，并返回 Authorization header。"""
+    auth_store = client.app.state.app_state.auth_store
+    assert auth_store is not None
+    token_obj = client.portal.call(  # type: ignore[attr-defined]
+        auth_store.issue_token,
+        10001,
+        "+10000000001",
+        "ai_config_test_user",
     )
-    assert resp.status_code == 200, f"issue token failed: {resp.status_code} {resp.text}"
-    token = resp.json()["data"]["token"]
-    assert token
-    return {"Authorization": f"Bearer {token}"}
+    return {"Authorization": f"Bearer {token_obj.token}"}
 
 
 @contextmanager
@@ -88,16 +84,11 @@ def _isolated_ai_client(config_index_name: str):
     """
     from tg_search.config.config_store import ConfigStore
 
-    with (
-        mock.patch.dict(os.environ, {"ALLOW_TEST_TOKEN_ISSUE": "true"}),
-        mock.patch("tg_search.api.deps.API_KEY", None),
-        mock.patch("tg_search.config.settings.API_KEY", None),
-    ):
-        app = build_app()
-        with TestClient(app) as c:
-            meili_client = c.app.state.app_state.meili_client
-            c.app.state.app_state.config_store = ConfigStore(meili_client, index_name=config_index_name)
-            yield c
+    app = build_app()
+    with TestClient(app) as c:
+        meili_client = c.app.state.app_state.meili_client
+        c.app.state.app_state.config_store = ConfigStore(meili_client, index_name=config_index_name)
+        yield c
 
 
 # ============ Fixtures ============
@@ -107,16 +98,10 @@ def _isolated_ai_client(config_index_name: str):
 def client():
     """
     同步 TestClient，触发 FastAPI lifespan 以初始化 app_state。
-    AI Config 端点为 Bearer-only；此处将 API_KEY 置空，确保不会通过 API Key 绕过鉴权。
     """
-    with (
-        mock.patch.dict(os.environ, {"ALLOW_TEST_TOKEN_ISSUE": "true"}),
-        mock.patch("tg_search.api.deps.API_KEY", None),
-        mock.patch("tg_search.config.settings.API_KEY", None),
-    ):
-        app = build_app()
-        with TestClient(app) as c:
-            yield c
+    app = build_app()
+    with TestClient(app) as c:
+        yield c
 
 
 @pytest.fixture(scope="module")

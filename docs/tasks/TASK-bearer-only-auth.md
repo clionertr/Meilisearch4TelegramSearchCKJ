@@ -1,7 +1,7 @@
 # TASK: 仅 Bearer 认证改造（前后端）
 
 更新时间：2026-03-04  
-状态：`Draft / 待确认后实施`
+状态：`Confirmed / In Progress`
 
 ## 1. 信息来源与范围
 
@@ -27,7 +27,7 @@
 
 当前版本文档中标记为 `0.2.0`，服务层已收敛到 `ServiceContainer + SearchService + RuntimeControlService + ObservabilityService`。
 
-## 3. 当前认证状态与覆盖率
+## 3. 改造前认证状态与覆盖率（基线）
 
 ## 3.1 后端认证机制现状
 
@@ -173,17 +173,11 @@
 3. 更新 `.env.example` 与配置注释，标明 API Key 已废弃或移除。
 4. 更新 `webui-example/README.md` 的 WebSocket 认证说明（如有变化）。
 
-## 7. 待确认决策（请你拍板）
+## 7. 已确认决策
 
-1. `/api/v1/auth/dev/issue-token` 是否保留？
-   - 方案 A：保留，仅 `ALLOW_TEST_TOKEN_ISSUE=true` 时开放（不再依赖 API Key）。
-   - 方案 B：删除该端点，测试统一走真实登录或直接操作 `AuthStore`。
-2. WebSocket Bearer 传递方式是否继续 `query token`？
-   - 方案 A：保持 `?token=`（浏览器兼容性最好，改动最小）。
-   - 方案 B：改为其它方式（实现更复杂，前端兼容成本更高）。
-3. `token-login` 是否保留？
-   - 方案 A：保留（便于开发/恢复会话）。
-   - 方案 B：删除（更严格，但会影响现有 WebUI 登录分支）。
+1. `/api/v1/auth/dev/issue-token`：不保留，已删除。
+2. WebSocket Bearer 传递方式：采用方案 A，继续 `?token=`。
+3. `token-login`：不保留，已删除，并同步移除 WebUI token 直登逻辑。
 
 ## 8. 验收标准（完成编码后判定）
 
@@ -193,3 +187,20 @@
 4. 认证相关测试全部通过，且新增用例覆盖关键失败路径。
 5. 文档示例不再出现 `X-API-Key` 调用业务 API。
 
+## 9. 实施笔记（2026-03-04）
+
+1. 已删除后端端点：
+   - `POST /api/v1/auth/token-login`
+   - `POST /api/v1/auth/dev/issue-token`
+2. 鉴权依赖已收敛为 Bearer-only：
+   - 删除 `verify_api_key` 与 `verify_api_key_or_bearer_token`
+   - `/search` `/status` `/config` `/client` `/storage` 全部切换为 `verify_bearer_token`
+3. WebSocket 保持 query token 方案：
+   - `/api/v1/ws/status?token=<bearer_token>`
+   - 不再受 `API_KEY` 配置开关影响，始终校验 token
+4. WebUI 已移除 token 直登逻辑：
+   - 登录页仅保留手机号验证码流程
+   - 前端仍统一通过 `Authorization: Bearer <token>` 注入认证头
+5. 测试迁移：
+   - 原 `X-API-Key` 认证路径已改为 Bearer（通过 `AuthStore.issue_token` 发放测试 token）
+   - 集成测试运行器 `tests/integration/run.py` 不再自动签发测试 token，需显式提供 `TEST_BEARER_TOKEN`

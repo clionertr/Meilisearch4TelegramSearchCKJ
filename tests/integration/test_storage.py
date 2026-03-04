@@ -3,7 +3,6 @@
 import os
 import time
 from contextlib import contextmanager
-from unittest import mock
 
 import pytest
 
@@ -28,10 +27,6 @@ from tg_search.api.app import build_app  # noqa: E402
 _MEILI_HOST = os.environ.get("MEILI_HOST", "http://localhost:7700")
 _MEILI_KEY = os.environ.get("MEILI_MASTER_KEY", "")
 
-# 测试用 API Key（仅在 fixture 中通过 mock.patch 注入，不修改全局状态）
-_TEST_API_KEY = "test-storage-api-key-for-auth"
-_AUTH_HEADER = {"X-API-Key": _TEST_API_KEY}
-
 
 pytestmark = [pytest.mark.integration, pytest.mark.meili]
 _MEILI_SKIP_REASON = check_meili_available(_MEILI_HOST, _MEILI_KEY, require_auth=True)
@@ -53,6 +48,19 @@ def _cleanup_config_index(index_name: str) -> None:
         pass
 
 
+def _issue_bearer_header(client: TestClient, *, user_id: int = 20001) -> dict[str, str]:
+    """通过 app 内 AuthStore 直接签发测试 Bearer token。"""
+    auth_store = client.app.state.app_state.auth_store
+    assert auth_store is not None
+    token_obj = client.portal.call(  # type: ignore[attr-defined]
+        auth_store.issue_token,
+        user_id,
+        f"+100000{user_id:05d}",
+        f"storage_test_{user_id}",
+    )
+    return {"Authorization": f"Bearer {token_obj.token}"}
+
+
 @contextmanager
 def _isolated_storage_client(config_index_name: str):
     """
@@ -61,15 +69,11 @@ def _isolated_storage_client(config_index_name: str):
     """
     from tg_search.config.config_store import ConfigStore
 
-    with (
-        mock.patch("tg_search.api.deps.API_KEY", _TEST_API_KEY),
-        mock.patch("tg_search.config.settings.API_KEY", _TEST_API_KEY),
-    ):
-        app = build_app()
-        with TestClient(app) as c:
-            meili_client = c.app.state.app_state.meili_client
-            c.app.state.app_state.config_store = ConfigStore(meili_client, index_name=config_index_name)
-            yield c
+    app = build_app()
+    with TestClient(app) as c:
+        meili_client = c.app.state.app_state.meili_client
+        c.app.state.app_state.config_store = ConfigStore(meili_client, index_name=config_index_name)
+        yield c
 
 
 # ============ Fixtures ============
@@ -79,15 +83,15 @@ def _isolated_storage_client(config_index_name: str):
 def client():
     """
     同步 TestClient，触发 FastAPI lifespan 以初始化 app_state。
-    通过 mock.patch 注入 API_KEY，仅在本模块 TestClient 生命周期内生效。
     """
-    with (
-        mock.patch("tg_search.api.deps.API_KEY", _TEST_API_KEY),
-        mock.patch("tg_search.config.settings.API_KEY", _TEST_API_KEY),
-    ):
-        app = build_app()
-        with TestClient(app) as c:
-            yield c
+    app = build_app()
+    with TestClient(app) as c:
+        yield c
+
+
+@pytest.fixture(scope="module")
+def auth_header(client: TestClient) -> dict[str, str]:
+    return _issue_bearer_header(client)
 
 
 # ============ 401 未授权测试 ============
@@ -125,9 +129,9 @@ class TestStorageAuth:
 class TestGetStorageStats:
     """验收标准 AC-2, AC-3: 存储统计"""
 
-    def test_returns_200_with_stats(self, client: TestClient):
+    def test_returns_200_with_stats(self, client: TestClient, auth_header: dict[str, str]):
         """GET /storage/stats 返回 200 且包含必要字段"""
-        resp = client.get("/api/v1/storage/stats", headers=_AUTH_HEADER)
+        resp = client.get("/api/v1/storage/stats", headers=auth_header)
         assert resp.status_code == 200
 
         body = resp.json()
@@ -141,33 +145,33 @@ class TestGetStorageStats:
         assert "cache_supported" in data
         assert "notes" in data
 
-    def test_media_supported_is_false(self, client: TestClient):
+    def test_media_supported_is_false(self, client: TestClient, auth_header: dict[str, str]):
         """AC-3: media_supported=false, media_bytes=null"""
-        resp = client.get("/api/v1/storage/stats", headers=_AUTH_HEADER)
+        resp = client.get("/api/v1/storage/stats", headers=auth_header)
         data = resp.json()["data"]
 
         assert data["media_supported"] is False
         assert data["media_bytes"] is None
 
-    def test_index_bytes_is_present(self, client: TestClient):
+    def test_index_bytes_is_present(self, client: TestClient, auth_header: dict[str, str]):
         """AC-2: index_bytes 来自 MeiliSearch databaseSize"""
-        resp = client.get("/api/v1/storage/stats", headers=_AUTH_HEADER)
+        resp = client.get("/api/v1/storage/stats", headers=auth_header)
         data = resp.json()["data"]
 
         assert data["index_bytes"] is not None
         assert isinstance(data["index_bytes"], int)
         assert data["index_bytes"] >= 0
 
-    def test_total_bytes_equals_index_bytes(self, client: TestClient):
+    def test_total_bytes_equals_index_bytes(self, client: TestClient, auth_header: dict[str, str]):
         """当前版本 total_bytes 应等于 index_bytes（无其他存储来源）"""
-        resp = client.get("/api/v1/storage/stats", headers=_AUTH_HEADER)
+        resp = client.get("/api/v1/storage/stats", headers=auth_header)
         data = resp.json()["data"]
 
         assert data["total_bytes"] == data["index_bytes"]
 
-    def test_notes_contains_media_disabled_message(self, client: TestClient):
+    def test_notes_contains_media_disabled_message(self, client: TestClient, auth_header: dict[str, str]):
         """notes 应包含媒体存储禁用说明"""
-        resp = client.get("/api/v1/storage/stats", headers=_AUTH_HEADER)
+        resp = client.get("/api/v1/storage/stats", headers=auth_header)
         data = resp.json()["data"]
 
         assert isinstance(data["notes"], list)
@@ -182,11 +186,11 @@ class TestGetStorageStats:
 class TestPatchAutoClean:
     """验收标准 AC-4: auto-clean 配置持久化"""
 
-    def test_returns_200_with_config(self, client: TestClient):
+    def test_returns_200_with_config(self, client: TestClient, auth_header: dict[str, str]):
         """PATCH /storage/auto-clean 返回 200 且包含配置"""
         resp = client.patch(
             "/api/v1/storage/auto-clean",
-            headers=_AUTH_HEADER,
+            headers=auth_header,
             json={"enabled": True, "media_retention_days": 14},
         )
         assert resp.status_code == 200
@@ -198,11 +202,11 @@ class TestPatchAutoClean:
         assert data["enabled"] is True
         assert data["media_retention_days"] == 14
 
-    def test_config_persisted(self, client: TestClient):
+    def test_config_persisted(self, client: TestClient, auth_header: dict[str, str]):
         """配置修改后应持久化，再次查询应反映新值"""
         client.patch(
             "/api/v1/storage/auto-clean",
-            headers=_AUTH_HEADER,
+            headers=auth_header,
             json={"enabled": True, "media_retention_days": 7},
         )
 
@@ -210,7 +214,7 @@ class TestPatchAutoClean:
 
         resp = client.patch(
             "/api/v1/storage/auto-clean",
-            headers=_AUTH_HEADER,
+            headers=auth_header,
             json={"enabled": False, "media_retention_days": 30},
         )
         assert resp.status_code == 200
@@ -218,11 +222,11 @@ class TestPatchAutoClean:
         assert data["enabled"] is False
         assert data["media_retention_days"] == 30
 
-    def test_default_media_retention_days(self, client: TestClient):
+    def test_default_media_retention_days(self, client: TestClient, auth_header: dict[str, str]):
         """仅传 enabled 时，media_retention_days 使用默认值 30"""
         resp = client.patch(
             "/api/v1/storage/auto-clean",
-            headers=_AUTH_HEADER,
+            headers=auth_header,
             json={"enabled": True},
         )
         assert resp.status_code == 200
@@ -235,9 +239,10 @@ class TestPatchAutoClean:
 
         try:
             with _isolated_storage_client(index_name) as c1:
+                auth_header_c1 = _issue_bearer_header(c1, user_id=20011)
                 r1 = c1.patch(
                     "/api/v1/storage/auto-clean",
-                    headers=_AUTH_HEADER,
+                    headers=auth_header_c1,
                     json={"enabled": True, "media_retention_days": 9},
                 )
                 assert r1.status_code == 200
@@ -247,7 +252,8 @@ class TestPatchAutoClean:
 
             # 模拟“重启”后使用新 app 实例读取同一 ConfigStore 索引
             with _isolated_storage_client(index_name) as c2:
-                r_stats = c2.get("/api/v1/storage/stats", headers=_AUTH_HEADER)
+                auth_header_c2 = _issue_bearer_header(c2, user_id=20012)
+                r_stats = c2.get("/api/v1/storage/stats", headers=auth_header_c2)
                 assert r_stats.status_code == 200
 
                 persisted = c2.app.state.app_state.config_store.load_config(refresh=True)
@@ -264,9 +270,9 @@ class TestPatchAutoClean:
 class TestCleanupCache:
     """验收标准 AC-5: 缓存清理"""
 
-    def test_returns_200_with_targets(self, client: TestClient):
+    def test_returns_200_with_targets(self, client: TestClient, auth_header: dict[str, str]):
         """POST /storage/cleanup/cache 返回 200 且包含 targets_cleared"""
-        resp = client.post("/api/v1/storage/cleanup/cache", headers=_AUTH_HEADER)
+        resp = client.post("/api/v1/storage/cleanup/cache", headers=auth_header)
         assert resp.status_code == 200
 
         body = resp.json()
@@ -277,9 +283,9 @@ class TestCleanupCache:
         assert isinstance(data["targets_cleared"], list)
         assert "freed_bytes" in data
 
-    def test_targets_include_known_caches(self, client: TestClient):
+    def test_targets_include_known_caches(self, client: TestClient, auth_header: dict[str, str]):
         """targets_cleared 应包含已知缓存项"""
-        resp = client.post("/api/v1/storage/cleanup/cache", headers=_AUTH_HEADER)
+        resp = client.post("/api/v1/storage/cleanup/cache", headers=auth_header)
         data = resp.json()["data"]
 
         targets = data["targets_cleared"]
@@ -287,9 +293,9 @@ class TestCleanupCache:
         assert "dialogs_cache" in targets
         assert "config_cache" in targets
 
-    def test_freed_bytes_is_null(self, client: TestClient):
+    def test_freed_bytes_is_null(self, client: TestClient, auth_header: dict[str, str]):
         """当前版本 freed_bytes 固定为 null"""
-        resp = client.post("/api/v1/storage/cleanup/cache", headers=_AUTH_HEADER)
+        resp = client.post("/api/v1/storage/cleanup/cache", headers=auth_header)
         data = resp.json()["data"]
 
         assert data["freed_bytes"] is None
@@ -302,9 +308,9 @@ class TestCleanupCache:
 class TestCleanupMedia:
     """验收标准 AC-6: 媒体清理 (当前版本 not_applicable)"""
 
-    def test_returns_200_not_applicable(self, client: TestClient):
+    def test_returns_200_not_applicable(self, client: TestClient, auth_header: dict[str, str]):
         """POST /storage/cleanup/media 返回 200 且 not_applicable=true"""
-        resp = client.post("/api/v1/storage/cleanup/media", headers=_AUTH_HEADER)
+        resp = client.post("/api/v1/storage/cleanup/media", headers=auth_header)
         assert resp.status_code == 200
 
         body = resp.json()

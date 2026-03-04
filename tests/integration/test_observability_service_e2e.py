@@ -6,7 +6,6 @@ import os
 import re
 import sys
 from pathlib import Path
-from unittest import mock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -59,14 +58,20 @@ class _FakeBotEvent:
 
 @pytest.fixture
 def client() -> TestClient:
-    """Real-lifespan TestClient with auth disabled for route/WebSocket assertions."""
-    with (
-        mock.patch("tg_search.api.deps.API_KEY", None),
-        mock.patch("tg_search.config.settings.API_KEY", None),
-    ):
-        app = build_app()
-        with TestClient(app, raise_server_exceptions=False) as c:
-            yield c
+    """Real-lifespan TestClient with a valid Bearer token for protected routes."""
+    app = build_app()
+    with TestClient(app, raise_server_exceptions=False) as c:
+        auth_store = c.app.state.app_state.auth_store
+        assert auth_store is not None
+        token_obj = c.portal.call(  # type: ignore[attr-defined]
+            auth_store.issue_token,
+            18001,
+            "+10000018001",
+            "obs_e2e_user",
+        )
+        c.headers["Authorization"] = f"Bearer {token_obj.token}"
+        c._ws_token = token_obj.token  # type: ignore[attr-defined]
+        yield c
 
 
 def _build_bot_handler_from_app_state(client: TestClient, monkeypatch: pytest.MonkeyPatch):
@@ -147,8 +152,9 @@ class TestObservabilityServiceE2E:
         """AC-3: /status/progress 的 active_count 与 WebSocket progress 事件一致。"""
         app_state = client.app.state.app_state
         dialog_id = 778899001
+        ws_token = getattr(client, "_ws_token")
 
-        with client.websocket_connect("/api/v1/ws/status") as ws:
+        with client.websocket_connect(f"/api/v1/ws/status?token={ws_token}") as ws:
             connected = ws.receive_json()
             assert connected["type"] == "connected"
 

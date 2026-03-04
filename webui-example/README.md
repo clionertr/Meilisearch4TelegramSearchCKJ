@@ -4,7 +4,7 @@ Telegram 消息搜索与运维管理前端，基于 React 19 + TypeScript + Vite
 
 ## 功能范围
 
-- Bearer Token 登录（手机号验证码流程 / token 直登）
+- Bearer Token 登录（手机号验证码流程）
 - 消息搜索（高亮、分页/无限滚动）
 - 会话同步管理（available/synced/sync-state）
 - 存储统计与缓存清理
@@ -52,7 +52,7 @@ npm run dev
 ### 1) 登录
 
 - 打开 `/login`
-- 选择 `Phone` 或 `Token` 模式
+- 输入手机号并完成验证码（含可选 2FA 密码）
 - 登录成功后自动进入 `/dashboard`
 
 ### 2) 搜索

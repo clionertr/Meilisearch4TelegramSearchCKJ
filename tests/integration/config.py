@@ -20,7 +20,7 @@ TEST_GROUPS_FILE = INTEGRATION_DIR / ".test_groups.json"
 TEST_API_BASE_URL = os.getenv("TEST_API_BASE_URL", "http://localhost:8000")
 TEST_MEILI_HOST = os.getenv("TEST_MEILI_HOST") or os.getenv("MEILI_HOST", "http://localhost:7700")
 TEST_MEILI_KEY = os.getenv("TEST_MEILI_KEY") or os.getenv("MEILI_MASTER_KEY", "")
-TEST_API_KEY = os.getenv("TEST_API_KEY") or os.getenv("API_KEY")  # None means no auth
+TEST_BEARER_TOKEN = os.getenv("TEST_BEARER_TOKEN", "").strip()
 
 # 测试群组前缀
 TEST_GROUP_PREFIX = os.getenv("TEST_GROUP_PREFIX", "__test_integ_")
