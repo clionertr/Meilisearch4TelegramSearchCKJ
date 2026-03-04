@@ -47,8 +47,9 @@ api.interceptors.request.use((config) => {
   (config.headers as Record<string, string>)[REQUEST_ID_HEADER] = metadata.requestId;
 
   const token = useAuthStore.getState().token;
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  const authHeaderMap = config.headers as Record<string, string | undefined>;
+  if (token && !authHeaderMap.Authorization && !authHeaderMap.authorization) {
+    authHeaderMap.Authorization = `Bearer ${token}`;
   }
 
   telemetry.apiStart({

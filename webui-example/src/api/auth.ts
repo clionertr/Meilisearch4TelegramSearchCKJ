@@ -36,5 +36,8 @@ export const authApi = {
   sendCode: (data: SendCodeRequest) => api.post<{ data: SendCodeResponse }>('/auth/send-code', data),
   signIn: (data: SignInRequest) => api.post<{ data: SignInResponse }>('/auth/signin', data),
   me: () => api.get<{ data: { user: UserInfo, token_expires_at: string } }>('/auth/me'),
+  meWithToken: (token: string) => api.get<{ data: { user: UserInfo, token_expires_at: string } }>('/auth/me', {
+    headers: { Authorization: `Bearer ${token}` },
+  }),
   logout: () => api.post<{ data: { revoked: boolean } }>('/auth/logout'),
 };
