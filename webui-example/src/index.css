@@ -21,6 +21,13 @@
     --font-family-display: 'Inter', sans-serif;
 }
 
+html,
+body,
+#root {
+    width: 100%;
+    overflow-x: hidden;
+}
+
 body {
     background-color: var(--color-background-light);
     color: #0f172a;

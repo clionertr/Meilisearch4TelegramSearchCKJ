@@ -23,7 +23,7 @@ export function PageTransition({ children }: PropsWithChildren) {
             variants={variants}
             initial="enter" animate="center" exit="exit"
             transition={{ duration: 0.2 }}
-            className="w-full min-h-screen"
+            className="w-full"
         >
             <Suspense fallback={<PageSkeleton />}>
                 {children}
